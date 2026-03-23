@@ -12,20 +12,20 @@ The hyperframes monorepo (5 packages: cli, core, engine, producer, studio, ~261 
 
 Instead of the traditional ESLint + Prettier + Husky stack, we use the oxc toolchain for speed and simplicity:
 
-| Concern | Tool | Replaces |
-|---------|------|----------|
-| Linting | oxlint | ESLint |
-| Formatting | oxfmt (beta) | Prettier |
-| Commit messages | commitlint + @commitlint/config-conventional | — |
-| Git hooks | lefthook | husky + lint-staged |
-| Unused code detection | knip | — |
-| Editor consistency | .editorconfig | — |
+| Concern               | Tool                                         | Replaces            |
+| --------------------- | -------------------------------------------- | ------------------- |
+| Linting               | oxlint                                       | ESLint              |
+| Formatting            | oxfmt (beta)                                 | Prettier            |
+| Commit messages       | commitlint + @commitlint/config-conventional | —                   |
+| Git hooks             | lefthook                                     | husky + lint-staged |
+| Unused code detection | knip                                         | —                   |
+| Editor consistency    | .editorconfig                                | —                   |
 
 ### Why oxlint + oxfmt over ESLint + Prettier
 
 - ~30x faster formatting, significantly faster linting
 - oxfmt includes import sorting and Tailwind class sorting with no plugins
-- >95% Prettier output compatibility
+- > 95% Prettier output compatibility
 - Same compiler infrastructure (oxc) for both tools
 - oxfmt is beta but used in production by Vue, Turborepo, Sentry
 
@@ -48,6 +48,7 @@ Per-package overrides can be added later via oxlint's `overrides` field if neede
 ### `.oxlintrc.json`
 
 oxlint configuration at monorepo root:
+
 - `recommended` category enabled (covers correctness + typescript rules)
 - React plugin enabled (for studio's JSX/TSX files)
 - Nursery category excluded (not production-ready: false positives, no semver guarantees)
@@ -58,6 +59,7 @@ oxlint configuration at monorepo root:
 ### `.oxfmtrc.json`
 
 oxfmt configuration matching existing code style:
+
 - Double quotes
 - Semicolons
 - 2-space indentation
@@ -150,6 +152,7 @@ lint-and-format:
 ## CONTRIBUTING.md Update
 
 Update CONTRIBUTING.md to document:
+
 - New `pnpm lint`, `pnpm format`, `pnpm format:check` scripts
 - lefthook git hooks are installed automatically via `pnpm install`
 - Every commit (not just PR titles) must follow conventional commit format
@@ -161,6 +164,7 @@ A single commit runs `oxfmt .` across all source files to establish the formatte
 ## Verification
 
 After setup, both commands must exit with zero errors:
+
 - `pnpm lint`
 - `pnpm format:check`
 

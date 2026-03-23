@@ -16,17 +16,17 @@
 
 ## File Map
 
-| Action | File | Purpose |
-|--------|------|---------|
-| Create | `.oxlintrc.json` | oxlint config — recommended rules, React plugin, ignore patterns |
-| Create | `.oxfmtrc.json` | oxfmt config — double quotes, semicolons, 2-space indent |
-| Create | `commitlint.config.js` | commitlint extending conventional config |
-| Create | `lefthook.yml` | Git hooks — pre-commit (lint+format) and commit-msg (commitlint) |
-| Create | `.editorconfig` | Editor settings — indent, charset, line endings |
-| Create | `knip.config.ts` | Unused code detection scoped to 5 packages |
-| Modify | `package.json` | Add devDeps, scripts (lint, format, knip, prepare) |
-| Modify | `.github/workflows/ci.yml` | Add lint-and-format job |
-| Modify | `CONTRIBUTING.md` | Document new tooling and commit conventions |
+| Action | File                       | Purpose                                                          |
+| ------ | -------------------------- | ---------------------------------------------------------------- |
+| Create | `.oxlintrc.json`           | oxlint config — recommended rules, React plugin, ignore patterns |
+| Create | `.oxfmtrc.json`            | oxfmt config — double quotes, semicolons, 2-space indent         |
+| Create | `commitlint.config.js`     | commitlint extending conventional config                         |
+| Create | `lefthook.yml`             | Git hooks — pre-commit (lint+format) and commit-msg (commitlint) |
+| Create | `.editorconfig`            | Editor settings — indent, charset, line endings                  |
+| Create | `knip.config.ts`           | Unused code detection scoped to 5 packages                       |
+| Modify | `package.json`             | Add devDeps, scripts (lint, format, knip, prepare)               |
+| Modify | `.github/workflows/ci.yml` | Add lint-and-format job                                          |
+| Modify | `CONTRIBUTING.md`          | Document new tooling and commit conventions                      |
 
 ---
 
@@ -37,6 +37,7 @@
 ## Task 1: Install dependencies
 
 **Files:**
+
 - Modify: `package.json`
 
 - [ ] **Step 1: Install all dev dependencies**
@@ -103,6 +104,7 @@ VA-851"
 ## Task 2: Create oxlint config
 
 **Files:**
+
 - Create: `.oxlintrc.json`
 
 - [ ] **Step 1: Create `.oxlintrc.json` at monorepo root**
@@ -140,6 +142,7 @@ VA-851"
 ## Task 3: Create oxfmt config
 
 **Files:**
+
 - Create: `.oxfmtrc.json`
 
 - [ ] **Step 1: Create `.oxfmtrc.json` at monorepo root**
@@ -179,6 +182,7 @@ VA-851"
 ## Task 4: Create commitlint config
 
 **Files:**
+
 - Create: `commitlint.config.js`
 
 - [ ] **Step 1: Create `commitlint.config.js` at monorepo root**
@@ -219,6 +223,7 @@ VA-851"
 ## Task 5: Create lefthook config
 
 **Files:**
+
 - Create: `lefthook.yml`
 
 - [ ] **Step 1: Create `lefthook.yml` at monorepo root**
@@ -273,6 +278,7 @@ VA-851"
 ## Task 6: Create editorconfig and knip config
 
 **Files:**
+
 - Create: `.editorconfig`
 - Create: `knip.config.ts`
 
@@ -342,6 +348,7 @@ VA-851"
 ## Task 7: Fix lint errors
 
 **Files:**
+
 - Modify: various source files as needed
 
 - [ ] **Step 1: Run lint and capture output**
@@ -351,6 +358,7 @@ pnpm lint 2>&1 | head -100
 ```
 
 Review the errors. Common categories:
+
 - Unused variables/imports → remove them
 - React-specific issues → fix or disable specific rules in `.oxlintrc.json` if they conflict with the codebase's patterns
 
@@ -406,6 +414,7 @@ VA-851"
 ## Task 8: Run baseline formatting
 
 **Files:**
+
 - Modify: all source files
 
 - [ ] **Step 1: Run oxfmt across the entire codebase**
@@ -446,6 +455,7 @@ VA-851"
 ## Task 9: Add CI lint-and-format job
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 
 - [ ] **Step 1: Add lint-and-format job to CI workflow**
@@ -453,22 +463,22 @@ VA-851"
 Add this job to `.github/workflows/ci.yml`. It runs independently (no `needs:` dependency on other jobs), matching the existing pattern where all jobs run in parallel:
 
 ```yaml
-  lint-and-format:
-    name: Lint & Format
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm format:check
+lint-and-format:
+  name: Lint & Format
+  runs-on: ubuntu-latest
+  timeout-minutes: 5
+  steps:
+    - uses: actions/checkout@v4
+    - uses: pnpm/action-setup@v4
+      with:
+        version: 10
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: pnpm
+    - run: pnpm install --frozen-lockfile
+    - run: pnpm lint
+    - run: pnpm format:check
 ```
 
 Note: Matches the existing CI job pattern (same pnpm version, node version, checkout action). Timeout is 5 minutes since lint+format should be fast.
@@ -487,13 +497,14 @@ VA-851"
 ## Task 10: Update CONTRIBUTING.md
 
 **Files:**
+
 - Modify: `CONTRIBUTING.md`
 
 - [ ] **Step 1: Add linting and formatting section**
 
 Add a new section after the "Running Tests" section and before "Pull Requests":
 
-```markdown
+````markdown
 ### Linting & Formatting
 
 ```bash
@@ -502,9 +513,11 @@ pnpm lint:fix        # Run oxlint with auto-fix
 pnpm format          # Format all files with oxfmt
 pnpm format:check    # Check formatting without writing
 ```
+````
 
 Git hooks (via [lefthook](https://github.com/evilmartians/lefthook)) run automatically after `pnpm install` and enforce linting + formatting on staged files before each commit.
-```
+
+````
 
 - [ ] **Step 2: Update the Pull Requests section**
 
@@ -512,7 +525,7 @@ Change the conventional commit line from:
 
 ```markdown
 - Use [conventional commit](https://www.conventionalcommits.org/) format for PR titles (e.g., `feat: add timeline export`, `fix: resolve seek overflow`)
-```
+````
 
 to:
 
@@ -524,7 +537,7 @@ to:
 
 Add `pnpm lint` and `pnpm format:check` to the existing development commands block:
 
-```markdown
+````markdown
 ```bash
 pnpm install        # Install all dependencies
 pnpm dev            # Run the studio (composition editor)
@@ -533,7 +546,9 @@ pnpm -r typecheck   # Type-check all packages
 pnpm lint           # Lint all packages
 pnpm format:check   # Check formatting
 ```
-```
+````
+
+````
 
 - [ ] **Step 4: Commit**
 
@@ -542,7 +557,7 @@ git add CONTRIBUTING.md
 git commit -m "docs: update CONTRIBUTING.md with linting, formatting, and commit conventions
 
 VA-851"
-```
+````
 
 ---
 
@@ -614,6 +629,7 @@ Review output. Do not fix anything — this is informational for future cleanup.
 - [ ] **Step 7: Confirm all verification passes, mark task complete**
 
 All of these must exit 0:
+
 - `pnpm lint`
 - `pnpm format:check`
 - `pnpm -r typecheck`
