@@ -15,7 +15,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "knip": "knip",
-    "prepare": "lefthook install"
+    "prepare": "test -d .git && lefthook install || true"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["lefthook"]
