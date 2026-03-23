@@ -1,5 +1,5 @@
 {
-  "name": "hyperframes",
+  "name": "hyperframes-monorepo",
   "private": true,
   "type": "module",
   "scripts": {
