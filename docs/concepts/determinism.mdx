@@ -56,6 +56,7 @@ npx hyperframes render --docker -o output.mp4
 ```
 
 Docker mode uses an exact Chrome version and font set, ensuring:
+
 - Same Chromium rendering engine across all platforms
 - Same system fonts (no platform-specific font substitution)
 - Same FFmpeg encoder version
@@ -71,7 +72,8 @@ The browser preview and the rendered MP4 should match. Hyperframes achieves this
 - **Readiness gates** -- `__playerReady` and `__renderReady` ensure the [composition](/concepts/compositions) is fully loaded before any frame is captured
 
 <Note>
-  Local rendering (without Docker) may show slight differences due to platform-specific font rendering and Chrome version. Use Docker mode when exact reproducibility matters.
+  Local rendering (without Docker) may show slight differences due to platform-specific font
+  rendering and Chrome version. Use Docker mode when exact reproducibility matters.
 </Note>
 
 ## For Adapter Authors

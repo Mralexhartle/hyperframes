@@ -12,19 +12,23 @@ npm install @hyperframes/producer
 ## When to Use
 
 **Use `@hyperframes/producer` when you need to:**
+
 - Render compositions to MP4 programmatically from Node.js (e.g., in a backend service or CI pipeline)
 - Build a custom rendering service with fine-grained control over the pipeline
 - Run visual regression tests against golden baselines
 - Benchmark render performance across different configurations
 
 **Use a different package if you want to:**
+
 - Render from the command line without writing code — use the [CLI](/packages/cli) (`npx hyperframes render`)
 - Preview compositions in the browser — use the [CLI](/packages/cli) or [studio](/packages/studio)
 - Capture frames without encoding — use the [engine](/packages/engine)
 - Lint or parse composition HTML — use [core](/packages/core)
 
 <Tip>
-  If you are building a web application or script that just needs to render a video, the [CLI](/packages/cli) is the fastest path. The producer package is for when you need programmatic control inside Node.js.
+  If you are building a web application or script that just needs to render a video, the
+  [CLI](/packages/cli) is the fastest path. The producer package is for when you need programmatic
+  control inside Node.js.
 </Tip>
 
 ## What It Does
@@ -39,47 +43,50 @@ The producer orchestrates the full render pipeline:
     Adds the runtime script that manages timeline seeking, clip lifecycle, and media playback.
   </Step>
   <Step title="Wait for readiness gates">
-    Polls for `window.__playerReady` and `window.__renderReady` to ensure all assets (fonts, images, video) are loaded before capture begins.
+    Polls for `window.__playerReady` and `window.__renderReady` to ensure all assets (fonts, images,
+    video) are loaded before capture begins.
   </Step>
   <Step title="Capture frames via the engine">
-    Uses the [engine's](/packages/engine) BeginFrame pipeline to capture each frame as a pixel buffer.
+    Uses the [engine's](/packages/engine) BeginFrame pipeline to capture each frame as a pixel
+    buffer.
   </Step>
   <Step title="Encode to MP4 via FFmpeg">
     Pipes frame buffers into FFmpeg with the selected quality preset and encoding settings.
   </Step>
   <Step title="Mix audio tracks">
-    Extracts audio from video clips and audio elements, applies `data-volume` and `data-media-start` offsets, and mixes them into the final MP4.
+    Extracts audio from video clips and audio elements, applies `data-volume` and `data-media-start`
+    offsets, and mixes them into the final MP4.
   </Step>
 </Steps>
 
 ## Programmatic Usage
 
 ```typescript
-import { render } from '@hyperframes/producer';
+import { render } from "@hyperframes/producer";
 
 const result = await render({
-  input: './my-video/index.html',
-  output: './output.mp4',
+  input: "./my-video/index.html",
+  output: "./output.mp4",
   fps: 30,
-  quality: 'standard',
+  quality: "standard",
 });
 
-console.log(result.duration);    // Total render time in ms
-console.log(result.frameCount);  // Number of frames captured
-console.log(result.outputPath);  // Absolute path to the output file
+console.log(result.duration); // Total render time in ms
+console.log(result.frameCount); // Number of frames captured
+console.log(result.outputPath); // Absolute path to the output file
 ```
 
 ### With All Options
 
 ```typescript
 await render({
-  input: './my-video/index.html',
-  output: './output.mp4',
+  input: "./my-video/index.html",
+  output: "./output.mp4",
   fps: 30,
   width: 1920,
   height: 1080,
-  quality: 'high',
-  docker: true,       // Use Docker for deterministic rendering
+  quality: "high",
+  docker: true, // Use Docker for deterministic rendering
 });
 ```
 
@@ -96,26 +103,28 @@ await render({ input: './index.html', output: './out.mp4', docker: true });
 ```
 
 <Info>
-  Docker mode requires Docker to be installed and running. Run `npx hyperframes doctor` to verify your environment. See [Deterministic Rendering](/concepts/determinism) for details on what makes Docker mode deterministic.
+  Docker mode requires Docker to be installed and running. Run `npx hyperframes doctor` to verify
+  your environment. See [Deterministic Rendering](/concepts/determinism) for details on what makes
+  Docker mode deterministic.
 </Info>
 
 ## Quality Presets
 
-| Preset | Resolution | Encoding | Use Case |
-|--------|-----------|----------|----------|
-| `draft` | Original | Fast CRF | Quick iteration, previewing edits |
-| `standard` | Original | Balanced CRF | Production renders, sharing |
-| `high` | Original | High-quality CRF | Final delivery, archival |
+| Preset     | Resolution | Encoding         | Use Case                          |
+| ---------- | ---------- | ---------------- | --------------------------------- |
+| `draft`    | Original   | Fast CRF         | Quick iteration, previewing edits |
+| `standard` | Original   | Balanced CRF     | Production renders, sharing       |
+| `high`     | Original   | High-quality CRF | Final delivery, archival          |
 
 ## GPU Encoding
 
 The producer supports hardware-accelerated encoding for faster renders:
 
-| Platform | Encoder | Flag |
-|----------|---------|------|
-| NVIDIA | NVENC | Auto-detected |
-| macOS | VideoToolbox | Auto-detected |
-| Linux | VAAPI | Auto-detected |
+| Platform | Encoder      | Flag          |
+| -------- | ------------ | ------------- |
+| NVIDIA   | NVENC        | Auto-detected |
+| macOS    | VideoToolbox | Auto-detected |
+| Linux    | VAAPI        | Auto-detected |
 
 GPU encoding is automatically used when available. To check your system's capabilities:
 

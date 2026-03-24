@@ -12,17 +12,21 @@ npm install @hyperframes/studio
 ## When to Use
 
 **Use `@hyperframes/studio` when you need to:**
+
 - Build a custom composition editor UI (e.g., embedded in your own web application)
 - Integrate the Hyperframes preview player into a larger product
 - Extend the editor with custom panels, toolbars, or integrations
 
 **Use a different package if you want to:**
+
 - Preview compositions during development — use the [CLI](/packages/cli) (`npx hyperframes dev`), which launches the studio for you
 - Render compositions to MP4 — use the [CLI](/packages/cli) or [producer](/packages/producer)
 - Capture frames programmatically — use the [engine](/packages/engine)
 
 <Tip>
-  **For most development workflows, you do not need to install the studio directly.** Running `npx hyperframes dev` starts the studio automatically with hot reload. Install `@hyperframes/studio` only if you are embedding the editor into your own application.
+  **For most development workflows, you do not need to install the studio directly.** Running `npx
+  hyperframes dev` starts the studio automatically with hot reload. Install `@hyperframes/studio`
+  only if you are embedding the editor into your own application.
 </Tip>
 
 ## Running the Studio
@@ -111,7 +115,8 @@ import { Player, Timeline } from '@hyperframes/studio';
 ```
 
 <Info>
-  The studio depends on `@hyperframes/core` for parsing and runtime injection. You do not need to install core separately — it is included as a dependency.
+  The studio depends on `@hyperframes/core` for parsing and runtime injection. You do not need to
+  install core separately — it is included as a dependency.
 </Info>
 
 ## Related Packages

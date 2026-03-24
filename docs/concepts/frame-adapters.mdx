@@ -10,7 +10,8 @@ The Frame Adapter pattern is how Hyperframes supports multiple animation runtime
 If a runtime can answer that, it can plug into Hyperframes.
 
 <Info>
-  The Adapter API is currently at **v0** (experimental). Breaking changes are possible until v1. The core contract (seek-by-frame, deterministic output) is stable, but method signatures may evolve.
+  The Adapter API is currently at **v0** (experimental). Breaking changes are possible until v1. The
+  core contract (seek-by-frame, deterministic output) is stable, but method signatures may evolve.
 </Info>
 
 ## How It Works
@@ -106,13 +107,13 @@ These rules are non-negotiable for any adapter. They are the foundation of Hyper
 
 First-party adapters:
 
-| Runtime | Seek Method | Status |
-|---------|------------|--------|
-| [GSAP](/guides/gsap-animation) | `timeline.seek(frame / fps)` | Available |
-| CSS/WAAPI | `animation.currentTime` | Planned |
-| Lottie | Set animation frame/progress | Planned |
-| Three.js/WebGL | Compute deterministic scene state | Planned |
-| SVG/Anime | Implement seek + duration contract | Planned |
+| Runtime                        | Seek Method                        | Status    |
+| ------------------------------ | ---------------------------------- | --------- |
+| [GSAP](/guides/gsap-animation) | `timeline.seek(frame / fps)`       | Available |
+| CSS/WAAPI                      | `animation.currentTime`            | Planned   |
+| Lottie                         | Set animation frame/progress       | Planned   |
+| Three.js/WebGL                 | Compute deterministic scene state  | Planned   |
+| SVG/Anime                      | Implement seek + duration contract | Planned   |
 
 Community adapters are welcome -- if it can seek by frame, it belongs in Hyperframes.
 

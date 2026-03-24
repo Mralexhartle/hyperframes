@@ -14,6 +14,7 @@ npx hyperframes <command>
 ## When to Use
 
 **Use the CLI when you want to:**
+
 - Create a new composition project from a template
 - Preview compositions with live hot reload during development
 - Render compositions to MP4 (locally or in Docker)
@@ -21,69 +22,40 @@ npx hyperframes <command>
 - Check your environment for missing dependencies
 
 **Use a different package if you want to:**
+
 - Render programmatically from Node.js code — use the [producer](/packages/producer)
 - Build a custom frame capture pipeline — use the [engine](/packages/engine)
 - Embed a composition editor in your own web app — use the [studio](/packages/studio)
 - Parse or generate composition HTML in code — use [core](/packages/core)
 
 <Tip>
-  The CLI is the recommended starting point for all Hyperframes users. It wraps the producer, engine, and studio packages so you do not need to install them separately.
+  The CLI is the recommended starting point for all Hyperframes users. It wraps the producer,
+  engine, and studio packages so you do not need to install them separately.
 </Tip>
 
 ## Getting Started
 
 <Steps>
   <Step title="Create a project">
-    Scaffold a new composition from a template:
-    ```bash
-    npx hyperframes init --template title-card
-    ```
-    ```
-    Creating composition in ./title-card...
-      index.html
-      assets/
-      package.json
-    Done! Run `cd title-card && npx hyperframes dev` to preview.
-    ```
-    See [Templates](/guides/templates) for all available templates.
+    Scaffold a new composition from a template: ```bash npx hyperframes init --template title-card
+    ``` ``` Creating composition in ./title-card... index.html assets/ package.json Done! Run `cd
+    title-card && npx hyperframes dev` to preview. ``` See [Templates](/guides/templates) for all
+    available templates.
   </Step>
   <Step title="Preview in browser">
-    Start the development server with live hot reload:
-    ```bash
-    cd title-card
-    npx hyperframes dev
-    ```
-    ```
-    Hyperframes Studio v0.1.0
-    Local: http://localhost:3000
-    Watching for changes...
-    ```
-    Edit `index.html` and the preview updates instantly.
+    Start the development server with live hot reload: ```bash cd title-card npx hyperframes dev ```
+    ``` Hyperframes Studio v0.1.0 Local: http://localhost:3000 Watching for changes... ``` Edit
+    `index.html` and the preview updates instantly.
   </Step>
   <Step title="Lint your composition">
-    Check for structural issues before rendering:
-    ```bash
-    npx hyperframes lint
-    ```
-    ```
-    Linting index.html...
-    No issues found.
-    ```
+    Check for structural issues before rendering: ```bash npx hyperframes lint ``` ``` Linting
+    index.html... No issues found. ```
   </Step>
   <Step title="Render to MP4">
-    Produce the final video:
-    ```bash
-    npx hyperframes render -o output.mp4
-    ```
-    ```
-    Rendering index.html...
-    [========================================] 100% (900/900 frames)
-    Output: output.mp4 (30s, 1920x1080, 30fps)
-    ```
-    For deterministic output, add `--docker`:
-    ```bash
-    npx hyperframes render --docker -o output.mp4
-    ```
+    Produce the final video: ```bash npx hyperframes render -o output.mp4 ``` ``` Rendering
+    index.html... [========================================] 100% (900/900 frames) Output:
+    output.mp4 (30s, 1920x1080, 30fps) ``` For deterministic output, add `--docker`: ```bash npx
+    hyperframes render --docker -o output.mp4 ```
   </Step>
 </Steps>
 
@@ -120,6 +92,7 @@ npx hyperframes <command>
       root          index.html           (30s, 1920x1080)
       intro-anim    compositions/intro.html  (5s, 1920x1080)
     ```
+
   </Tab>
   <Tab title="Develop">
     ### `dev`
@@ -155,6 +128,7 @@ npx hyperframes <command>
     ```
 
     The linter detects missing attributes, deprecated names, structural problems, and more. See [Common Mistakes](/guides/common-mistakes) for details on each rule.
+
   </Tab>
   <Tab title="Build">
     ### `render`
@@ -196,6 +170,7 @@ npx hyperframes <command>
 
     Recommended: quality=standard fps=30 (best speed/quality balance)
     ```
+
   </Tab>
   <Tab title="Utilities">
     ### `doctor`
@@ -245,6 +220,7 @@ npx hyperframes <command>
     Upgrading...
     Done! Run `npx hyperframes doctor` to verify.
     ```
+
   </Tab>
 </Tabs>
 

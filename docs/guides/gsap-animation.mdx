@@ -27,7 +27,9 @@ Include GSAP and create a paused timeline:
 ```
 
 <Note>
-  The key you use in `window.__timelines` must match the `data-composition-id` attribute on your composition's root element. See [Compositions](/concepts/compositions) for how the root element is structured.
+  The key you use in `window.__timelines` must match the `data-composition-id` attribute on your
+  composition's root element. See [Compositions](/concepts/compositions) for how the root element is
+  structured.
 </Note>
 
 ## Key Rules
@@ -39,12 +41,12 @@ Include GSAP and create a paused timeline:
 
 ## Supported Methods
 
-| Method | Description |
-|--------|-------------|
-| `tl.to(target, vars, position)` | Animate to values |
-| `tl.from(target, vars, position)` | Animate from values |
+| Method                                          | Description            |
+| ----------------------------------------------- | ---------------------- |
+| `tl.to(target, vars, position)`                 | Animate to values      |
+| `tl.from(target, vars, position)`               | Animate from values    |
 | `tl.fromTo(target, fromVars, toVars, position)` | Animate from/to values |
-| `tl.set(target, vars, position)` | Set values instantly |
+| `tl.set(target, vars, position)`                | Set values instantly   |
 
 ## Supported Properties
 
@@ -73,7 +75,9 @@ tl.set({}, {}, 283);
 ```
 
 <Warning>
-  This is one of the most common mistakes in Hyperframes. If your video cuts off early, the timeline is too short. See [Common Mistakes: Composition Duration Shorter Than Video](/guides/common-mistakes) for more details.
+  This is one of the most common mistakes in Hyperframes. If your video cuts off early, the timeline
+  is too short. See [Common Mistakes: Composition Duration Shorter Than
+  Video](/guides/common-mistakes) for more details.
 </Warning>
 
 ## What NOT to Do

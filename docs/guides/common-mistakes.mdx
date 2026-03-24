@@ -6,7 +6,9 @@ description: "Pitfalls that break Hyperframes compositions."
 These are mistakes that cannot be caught by the linter. For automated checks, run `npx hyperframes lint` (see [CLI](/packages/cli#lint)).
 
 <Warning>
-  The first two mistakes — animating video element dimensions and controlling media playback in scripts — are the most common causes of broken compositions. If your video looks wrong, check these first.
+  The first two mistakes — animating video element dimensions and controlling media playback in
+  scripts — are the most common causes of broken compositions. If your video looks wrong, check
+  these first.
 </Warning>
 
 <AccordionGroup>
@@ -38,6 +40,7 @@ These are mistakes that cannot be caught by the linter. For automated checks, ru
     ```
 
     Use a non-timed wrapper `<div>` for visual effects like picture-in-picture. Animate the wrapper; let the video fill it via CSS.
+
   </Accordion>
 
   <Accordion title="Controlling media playback in scripts">
@@ -62,6 +65,7 @@ These are mistakes that cannot be caught by the linter. For automated checks, ru
     ```
 
     The framework reads [`data-start`](/concepts/data-attributes#timing-attributes), [`data-media-start`](/concepts/data-attributes#media-attributes), and [`data-volume`](/concepts/data-attributes#media-attributes) to control when and how media plays. See [Compositions: Two Layers](/concepts/compositions#two-layers-primitives-and-scripts) for the separation between HTML primitives and scripts.
+
   </Accordion>
 
   <Accordion title="Composition duration shorter than video">
@@ -90,6 +94,7 @@ These are mistakes that cannot be caught by the linter. For automated checks, ru
     <Tip>
       A quick check: run `npx hyperframes compositions` to see the resolved duration of each composition. If it is shorter than expected, your timeline needs extending.
     </Tip>
+
   </Accordion>
 
   <Accordion title="Missing class='clip' on timed elements">
@@ -118,6 +123,7 @@ These are mistakes that cannot be caught by the linter. For automated checks, ru
     <Note>
       The linter catches this one: `npx hyperframes lint` will flag timed elements missing `class="clip"`.
     </Note>
+
   </Accordion>
 
   <Accordion title="Timeline key doesn't match data-composition-id">
@@ -140,6 +146,7 @@ These are mistakes that cannot be caught by the linter. For automated checks, ru
     // <div data-composition-id="my-video" ...>
     window.__timelines["my-video"] = tl;
     ```
+
   </Accordion>
 </AccordionGroup>
 

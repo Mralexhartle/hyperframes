@@ -12,10 +12,13 @@ npm install @hyperframes/core
 ## When to Use
 
 <Tip>
-  **Most users do not need to install `@hyperframes/core` directly.** The [CLI](/packages/cli), [producer](/packages/producer), and [studio](/packages/studio) packages all depend on core internally. You only need it if you are doing one of the things listed below.
+  **Most users do not need to install `@hyperframes/core` directly.** The [CLI](/packages/cli),
+  [producer](/packages/producer), and [studio](/packages/studio) packages all depend on core
+  internally. You only need it if you are doing one of the things listed below.
 </Tip>
 
 **Use `@hyperframes/core` when you need to:**
+
 - Lint compositions programmatically (CI pipelines, editor plugins)
 - Parse HTML compositions into structured TypeScript objects
 - Generate composition HTML from data (e.g., from an API or AI agent)
@@ -23,28 +26,29 @@ npm install @hyperframes/core
 - Embed the Hyperframes runtime in a custom player
 
 **Use a different package if you want to:**
+
 - Preview compositions in the browser — use the [CLI](/packages/cli) (`npx hyperframes dev`) or [studio](/packages/studio)
 - Render compositions to MP4 — use the [CLI](/packages/cli) (`npx hyperframes render`) or [producer](/packages/producer)
 - Capture frames from a headless browser — use the [engine](/packages/engine)
 
 ## What's Inside
 
-| Module | Description |
-|--------|-------------|
-| `core.types` | TypeScript types for compositions, clips, timelines, and render config |
-| `parsers/` | HTML-to-composition parsing — turns an HTML string into a typed `Composition` object |
-| `generators/` | Composition-to-HTML generation — turns a `Composition` object back into HTML |
-| `runtime/` | The Hyperframes runtime that manages playback, seeking, and clip lifecycle |
-| `lint/` | Composition linter with rules for structural correctness |
-| `adapters/` | Frame Adapter types and the built-in GSAP adapter |
-| `templates/` | HTML composition templates used by `hyperframes init` |
+| Module        | Description                                                                          |
+| ------------- | ------------------------------------------------------------------------------------ |
+| `core.types`  | TypeScript types for compositions, clips, timelines, and render config               |
+| `parsers/`    | HTML-to-composition parsing — turns an HTML string into a typed `Composition` object |
+| `generators/` | Composition-to-HTML generation — turns a `Composition` object back into HTML         |
+| `runtime/`    | The Hyperframes runtime that manages playback, seeking, and clip lifecycle           |
+| `lint/`       | Composition linter with rules for structural correctness                             |
+| `adapters/`   | Frame Adapter types and the built-in GSAP adapter                                    |
+| `templates/`  | HTML composition templates used by `hyperframes init`                                |
 
 ## Linter
 
 The composition linter checks for structural issues that would cause rendering failures or unexpected behavior. You can run it from the CLI with `npx hyperframes lint`, or call it programmatically:
 
 ```typescript
-import { lintHyperframeHtml } from '@hyperframes/core';
+import { lintHyperframeHtml } from "@hyperframes/core";
 
 const html = `
 <div id="root" data-composition-id="root"
@@ -68,7 +72,8 @@ Detected issues include:
 - Invalid `data-start` references to nonexistent clip IDs
 
 <Info>
-  For a full list of what the linter catches and how to fix each issue, see [Common Mistakes](/guides/common-mistakes) and [Troubleshooting](/guides/troubleshooting).
+  For a full list of what the linter catches and how to fix each issue, see [Common
+  Mistakes](/guides/common-mistakes) and [Troubleshooting](/guides/troubleshooting).
 </Info>
 
 ## Types
@@ -76,19 +81,14 @@ Detected issues include:
 Import the core types for use in your own tooling or integrations:
 
 ```typescript
-import type {
-  Composition,
-  Clip,
-  RenderConfig,
-  FrameAdapterContext,
-} from '@hyperframes/core';
+import type { Composition, Clip, RenderConfig, FrameAdapterContext } from "@hyperframes/core";
 
 // Example: define a render configuration
 const config: RenderConfig = {
   fps: 30,
   width: 1920,
   height: 1080,
-  quality: 'standard',
+  quality: "standard",
 };
 
 // Example: work with a parsed composition
@@ -102,13 +102,13 @@ function getClipCount(composition: Composition): number {
 Round-trip between HTML and structured data:
 
 ```typescript
-import { parseHyperframeHtml, generateHyperframeHtml } from '@hyperframes/core';
+import { parseHyperframeHtml, generateHyperframeHtml } from "@hyperframes/core";
 
 // Parse HTML into a Composition object
 const composition = parseHyperframeHtml(htmlString);
-console.log(composition.id);       // "root"
-console.log(composition.width);    // 1920
-console.log(composition.clips);    // [{ id: "clip-1", start: 0, ... }, ...]
+console.log(composition.id); // "root"
+console.log(composition.width); // 1920
+console.log(composition.clips); // [{ id: "clip-1", start: 0, ... }, ...]
 
 // Generate HTML from a Composition object
 const html = generateHyperframeHtml(composition);
@@ -130,7 +130,8 @@ pnpm --filter @hyperframes/core build:hyperframes-runtime
 ```
 
 <Warning>
-  You should not need to build the runtime yourself unless you are developing the Hyperframes framework itself. The CLI and producer packages bundle the runtime automatically.
+  You should not need to build the runtime yourself unless you are developing the Hyperframes
+  framework itself. The CLI and producer packages bundle the runtime automatically.
 </Warning>
 
 ## Frame Adapters
@@ -138,7 +139,7 @@ pnpm --filter @hyperframes/core build:hyperframes-runtime
 The core package defines the [Frame Adapter](/concepts/frame-adapters) interface — the abstraction that lets Hyperframes work with any animation runtime. The built-in GSAP adapter lives here:
 
 ```typescript
-import type { FrameAdapterContext } from '@hyperframes/core';
+import type { FrameAdapterContext } from "@hyperframes/core";
 
 // Every adapter must answer: "what should the screen look like at this time?"
 // See the Frame Adapters concept page for the full API.

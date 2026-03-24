@@ -10,8 +10,7 @@ A composition is an HTML document that defines a video timeline. Every clip -- v
 Every composition needs a root element with `data-composition-id`:
 
 ```html index.html
-<div id="root" data-composition-id="root"
-     data-start="0" data-width="1920" data-height="1080">
+<div id="root" data-composition-id="root" data-start="0" data-width="1920" data-height="1080">
   <!-- Elements go here -->
 </div>
 ```
@@ -68,6 +67,7 @@ You can embed one composition inside another in two ways: loading from an extern
       </div>
     </template>
     ```
+
   </Tab>
   <Tab title="Inline">
     Define a nested composition directly inside the parent. This is simpler for one-off compositions that do not need to be reused.
@@ -93,6 +93,7 @@ You can embed one composition inside another in two ways: loading from an extern
     ```
 
     Inline compositions do not use `<template>` tags or `data-composition-src`.
+
   </Tab>
 </Tabs>
 
@@ -122,7 +123,9 @@ Every composition has two layers:
 - **Script** -- effects, transitions, dynamic DOM, canvas, SVG -- creative animation via [GSAP](/guides/gsap-animation). Scripts do **not** control media playback or clip visibility.
 
 <Warning>
-  Never use scripts to play/pause/seek media elements or to show/hide clips based on timing. The framework handles this automatically from data attributes. Scripts that duplicate this behavior will conflict with the framework. See [Common Mistakes](/guides/common-mistakes) for examples.
+  Never use scripts to play/pause/seek media elements or to show/hide clips based on timing. The
+  framework handles this automatically from data attributes. Scripts that duplicate this behavior
+  will conflict with the framework. See [Common Mistakes](/guides/common-mistakes) for examples.
 </Warning>
 
 ## Variables
@@ -130,7 +133,7 @@ Every composition has two layers:
 Compositions can expose variables for dynamic content:
 
 ```html compositions/card.html
-<div data-composition-id="card" data-var-title="string" data-var-color="color">
+<div data-composition-id="card" data-var-title="string" data-var-color="color"></div>
 ```
 
 Variables make compositions reusable as [templates](/guides/templates) -- the same composition can render different content by injecting variable values at render time.

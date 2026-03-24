@@ -17,6 +17,7 @@ If your issue is about a specific coding mistake (animations not working, video 
       <!-- elements here -->
     </div>
     ```
+
   </Accordion>
 
   <Accordion title='"FFmpeg not found"'>
@@ -46,6 +47,7 @@ If your issue is about a specific coding mistake (animations not working, video 
     <Tip>
       If you cannot install FFmpeg, use [Docker mode](/guides/rendering) instead — it bundles FFmpeg inside the container: `npx hyperframes render --docker -o output.mp4`
     </Tip>
+
   </Accordion>
 
   <Accordion title="Lint errors">
@@ -58,6 +60,7 @@ If your issue is about a specific coding mistake (animations not working, video 
     | Overlapping timelines | Clips on the same [`data-track-index`](/concepts/data-attributes#timing-attributes) cannot overlap in time. |
     | Unmuted video elements | Video elements should be `muted` unless `data-has-audio="true"` is set. |
     | Deprecated attribute names | `data-layer` and `data-end` have been replaced. Check the [HTML Schema Reference](/reference/html-schema). |
+
   </Accordion>
 
   <Accordion title="Preview not updating">
@@ -69,6 +72,7 @@ If your issue is about a specific coding mistake (animations not working, video 
     2. Stop and restart `npx hyperframes dev`
     3. Hard-refresh the browser: **Ctrl+Shift+R** (Windows/Linux) or **Cmd+Shift+R** (macOS)
     4. Clear the browser cache if CSS changes are not reflected
+
   </Accordion>
 
   <Accordion title="Render looks different from preview">
@@ -83,6 +87,7 @@ If your issue is about a specific coding mistake (animations not working, video 
     ```
 
     See [Rendering: When to Use Each Mode](/guides/rendering#when-to-use-each-mode) for guidance on choosing between local and Docker rendering.
+
   </Accordion>
 
   <Accordion title="Docker mode fails to start">
@@ -96,6 +101,7 @@ If your issue is about a specific coding mistake (animations not working, video 
     - **Docker not running:** Start Docker Desktop or the Docker daemon
     - **Permission denied:** Add your user to the `docker` group (`sudo usermod -aG docker $USER`) and restart your shell
     - **Image pull fails:** Check your internet connection; the first render downloads the Hyperframes Docker image
+
   </Accordion>
 
   <Accordion title="Render is slow">
@@ -108,6 +114,7 @@ If your issue is about a specific coding mistake (animations not working, video 
     5. Check that your composition does not have unnecessary elements or overly complex animations
 
     See [Rendering: Options](/guides/rendering#options) for all available flags.
+
   </Accordion>
 </AccordionGroup>
 

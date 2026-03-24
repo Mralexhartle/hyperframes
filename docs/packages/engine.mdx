@@ -12,16 +12,20 @@ npm install @hyperframes/engine
 ## When to Use
 
 <Warning>
-  **Most users should NOT use the engine directly.** Use the [CLI](/packages/cli) (`npx hyperframes render`) or the [producer](/packages/producer) package instead — they handle runtime injection, audio mixing, and encoding for you.
+  **Most users should NOT use the engine directly.** Use the [CLI](/packages/cli) (`npx hyperframes
+  render`) or the [producer](/packages/producer) package instead — they handle runtime injection,
+  audio mixing, and encoding for you.
 </Warning>
 
 **Use `@hyperframes/engine` when you need to:**
+
 - Build a custom rendering pipeline with full control over frame capture
 - Integrate Hyperframes capture into an existing video processing system
 - Capture individual frames (e.g., for thumbnails or sprite sheets) without encoding to video
 - Implement a custom encoding backend (not FFmpeg)
 
 **Use a different package if you want to:**
+
 - Render an HTML composition to a finished MP4 — use the [producer](/packages/producer) or [CLI](/packages/cli)
 - Preview compositions in the browser — use the [CLI](/packages/cli) or [studio](/packages/studio)
 - Lint or parse composition HTML — use [core](/packages/core)
@@ -32,19 +36,25 @@ The engine implements a **seek-and-capture** loop that is fundamentally differen
 
 <Steps>
   <Step title="Launch headless Chrome">
-    The engine starts `chrome-headless-shell`, a minimal headless Chrome binary optimized for programmatic control via the Chrome DevTools Protocol (CDP).
+    The engine starts `chrome-headless-shell`, a minimal headless Chrome binary optimized for
+    programmatic control via the Chrome DevTools Protocol (CDP).
   </Step>
   <Step title="Load the composition">
-    Your HTML composition is loaded into a browser page. The Hyperframes runtime is injected to manage timeline seeking.
+    Your HTML composition is loaded into a browser page. The Hyperframes runtime is injected to
+    manage timeline seeking.
   </Step>
   <Step title="Seek to each frame">
-    For every frame in the video (e.g., 900 frames for a 30-second video at 30fps), the engine calls `renderSeek(time)` to advance the composition to the exact timestamp. No wall clock is involved — each frame is independently positioned.
+    For every frame in the video (e.g., 900 frames for a 30-second video at 30fps), the engine calls
+    `renderSeek(time)` to advance the composition to the exact timestamp. No wall clock is involved
+    — each frame is independently positioned.
   </Step>
   <Step title="Capture via BeginFrame">
-    Chrome's `HeadlessExperimental.beginFrame` API captures the compositor output as a pixel buffer. This produces pixel-perfect frames without any screen recording artifacts.
+    Chrome's `HeadlessExperimental.beginFrame` API captures the compositor output as a pixel buffer.
+    This produces pixel-perfect frames without any screen recording artifacts.
   </Step>
   <Step title="Hand off frames">
-    Captured frame buffers are passed to a consumer — typically FFmpeg (via the producer) for encoding into MP4, but you can provide your own consumer.
+    Captured frame buffers are passed to a consumer — typically FFmpeg (via the producer) for
+    encoding into MP4, but you can provide your own consumer.
   </Step>
 </Steps>
 
@@ -53,36 +63,36 @@ This approach guarantees [deterministic rendering](/concepts/determinism): the s
 ## Configuration
 
 ```typescript
-import type { EngineConfig } from '@hyperframes/engine';
+import type { EngineConfig } from "@hyperframes/engine";
 
 const config: EngineConfig = {
-  fps: 30,              // Frames per second: 24, 30, or 60
-  width: 1920,          // Output width in pixels
-  height: 1080,         // Output height in pixels
-  quality: 'standard',  // Encoding preset: 'draft', 'standard', or 'high'
+  fps: 30, // Frames per second: 24, 30, or 60
+  width: 1920, // Output width in pixels
+  height: 1080, // Output height in pixels
+  quality: "standard", // Encoding preset: 'draft', 'standard', or 'high'
 };
 ```
 
 ### Quality Presets
 
-| Preset | Use Case | Speed |
-|--------|----------|-------|
-| `draft` | Fast iteration during development | Fastest |
+| Preset     | Use Case                                           | Speed    |
+| ---------- | -------------------------------------------------- | -------- |
+| `draft`    | Fast iteration during development                  | Fastest  |
 | `standard` | Production renders with good quality/speed balance | Moderate |
-| `high` | Final delivery, maximum quality | Slowest |
+| `high`     | Final delivery, maximum quality                    | Slowest  |
 
 ### FPS Options
 
-| FPS | Use Case |
-|-----|----------|
-| `24` | Cinematic look, smaller file size |
-| `30` | Standard web video, good balance |
+| FPS  | Use Case                                        |
+| ---- | ----------------------------------------------- |
+| `24` | Cinematic look, smaller file size               |
+| `30` | Standard web video, good balance                |
 | `60` | Smooth motion, UI animations, screen recordings |
 
 ## Programmatic Usage
 
 ```typescript
-import { createEngine } from '@hyperframes/engine';
+import { createEngine } from "@hyperframes/engine";
 
 const engine = createEngine({
   fps: 30,
@@ -91,7 +101,7 @@ const engine = createEngine({
 });
 
 // Capture all frames from a composition
-const frames = await engine.capture('./my-video/index.html');
+const frames = await engine.capture("./my-video/index.html");
 
 // Each frame is a pixel buffer (PNG/raw)
 for (const frame of frames) {
@@ -136,7 +146,8 @@ The engine requires `chrome-headless-shell`, which is included when you install 
 
 <CardGroup cols={2}>
   <Card title="Producer" icon="film" href="/packages/producer">
-    Wraps the engine with runtime injection, FFmpeg encoding, and audio mixing for complete MP4 output.
+    Wraps the engine with runtime injection, FFmpeg encoding, and audio mixing for complete MP4
+    output.
   </Card>
   <Card title="Core" icon="cube" href="/packages/core">
     Provides the types, runtime, and linter that the engine depends on.

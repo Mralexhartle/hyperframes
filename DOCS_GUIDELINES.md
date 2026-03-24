@@ -64,11 +64,13 @@ Title
 
 ### Always annotate code blocks
 
-```mdx
-```html index.html
-<div data-composition-id="root" ...>
-```​
-```
+`````mdx
+````html index.html
+<div data-composition-id="root" ...>```​</div>
+````
+`````
+
+`````
 
 The filename after the language tag tells readers where the code goes.
 
@@ -97,32 +99,27 @@ npx hyperframes dev
 
 ### Use CodeGroup for multi-platform commands
 
-```mdx
+````mdx
 <CodeGroup>
-```bash macOS
-brew install ffmpeg
-```​
-```bash Ubuntu
-sudo apt install ffmpeg
-```​
+  ```bash macOS brew install ffmpeg ```​ ```bash Ubuntu sudo apt install ffmpeg ```​
 </CodeGroup>
-```
+`````
 
 ## Mintlify Components — When to Use
 
-| Component | Use When |
-|-----------|----------|
-| `<Steps>` | Sequential setup or tutorial instructions |
-| `<CodeGroup>` | Same action across platforms/languages |
-| `<Tabs>` | Alternative approaches with equal weight |
-| `<Card>` / `<Columns>` | Navigation to related pages, next steps |
-| `<Accordion>` | FAQ or optional detail that would bloat the page |
-| `<Note>` | Non-obvious behavior the reader should know |
-| `<Warning>` | Something that will break if ignored |
-| `<Tip>` | Helpful shortcut or best practice |
-| `<Info>` | Context that aids understanding |
-| `<Tree>` | File/directory structure |
-| `<Frame>` | Screenshots or diagrams with captions |
+| Component              | Use When                                         |
+| ---------------------- | ------------------------------------------------ |
+| `<Steps>`              | Sequential setup or tutorial instructions        |
+| `<CodeGroup>`          | Same action across platforms/languages           |
+| `<Tabs>`               | Alternative approaches with equal weight         |
+| `<Card>` / `<Columns>` | Navigation to related pages, next steps          |
+| `<Accordion>`          | FAQ or optional detail that would bloat the page |
+| `<Note>`               | Non-obvious behavior the reader should know      |
+| `<Warning>`            | Something that will break if ignored             |
+| `<Tip>`                | Helpful shortcut or best practice                |
+| `<Info>`               | Context that aids understanding                  |
+| `<Tree>`               | File/directory structure                         |
+| `<Frame>`              | Screenshots or diagrams with captions            |
 
 ### Callout budget: max 2-3 per page
 

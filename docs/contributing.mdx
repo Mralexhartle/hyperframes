@@ -9,36 +9,21 @@ Thanks for your interest in contributing to Hyperframes! This guide covers every
 
 <Steps>
   <Step title="Fork and clone">
-    Fork the repository on GitHub, then clone your fork:
-    ```bash
-    git clone https://github.com/YOUR_USERNAME/hyperframes.git
-    cd hyperframes
-    ```
+    Fork the repository on GitHub, then clone your fork: ```bash git clone
+    https://github.com/YOUR_USERNAME/hyperframes.git cd hyperframes ```
   </Step>
   <Step title="Install dependencies">
-    Hyperframes uses [pnpm](https://pnpm.io/) for package management:
-    ```bash
-    pnpm install
-    ```
+    Hyperframes uses [pnpm](https://pnpm.io/) for package management: ```bash pnpm install ```
   </Step>
   <Step title="Build all packages">
-    Build the monorepo to ensure everything compiles:
-    ```bash
-    pnpm build
-    ```
+    Build the monorepo to ensure everything compiles: ```bash pnpm build ```
   </Step>
   <Step title="Run the studio">
-    Start the development server to verify your setup:
-    ```bash
-    pnpm dev
-    ```
-    If the studio opens at `http://localhost:3000` with a preview, your environment is ready.
+    Start the development server to verify your setup: ```bash pnpm dev ``` If the studio opens at
+    `http://localhost:3000` with a preview, your environment is ready.
   </Step>
   <Step title="Create a branch">
-    Create a feature branch for your work:
-    ```bash
-    git checkout -b my-feature
-    ```
+    Create a feature branch for your work: ```bash git checkout -b my-feature ```
   </Step>
 </Steps>
 
@@ -56,18 +41,10 @@ pnpm -r typecheck   # Type-check all packages
 ### Running Tests
 
 <CodeGroup>
-```bash Core
-pnpm --filter @hyperframes/core test
-```
-```bash Engine
-pnpm --filter @hyperframes/engine test
-```
-```bash Runtime Contract
-pnpm --filter @hyperframes/core test:hyperframe-runtime-ci
-```
-```bash Producer (Docker)
-cd packages/producer && pnpm docker:build:test && pnpm docker:test
-```
+  ```bash Core pnpm --filter @hyperframes/core test ``` ```bash Engine pnpm --filter
+  @hyperframes/engine test ``` ```bash Runtime Contract pnpm --filter @hyperframes/core
+  test:hyperframe-runtime-ci ``` ```bash Producer (Docker) cd packages/producer && pnpm
+  docker:build:test && pnpm docker:test ```
 </CodeGroup>
 
 ### Running All Tests
@@ -78,13 +55,13 @@ pnpm -r test
 
 ## Packages
 
-| Package | Path | Description |
-|---------|------|-------------|
-| [`@hyperframes/core`](/packages/core) | `packages/core` | Types, HTML generation, runtime, linter |
-| [`@hyperframes/engine`](/packages/engine) | `packages/engine` | Seekable page-to-video capture engine |
-| [`@hyperframes/producer`](/packages/producer) | `packages/producer` | Full rendering pipeline (capture + encode) |
-| [`@hyperframes/studio`](/packages/studio) | `packages/studio` | Composition editor UI |
-| [`hyperframes`](/packages/cli) | `packages/cli` | CLI for creating, previewing, and rendering |
+| Package                                       | Path                | Description                                 |
+| --------------------------------------------- | ------------------- | ------------------------------------------- |
+| [`@hyperframes/core`](/packages/core)         | `packages/core`     | Types, HTML generation, runtime, linter     |
+| [`@hyperframes/engine`](/packages/engine)     | `packages/engine`   | Seekable page-to-video capture engine       |
+| [`@hyperframes/producer`](/packages/producer) | `packages/producer` | Full rendering pipeline (capture + encode)  |
+| [`@hyperframes/studio`](/packages/studio)     | `packages/studio`   | Composition editor UI                       |
+| [`hyperframes`](/packages/cli)                | `packages/cli`      | CLI for creating, previewing, and rendering |
 
 ## What to Work On
 
@@ -142,7 +119,11 @@ All of the following must pass before your PR can be merged:
   <Card title="GitHub Issues" icon="github" href="https://github.com/heygen-com/hyperframes/issues">
     Report bugs, request features, and discuss ideas.
   </Card>
-  <Card title="Code of Conduct" icon="handshake" href="https://github.com/heygen-com/hyperframes/blob/main/CODE_OF_CONDUCT.md">
+  <Card
+    title="Code of Conduct"
+    icon="handshake"
+    href="https://github.com/heygen-com/hyperframes/blob/main/CODE_OF_CONDUCT.md"
+  >
     Our community standards and expectations.
   </Card>
 </CardGroup>

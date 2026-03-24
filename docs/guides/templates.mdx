@@ -35,6 +35,7 @@ This creates a new project directory with an `index.html` composition and any re
     ├── index.html          # Empty root composition with GSAP setup
     └── assets/             # Empty directory for your media files
     ```
+
   </Tab>
   <Tab title="title-card">
     ### title-card
@@ -55,6 +56,7 @@ This creates a new project directory with an `index.html` composition and any re
     ├── index.html          # Title + subtitle with fade animations
     └── assets/             # Empty directory for your media files
     ```
+
   </Tab>
   <Tab title="video-edit">
     ### video-edit
@@ -75,19 +77,22 @@ This creates a new project directory with an `index.html` composition and any re
     ├── index.html          # Video + audio + overlay composition
     └── assets/             # Place your video and audio files here
     ```
+
   </Tab>
 </Tabs>
 
 ## Choosing a Template
 
-| Template | Best for | Complexity |
-|----------|----------|------------|
-| `blank` | Full control, agent-generated compositions | Minimal |
-| `title-card` | Text intros, outros, chapter markers | Simple |
-| `video-edit` | Video cutting, overlays, multi-track editing | Moderate |
+| Template     | Best for                                     | Complexity |
+| ------------ | -------------------------------------------- | ---------- |
+| `blank`      | Full control, agent-generated compositions   | Minimal    |
+| `title-card` | Text intros, outros, chapter markers         | Simple     |
+| `video-edit` | Video cutting, overlays, multi-track editing | Moderate   |
 
 <Tip>
-  If you are new to Hyperframes, start with `title-card` to see a working animation, then move to `blank` when you are comfortable with the [composition model](/concepts/compositions) and [GSAP animation](/guides/gsap-animation).
+  If you are new to Hyperframes, start with `title-card` to see a working animation, then move to
+  `blank` when you are comfortable with the [composition model](/concepts/compositions) and [GSAP
+  animation](/guides/gsap-animation).
 </Tip>
 
 ## Custom Templates
@@ -101,9 +106,13 @@ Your custom template needs:
 3. Any assets in the same directory or a subdirectory
 
 ```html index.html
-<div id="root" data-composition-id="my-template"
-     data-start="0" data-width="1920" data-height="1080">
-
+<div
+  id="root"
+  data-composition-id="my-template"
+  data-start="0"
+  data-width="1920"
+  data-height="1080"
+>
   <!-- Your elements here -->
 
   <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
