@@ -93,6 +93,8 @@ export interface RenderConfig {
   workers?: number;
   useGpu?: boolean;
   debug?: boolean;
+  /** Entry HTML file relative to projectDir. Defaults to "index.html". */
+  entryFile?: string;
   /** Full producer config. When provided, env vars are not read. */
   producerConfig?: EngineConfig;
   /** Custom logger. Defaults to console-based defaultLogger. */
@@ -319,7 +321,11 @@ export async function executeRenderJob(
       restoreLogger = installDebugLogger(logPath, log);
     }
 
-    const htmlPath = join(projectDir, "index.html");
+    const entryFile = job.config.entryFile || "index.html";
+    const htmlPath = join(projectDir, entryFile);
+    if (!existsSync(htmlPath)) {
+      throw new Error(`Entry file not found: ${htmlPath}`);
+    }
     assertNotAborted();
 
     // ── Stage 1: Compile ─────────────────────────────────────────────────
