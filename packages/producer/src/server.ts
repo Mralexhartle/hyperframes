@@ -436,6 +436,7 @@ export function createRenderHandlers(options: HandlerOptions = {}): RenderHandle
         workers: input.workers,
         useGpu: input.useGpu,
         debug: input.debug,
+        entryFile: input.entryFile,
         logger: log,
       });
       const abortController = new AbortController();

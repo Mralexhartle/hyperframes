@@ -398,6 +398,15 @@ export async function executeRenderJob(
     perfStages.compileOnlyMs = Date.now() - compileStart;
     writeCompiledArtifacts(compiled, workDir, Boolean(job.config.debug));
 
+    log.info("Compiled composition metadata", {
+      entryFile,
+      staticDuration: compiled.staticDuration,
+      width: compiled.width,
+      height: compiled.height,
+      videoCount: compiled.videos.length,
+      audioCount: compiled.audios.length,
+    });
+
     const composition: CompositionMetadata = {
       duration: compiled.staticDuration,
       videos: compiled.videos,
@@ -445,7 +454,10 @@ export async function executeRenderJob(
       if (composition.duration <= 0) {
         const discoveredDuration = await getCompositionDuration(probeSession);
         assertNotAborted();
+        log.info("Probed composition duration from browser", { discoveredDuration, staticDuration: compiled.staticDuration });
         composition.duration = discoveredDuration;
+      } else {
+        log.info("Using static duration from data-duration attribute", { duration: composition.duration });
       }
 
       // Resolve unresolved composition durations via window.__timelines
