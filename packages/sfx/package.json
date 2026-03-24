@@ -1,0 +1,73 @@
+{
+  "name": "@hyperframes/sfx",
+  "version": "0.1.2",
+  "description": "Typed catalog of CC0 sound effects for hyperframes agents",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./transitions": {
+      "import": "./src/transitions.ts",
+      "types": "./src/transitions.ts"
+    },
+    "./ui": {
+      "import": "./src/ui.ts",
+      "types": "./src/ui.ts"
+    },
+    "./cinematic": {
+      "import": "./src/cinematic.ts",
+      "types": "./src/cinematic.ts"
+    },
+    "./ambient": {
+      "import": "./src/ambient.ts",
+      "types": "./src/ambient.ts"
+    },
+    "./musical": {
+      "import": "./src/musical.ts",
+      "types": "./src/musical.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "import": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+      },
+      "./transitions": {
+        "import": "./dist/transitions.js",
+        "types": "./dist/transitions.d.ts"
+      },
+      "./ui": {
+        "import": "./dist/ui.js",
+        "types": "./dist/ui.d.ts"
+      },
+      "./cinematic": {
+        "import": "./dist/cinematic.js",
+        "types": "./dist/cinematic.d.ts"
+      },
+      "./ambient": {
+        "import": "./dist/ambient.js",
+        "types": "./dist/ambient.d.ts"
+      },
+      "./musical": {
+        "import": "./dist/musical.js",
+        "types": "./dist/musical.d.ts"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.0.0"
+  }
+}

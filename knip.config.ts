@@ -11,8 +11,14 @@ const config: KnipConfig = {
     "packages/engine": {
       entry: ["src/index.ts"],
     },
+    "packages/fonts": {
+      entry: ["src/index.ts", "src/catalog.ts"],
+    },
     "packages/producer": {
       entry: ["src/index.ts", "src/server.ts"],
+    },
+    "packages/sfx": {
+      entry: ["src/index.ts"],
     },
     "packages/studio": {
       entry: ["src/index.ts", "src/styles/tailwind-preset.ts"],
