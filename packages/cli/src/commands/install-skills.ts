@@ -7,19 +7,54 @@ import { fileURLToPath } from "node:url";
 import * as clack from "@clack/prompts";
 import { c } from "../ui/colors.js";
 
-const SKILLS_DIR = join(homedir(), ".claude", "skills");
+// ---------------------------------------------------------------------------
+// Target CLI tools — each has a global skills directory
+// ---------------------------------------------------------------------------
+
+interface Target {
+  name: string;
+  flag: string;
+  dir: string;
+  defaultEnabled: boolean;
+}
+
+const TARGETS: Target[] = [
+  {
+    name: "Claude Code",
+    flag: "claude",
+    dir: join(homedir(), ".claude", "skills"),
+    defaultEnabled: true,
+  },
+  {
+    name: "Gemini CLI",
+    flag: "gemini",
+    dir: join(homedir(), ".gemini", "skills"),
+    defaultEnabled: true,
+  },
+  {
+    name: "Codex CLI",
+    flag: "codex",
+    dir: join(homedir(), ".codex", "skills"),
+    defaultEnabled: true,
+  },
+  {
+    name: "Cursor",
+    flag: "cursor",
+    dir: join(process.cwd(), ".cursor", "skills"),
+    defaultEnabled: false,
+  },
+];
+
 const GSAP_REPO = "https://github.com/greensock/gsap-skills.git";
 const GSAP_CACHE = join(homedir(), ".cache", "hyperframes", "gsap-skills");
 
 // ---------------------------------------------------------------------------
-// Bundled HyperFrames skills — embedded at build time from .claude/skills/
+// Bundled HyperFrames skills
 // ---------------------------------------------------------------------------
 
 function getBundledSkillsDir(): string {
   const dir = dirname(fileURLToPath(import.meta.url));
-  // In dev: cli/src/commands/ → ../../../../.claude/skills = repo root .claude/skills/
   const devPath = resolve(dir, "..", "..", "..", "..", ".claude", "skills");
-  // In built: cli/dist/ → skills = cli/dist/skills/
   const builtPath = resolve(dir, "skills");
   return existsSync(devPath) ? devPath : builtPath;
 }
@@ -39,15 +74,9 @@ function hasGit(): boolean {
 
 function fetchGsapSkills(): string {
   if (existsSync(GSAP_CACHE)) {
-    // Pull latest
     try {
-      execSync("git pull --ff-only", {
-        cwd: GSAP_CACHE,
-        stdio: "ignore",
-        timeout: 30_000,
-      });
+      execSync("git pull --ff-only", { cwd: GSAP_CACHE, stdio: "ignore", timeout: 30_000 });
     } catch {
-      // If pull fails, nuke and re-clone
       rmSync(GSAP_CACHE, { recursive: true, force: true });
       execSync(`git clone --depth 1 ${GSAP_REPO} ${GSAP_CACHE}`, {
         stdio: "ignore",
@@ -65,7 +94,7 @@ function fetchGsapSkills(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Install logic
+// Install logic — generic per target directory
 // ---------------------------------------------------------------------------
 
 interface InstalledSkill {
@@ -73,53 +102,26 @@ interface InstalledSkill {
   source: "hyperframes" | "gsap";
 }
 
-function installHyperframesSkills(): InstalledSkill[] {
-  const bundledDir = getBundledSkillsDir();
+function installSkillsFromDir(
+  sourceDir: string,
+  targetDir: string,
+  source: "hyperframes" | "gsap",
+): InstalledSkill[] {
   const installed: InstalledSkill[] = [];
+  if (!existsSync(sourceDir)) return installed;
 
-  if (!existsSync(bundledDir)) {
-    return installed;
-  }
-
-  const entries = readdirSync(bundledDir, { withFileTypes: true });
+  const entries = readdirSync(sourceDir, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const skillFile = join(bundledDir, entry.name, "SKILL.md");
+    const skillFile = join(sourceDir, entry.name, "SKILL.md");
     if (!existsSync(skillFile)) continue;
 
-    const destDir = join(SKILLS_DIR, entry.name);
-    // Remove existing to avoid file/directory conflicts
+    const destDir = join(targetDir, entry.name);
     if (existsSync(destDir)) rmSync(destDir, { recursive: true, force: true });
     mkdirSync(destDir, { recursive: true });
-    cpSync(join(bundledDir, entry.name), destDir, { recursive: true });
-    installed.push({ name: entry.name, source: "hyperframes" });
+    cpSync(join(sourceDir, entry.name), destDir, { recursive: true });
+    installed.push({ name: entry.name, source });
   }
-
-  return installed;
-}
-
-function installGsapSkills(): InstalledSkill[] {
-  const cacheDir = fetchGsapSkills();
-  const installed: InstalledSkill[] = [];
-
-  // GSAP skills are in skills/ subdirectory of the repo
-  const skillsRoot = join(cacheDir, "skills");
-  if (!existsSync(skillsRoot)) return installed;
-
-  const entries = readdirSync(skillsRoot, { withFileTypes: true });
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const skillFile = join(skillsRoot, entry.name, "SKILL.md");
-    if (!existsSync(skillFile)) continue;
-
-    const destDir = join(SKILLS_DIR, entry.name);
-    // Remove existing to avoid file/directory conflicts
-    if (existsSync(destDir)) rmSync(destDir, { recursive: true, force: true });
-    mkdirSync(destDir, { recursive: true });
-    cpSync(join(skillsRoot, entry.name), destDir, { recursive: true });
-    installed.push({ name: entry.name, source: "gsap" });
-  }
-
   return installed;
 }
 
@@ -127,34 +129,38 @@ function installGsapSkills(): InstalledSkill[] {
 // Command
 // ---------------------------------------------------------------------------
 
-async function runInstall(): Promise<void> {
-  clack.intro(c.bold("hyperframes skills"));
+function resolveTargets(args: Record<string, unknown>): Target[] {
+  const hasAnyFlag = TARGETS.some((t) => args[t.flag] === true);
 
-  mkdirSync(SKILLS_DIR, { recursive: true });
-
-  const allInstalled: InstalledSkill[] = [];
-
-  // 1. Install HyperFrames skills
-  const hfSpinner = clack.spinner();
-  hfSpinner.start("Installing HyperFrames skills...");
-  const hfSkills = installHyperframesSkills();
-  allInstalled.push(...hfSkills);
-  if (hfSkills.length > 0) {
-    hfSpinner.stop(c.success(`${hfSkills.length} HyperFrames skills installed`));
-  } else {
-    hfSpinner.stop(c.warn("No bundled HyperFrames skills found"));
+  if (hasAnyFlag) {
+    // Explicit flags — install only to those targets
+    return TARGETS.filter((t) => args[t.flag] === true);
   }
 
-  // 2. Install GSAP skills
+  // No flags — install to all default-enabled targets
+  return TARGETS.filter((t) => t.defaultEnabled);
+}
+
+async function runInstall({ args }: { args: Record<string, unknown> }): Promise<void> {
+  clack.intro(c.bold("hyperframes skills"));
+
+  const targets = resolveTargets(args);
+
+  // 1. Gather skill sources
+  const bundledDir = getBundledSkillsDir();
+  const hasBundled = existsSync(bundledDir);
+
+  let gsapSourceDir: string | undefined;
   if (!hasGit()) {
     clack.log.warn(c.warn("git not found — skipping GSAP skills. Install git and retry."));
   } else {
     const gsapSpinner = clack.spinner();
     gsapSpinner.start("Fetching GSAP skills from GitHub...");
     try {
-      const gsapSkills = installGsapSkills();
-      allInstalled.push(...gsapSkills);
-      gsapSpinner.stop(c.success(`${gsapSkills.length} GSAP skills installed`));
+      const cacheDir = fetchGsapSkills();
+      const skillsRoot = join(cacheDir, "skills");
+      if (existsSync(skillsRoot)) gsapSourceDir = skillsRoot;
+      gsapSpinner.stop(c.success("GSAP skills fetched"));
     } catch (err) {
       gsapSpinner.stop(
         c.warn(`Failed to fetch GSAP skills: ${err instanceof Error ? err.message : err}`),
@@ -162,30 +168,65 @@ async function runInstall(): Promise<void> {
     }
   }
 
-  // 3. Summary — only show skills managed by this command
-  console.log();
-  console.log(`   ${c.dim("Location:")} ${c.bold(SKILLS_DIR)}`);
-  if (allInstalled.length > 0) {
-    const hfNames = allInstalled.filter((s) => s.source === "hyperframes").map((s) => s.name);
-    const gsapNames = allInstalled.filter((s) => s.source === "gsap").map((s) => s.name);
-    if (hfNames.length > 0) {
-      console.log(`   ${c.dim("HyperFrames:")} ${hfNames.map((s) => c.accent(s)).join(", ")}`);
+  // 2. Install to each target
+  const allInstalled: InstalledSkill[] = [];
+
+  for (const target of targets) {
+    const spinner = clack.spinner();
+    spinner.start(`Installing to ${target.name}...`);
+
+    mkdirSync(target.dir, { recursive: true });
+
+    let count = 0;
+    if (hasBundled) {
+      const hf = installSkillsFromDir(bundledDir, target.dir, "hyperframes");
+      count += hf.length;
+      // Only track for summary from first target to avoid duplicates
+      if (target === targets[0]) allInstalled.push(...hf);
     }
-    if (gsapNames.length > 0) {
-      console.log(`   ${c.dim("GSAP:")}        ${gsapNames.map((s) => c.accent(s)).join(", ")}`);
+    if (gsapSourceDir) {
+      const gsap = installSkillsFromDir(gsapSourceDir, target.dir, "gsap");
+      count += gsap.length;
+      if (target === targets[0]) allInstalled.push(...gsap);
     }
+
+    spinner.stop(c.success(`${count} skills → ${target.name} ${c.dim(target.dir)}`));
   }
+
+  // 3. Summary
+  const hfNames = allInstalled.filter((s) => s.source === "hyperframes").map((s) => s.name);
+  const gsapNames = allInstalled.filter((s) => s.source === "gsap").map((s) => s.name);
+
+  console.log();
+  if (hfNames.length > 0) {
+    console.log(`   ${c.dim("HyperFrames:")} ${hfNames.map((s) => c.accent(s)).join(", ")}`);
+  }
+  if (gsapNames.length > 0) {
+    console.log(`   ${c.dim("GSAP:")}        ${gsapNames.map((s) => c.accent(s)).join(", ")}`);
+  }
+  console.log(`   ${c.dim("Targets:")}     ${targets.map((t) => t.name).join(", ")}`);
   console.log();
 
   clack.outro(
-    c.success(`${allInstalled.length} skills ready. Available in all Claude Code sessions.`),
+    c.success(
+      `${allInstalled.length} skills installed to ${targets.length} tool${targets.length > 1 ? "s" : ""}.`,
+    ),
   );
 }
 
 export default defineCommand({
   meta: {
     name: "skills",
-    description: "Install HyperFrames and GSAP skills for Claude Code",
+    description: "Install HyperFrames and GSAP skills for AI coding tools",
+  },
+  args: {
+    claude: { type: "boolean", description: "Install to Claude Code (~/.claude/skills/)" },
+    gemini: { type: "boolean", description: "Install to Gemini CLI (~/.gemini/skills/)" },
+    codex: { type: "boolean", description: "Install to Codex CLI (~/.codex/skills/)" },
+    cursor: {
+      type: "boolean",
+      description: "Install to Cursor (.cursor/skills/ in current project)",
+    },
   },
   run: runInstall,
 });
