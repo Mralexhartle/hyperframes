@@ -54,6 +54,19 @@ function devProjectApi(): Plugin {
           return;
         }
 
+        // GET /api/runtime.js — serve the HyperFrames runtime
+        if (req.method === "GET" && req.url === "/api/runtime.js") {
+          const cliRuntime = resolve(__dirname, "..", "cli", "dist", "hyperframe-runtime.js");
+          if (existsSync(cliRuntime)) {
+            res.writeHead(200, { "Content-Type": "text/javascript", "Cache-Control": "no-store" });
+            res.end(readFileSync(cliRuntime, "utf-8"));
+          } else {
+            res.writeHead(404);
+            res.end("runtime not built");
+          }
+          return;
+        }
+
         // GET /api/projects — list all projects with session metadata
         if (req.method === "GET" && (req.url === "/api/projects" || req.url === "/api/projects/")) {
           // Build session → project mapping for titles
@@ -172,6 +185,14 @@ function devProjectApi(): Plugin {
             } else {
               bundled = baseTag + bundled;
             }
+            // Inject runtime if available and not already set
+            const cliRuntime = resolve(__dirname, "..", "cli", "dist", "hyperframe-runtime.js");
+            if (existsSync(cliRuntime) && bundled.includes('src=""')) {
+              bundled = bundled.replace(
+                'data-hyperframes-preview-runtime="1" src=""',
+                'data-hyperframes-preview-runtime="1" src="/api/runtime.js"',
+              );
+            }
             res.writeHead(200, {
               "Content-Type": "text/html; charset=utf-8",
               "Cache-Control": "no-store",
@@ -252,7 +273,15 @@ function devProjectApi(): Plugin {
           );
 
           // Build a standalone HTML page with GSAP + runtime
-          const runtimeUrl = (process.env.HYPERFRAME_RUNTIME_URL || "").trim() || "";
+          // Resolve runtime: env var → built CLI dist → empty (no runtime)
+          let runtimeUrl = (process.env.HYPERFRAME_RUNTIME_URL || "").trim();
+          if (!runtimeUrl) {
+            // In dev: serve the built runtime from the CLI dist
+            const cliRuntime = resolve(__dirname, "..", "cli", "dist", "hyperframe-runtime.js");
+            if (existsSync(cliRuntime)) {
+              runtimeUrl = `/api/runtime.js`;
+            }
+          }
           const standalone = `<!DOCTYPE html>
 <html>
 <head>
