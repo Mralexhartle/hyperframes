@@ -590,10 +590,9 @@ export default defineCommand({
           localVideoName = result.localVideoName;
         } else {
           // Audio file — copy to assets/
-          const assetsDir = resolve(destDir, "assets");
-          mkdirSync(assetsDir, { recursive: true });
-          copyFileSync(filePath, resolve(assetsDir, basename(filePath)));
-          clack.log.info(`Audio copied to ${c.accent("assets/" + basename(filePath))}`);
+
+          copyFileSync(filePath, resolve(destDir, basename(filePath)));
+          clack.log.info(`Audio copied to ${c.accent(basename(filePath))}`);
         }
       }
     }
