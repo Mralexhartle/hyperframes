@@ -162,9 +162,16 @@ function devProjectApi(): Plugin {
         if (req.method === "GET" && rest === "/preview") {
           try {
             const bundler = await getBundler();
-            const bundled = bundler
+            let bundled = bundler
               ? await bundler(projectDir)
               : readFileSync(join(projectDir, "index.html"), "utf-8");
+            // Inject <base> so relative asset paths resolve through /preview/ route
+            const baseTag = `<base href="/api/projects/${projectId}/preview/">`;
+            if (bundled.includes("<head>")) {
+              bundled = bundled.replace("<head>", `<head>${baseTag}`);
+            } else {
+              bundled = baseTag + bundled;
+            }
             res.writeHead(200, {
               "Content-Type": "text/html; charset=utf-8",
               "Cache-Control": "no-store",
@@ -274,13 +281,29 @@ ${content}
             return;
           }
           const isText = /\.(html|css|js|json|svg|txt)$/i.test(subPath);
-          const contentType = subPath.endsWith(".html")
-            ? "text/html"
-            : subPath.endsWith(".js")
-              ? "text/javascript"
-              : subPath.endsWith(".css")
-                ? "text/css"
-                : "application/octet-stream";
+          const mimeTypes: Record<string, string> = {
+            ".html": "text/html",
+            ".js": "text/javascript",
+            ".css": "text/css",
+            ".json": "application/json",
+            ".svg": "image/svg+xml",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".gif": "image/gif",
+            ".mp4": "video/mp4",
+            ".webm": "video/webm",
+            ".mp3": "audio/mpeg",
+            ".wav": "audio/wav",
+            ".m4a": "audio/mp4",
+            ".ogg": "audio/ogg",
+            ".woff2": "font/woff2",
+            ".woff": "font/woff",
+            ".ttf": "font/ttf",
+          };
+          const ext = "." + subPath.split(".").pop()?.toLowerCase();
+          const contentType = mimeTypes[ext] ?? "application/octet-stream";
           res.writeHead(200, { "Content-Type": contentType });
           res.end(readFileSync(file, isText ? "utf-8" : undefined));
           return;
