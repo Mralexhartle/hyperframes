@@ -211,7 +211,11 @@ function getStaticTemplateDir(templateId: string): string {
   return existsSync(devPath) ? devPath : builtPath;
 }
 
-function patchVideoSrc(dir: string, videoFilename: string | undefined): void {
+function patchVideoSrc(
+  dir: string,
+  videoFilename: string | undefined,
+  durationSeconds?: number,
+): void {
   const htmlFiles = readdirSync(dir, { withFileTypes: true, recursive: true })
     .filter((e) => e.isFile() && e.name.endsWith(".html"))
     .map((e) => join(e.parentPath ?? e.path, e.name));
@@ -224,7 +228,13 @@ function patchVideoSrc(dir: string, videoFilename: string | undefined): void {
       // Remove video elements with placeholder src
       content = content.replace(/<video[^>]*src="__VIDEO_SRC__"[^>]*>[\s\S]*?<\/video>/g, "");
       content = content.replace(/<video[^>]*src="__VIDEO_SRC__"[^>]*>/g, "");
+      // Remove audio elements with placeholder src
+      content = content.replace(/<audio[^>]*src="__VIDEO_SRC__"[^>]*>[\s\S]*?<\/audio>/g, "");
+      content = content.replace(/<audio[^>]*src="__VIDEO_SRC__"[^>]*>/g, "");
     }
+    // Patch duration — use probed duration or default
+    const dur = durationSeconds ? String(Math.round(durationSeconds * 100) / 100) : "10";
+    content = content.replaceAll("__VIDEO_DURATION__", dur);
     writeFileSync(file, content, "utf-8");
   }
 }
@@ -367,12 +377,13 @@ function scaffoldProject(
   name: string,
   templateId: TemplateId,
   localVideoName: string | undefined,
+  durationSeconds?: number,
 ): void {
   mkdirSync(destDir, { recursive: true });
 
   const templateDir = getStaticTemplateDir(templateId);
   cpSync(templateDir, destDir, { recursive: true });
-  patchVideoSrc(destDir, localVideoName);
+  patchVideoSrc(destDir, localVideoName, durationSeconds);
 
   writeFileSync(
     resolve(destDir, "meta.json"),
@@ -472,6 +483,7 @@ export default defineCommand({
 
       let localVideoName: string | undefined;
 
+      let videoDuration: number | undefined;
       if (videoFlag) {
         const videoPath = resolve(videoFlag);
         if (!existsSync(videoPath)) {
@@ -480,9 +492,10 @@ export default defineCommand({
         }
         const result = await handleVideoFile(videoPath, destDir, false);
         localVideoName = result.localVideoName;
+        videoDuration = result.meta.durationSeconds;
       }
 
-      scaffoldProject(destDir, basename(destDir), templateId, localVideoName);
+      scaffoldProject(destDir, basename(destDir), templateId, localVideoName, videoDuration);
       trackInitTemplate(templateId);
       const nonInteractiveTranscript = resolve(destDir, "transcript.json");
       if (existsSync(nonInteractiveTranscript)) {
@@ -538,6 +551,7 @@ export default defineCommand({
     // 2. Got a video or audio file?
     let localVideoName: string | undefined;
     let sourceFilePath: string | undefined;
+    let videoDuration: number | undefined;
 
     if (videoFlag) {
       const videoPath = resolve(videoFlag);
@@ -550,6 +564,7 @@ export default defineCommand({
       sourceFilePath = videoPath;
       const result = await handleVideoFile(videoPath, destDir, true);
       localVideoName = result.localVideoName;
+      videoDuration = result.meta.durationSeconds;
     } else {
       const mediaChoice = await clack.select({
         message: "Got a video or audio file?",
@@ -588,6 +603,7 @@ export default defineCommand({
         if (mediaChoice === "video") {
           const result = await handleVideoFile(filePath, destDir, true);
           localVideoName = result.localVideoName;
+          videoDuration = result.meta.durationSeconds;
         } else {
           // Audio file — copy to assets/
 
@@ -657,7 +673,7 @@ export default defineCommand({
     const templateId: TemplateId = templateResult;
 
     // 4. Copy template and patch
-    scaffoldProject(destDir, name, templateId, localVideoName);
+    scaffoldProject(destDir, name, templateId, localVideoName, videoDuration);
     trackInitTemplate(templateId);
 
     // 4b. Patch captions with transcript if available
