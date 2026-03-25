@@ -493,42 +493,40 @@ export default defineCommand({
       }
     }
 
-    // 2. Got a video?
+    // 2. Got a video or audio file?
     let localVideoName: string | undefined;
+    let sourceFilePath: string | undefined;
 
     if (videoFlag) {
-      // Video supplied via --video flag even in interactive mode
       const videoPath = resolve(videoFlag);
       if (!existsSync(videoPath)) {
-        clack.log.error(`Video file not found: ${videoFlag}`);
+        clack.log.error(`File not found: ${videoFlag}`);
         clack.cancel("Setup cancelled.");
         process.exit(1);
       }
       mkdirSync(destDir, { recursive: true });
+      sourceFilePath = videoPath;
       const result = await handleVideoFile(videoPath, destDir, true);
       localVideoName = result.localVideoName;
     } else {
-      const videoChoice = await clack.select({
-        message: "Got a video file?",
+      const mediaChoice = await clack.select({
+        message: "Got a video or audio file?",
         options: [
-          { value: "yes", label: "Yes", hint: "MP4 or WebM recommended" },
-          {
-            value: "no",
-            label: "No",
-            hint: "Start with motion graphics or text",
-          },
+          { value: "video", label: "Video", hint: "MP4, WebM, MOV" },
+          { value: "audio", label: "Audio only", hint: "MP3, WAV, M4A" },
+          { value: "no", label: "No", hint: "Start with motion graphics or text" },
         ],
-        initialValue: "no" as "yes" | "no",
+        initialValue: "no" as "video" | "audio" | "no",
       });
-      if (clack.isCancel(videoChoice)) {
+      if (clack.isCancel(mediaChoice)) {
         clack.cancel("Setup cancelled.");
         process.exit(0);
       }
 
-      if (videoChoice === "yes") {
+      if (mediaChoice === "video" || mediaChoice === "audio") {
         const pathResult = await clack.text({
-          message: "Path to your video file (drag and drop or paste)",
-          placeholder: "/path/to/video.mp4",
+          message: `Path to your ${mediaChoice} file (drag and drop or paste)`,
+          placeholder: mediaChoice === "video" ? "/path/to/video.mp4" : "/path/to/audio.mp3",
           validate(val) {
             const trimmed = val?.trim();
             if (!trimmed) return "Please enter a file path";
@@ -541,11 +539,45 @@ export default defineCommand({
           process.exit(0);
         }
 
-        const videoPath = resolve(String(pathResult).trim());
-
+        const filePath = resolve(String(pathResult).trim());
+        sourceFilePath = filePath;
         mkdirSync(destDir, { recursive: true });
-        const result = await handleVideoFile(videoPath, destDir, true);
-        localVideoName = result.localVideoName;
+
+        if (mediaChoice === "video") {
+          const result = await handleVideoFile(filePath, destDir, true);
+          localVideoName = result.localVideoName;
+        } else {
+          // Audio file — copy to assets/
+          const assetsDir = resolve(destDir, "assets");
+          mkdirSync(assetsDir, { recursive: true });
+          copyFileSync(filePath, resolve(assetsDir, basename(filePath)));
+          clack.log.info(`Audio copied to ${c.accent("assets/" + basename(filePath))}`);
+        }
+      }
+    }
+
+    // 2b. Transcribe if we have a source file with audio
+    if (sourceFilePath) {
+      const transcribeChoice = await clack.confirm({
+        message: "Generate captions from audio?",
+        initialValue: true,
+      });
+      if (!clack.isCancel(transcribeChoice) && transcribeChoice) {
+        const spin = clack.spinner();
+        spin.start("Transcribing audio...");
+        try {
+          const { transcribe: runTranscribe } = await import("../whisper/transcribe.js");
+          const result = await runTranscribe(sourceFilePath, destDir, {
+            onProgress: (msg) => spin.message(msg),
+          });
+          spin.stop(
+            c.success(
+              `Transcribed ${result.wordCount} words (${result.durationSeconds.toFixed(1)}s)`,
+            ),
+          );
+        } catch (err) {
+          spin.stop(c.dim(`Transcription skipped: ${err instanceof Error ? err.message : err}`));
+        }
       }
     }
 
