@@ -8,7 +8,7 @@ import { pipeline } from "node:stream/promises";
 const MODELS_DIR = join(homedir(), ".cache", "hyperframes", "whisper", "models");
 const DEFAULT_MODEL = "base.en";
 
-export type WhisperSource = "env" | "system" | "brew";
+export type WhisperSource = "env" | "system";
 
 export interface WhisperResult {
   executablePath: string;
@@ -46,14 +46,6 @@ function getModelUrl(model: string): string {
 
 // --- Find helpers -----------------------------------------------------------
 
-function findFromEnv(): WhisperResult | undefined {
-  const envPath = process.env["HYPERFRAMES_WHISPER_PATH"];
-  if (envPath && existsSync(envPath)) {
-    return { executablePath: envPath, source: "env" };
-  }
-  return undefined;
-}
-
 function whichBinary(name: string): string | undefined {
   try {
     const result = execSync(`which ${name}`, {
@@ -67,28 +59,28 @@ function whichBinary(name: string): string | undefined {
   }
 }
 
-function findFromSystem(): WhisperResult | undefined {
-  // whisper-cli is the name from brew install whisper-cpp
-  const whisperCli = whichBinary("whisper-cli");
-  if (whisperCli) return { executablePath: whisperCli, source: "system" };
-
-  // Older versions or manual builds
-  const whisper = whichBinary("whisper");
-  if (whisper) return { executablePath: whisper, source: "system" };
-
-  // Also check brew prefix directly on macOS
-  if (platform() === "darwin") {
-    const brewPath = "/opt/homebrew/bin/whisper-cli";
-    if (existsSync(brewPath)) return { executablePath: brewPath, source: "system" };
-    const intelBrewPath = "/usr/local/bin/whisper-cli";
-    if (existsSync(intelBrewPath)) return { executablePath: intelBrewPath, source: "system" };
+function findFromEnv(): WhisperResult | undefined {
+  const envPath = process.env["HYPERFRAMES_WHISPER_PATH"];
+  if (envPath && existsSync(envPath)) {
+    return { executablePath: envPath, source: "env" };
   }
-
   return undefined;
 }
 
-function hasBrew(): boolean {
-  return whichBinary("brew") !== undefined;
+function findFromSystem(): WhisperResult | undefined {
+  for (const name of ["whisper-cli", "whisper"]) {
+    const path = whichBinary(name);
+    if (path) return { executablePath: path, source: "system" };
+  }
+
+  // Check brew paths directly on macOS
+  if (platform() === "darwin") {
+    for (const p of ["/opt/homebrew/bin/whisper-cli", "/usr/local/bin/whisper-cli"]) {
+      if (existsSync(p)) return { executablePath: p, source: "system" };
+    }
+  }
+
+  return undefined;
 }
 
 // --- Public API -------------------------------------------------------------
@@ -97,36 +89,21 @@ export function findWhisper(): WhisperResult | undefined {
   return findFromEnv() ?? findFromSystem();
 }
 
-export async function ensureWhisper(options?: {
-  onProgress?: (message: string) => void;
-}): Promise<WhisperResult> {
+export function getInstallInstructions(): string {
+  if (platform() === "darwin") {
+    return "brew install whisper-cpp";
+  }
+  if (platform() === "linux") {
+    return "See https://github.com/ggml-org/whisper.cpp#building";
+  }
+  return "See https://github.com/ggml-org/whisper.cpp";
+}
+
+export async function ensureWhisper(): Promise<WhisperResult> {
   const existing = findWhisper();
   if (existing) return existing;
 
-  // Try to install via brew on macOS
-  if (platform() === "darwin" && hasBrew()) {
-    options?.onProgress?.("Installing whisper.cpp via Homebrew...");
-    try {
-      execSync("brew install whisper-cpp", { stdio: "ignore", timeout: 300_000 });
-      const installed = findFromSystem();
-      if (installed) return { ...installed, source: "brew" };
-    } catch {
-      // brew install failed
-    }
-  }
-
-  // On Linux, suggest apt/package manager
-  if (platform() === "linux") {
-    throw new Error(
-      "whisper-cpp not found. Install: sudo apt install whisper.cpp (or build from source)",
-    );
-  }
-
-  throw new Error(
-    platform() === "darwin"
-      ? "whisper-cpp not found. Install: brew install whisper-cpp"
-      : "whisper-cpp not found. See: https://github.com/ggml-org/whisper.cpp",
-  );
+  throw new Error(`whisper-cpp not found. Install: ${getInstallInstructions()}`);
 }
 
 export async function ensureModel(
