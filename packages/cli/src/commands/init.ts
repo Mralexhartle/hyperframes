@@ -558,35 +558,33 @@ export default defineCommand({
 
     // 2b. Transcribe if we have a source file with audio
     if (sourceFilePath) {
-      const { findWhisper, getInstallInstructions } = await import("../whisper/manager.js");
-      const whisperAvailable = findWhisper() !== undefined;
+      const transcribeChoice = await clack.confirm({
+        message: "Generate captions from audio?",
+        initialValue: true,
+      });
+      if (!clack.isCancel(transcribeChoice) && transcribeChoice) {
+        const spin = clack.spinner();
+        spin.start("Setting up transcription...");
+        try {
+          const { ensureWhisper, ensureModel } = await import("../whisper/manager.js");
+          await ensureWhisper({
+            onProgress: (msg) => spin.message(msg),
+          });
+          await ensureModel(undefined, { onProgress: (msg) => spin.message(msg) });
 
-      if (whisperAvailable) {
-        const transcribeChoice = await clack.confirm({
-          message: "Generate captions from audio?",
-          initialValue: true,
-        });
-        if (!clack.isCancel(transcribeChoice) && transcribeChoice) {
-          const spin = clack.spinner();
-          spin.start("Transcribing audio...");
-          try {
-            const { transcribe: runTranscribe } = await import("../whisper/transcribe.js");
-            const result = await runTranscribe(sourceFilePath, destDir, {
-              onProgress: (msg) => spin.message(msg),
-            });
-            spin.stop(
-              c.success(
-                `Transcribed ${result.wordCount} words (${result.durationSeconds.toFixed(1)}s)`,
-              ),
-            );
-          } catch (err) {
-            spin.stop(c.dim(`Transcription skipped: ${err instanceof Error ? err.message : err}`));
-          }
+          spin.message("Transcribing audio...");
+          const { transcribe: runTranscribe } = await import("../whisper/transcribe.js");
+          const result = await runTranscribe(sourceFilePath, destDir, {
+            onProgress: (msg) => spin.message(msg),
+          });
+          spin.stop(
+            c.success(
+              `Transcribed ${result.wordCount} words (${result.durationSeconds.toFixed(1)}s)`,
+            ),
+          );
+        } catch (err) {
+          spin.stop(c.dim(`Transcription skipped: ${err instanceof Error ? err.message : err}`));
         }
-      } else {
-        clack.log.info(
-          `To generate captions, install whisper-cpp: ${c.accent(getInstallInstructions())}`,
-        );
       }
     }
 

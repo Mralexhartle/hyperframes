@@ -8,7 +8,7 @@ import { pipeline } from "node:stream/promises";
 const MODELS_DIR = join(homedir(), ".cache", "hyperframes", "whisper", "models");
 const DEFAULT_MODEL = "base.en";
 
-export type WhisperSource = "env" | "system";
+export type WhisperSource = "env" | "system" | "brew" | "build";
 
 export interface WhisperResult {
   executablePath: string;
@@ -83,26 +83,97 @@ function findFromSystem(): WhisperResult | undefined {
   return undefined;
 }
 
+// --- Build from source ------------------------------------------------------
+
+const BUILD_DIR = join(homedir(), ".cache", "hyperframes", "whisper", "whisper.cpp");
+const WHISPER_REPO = "https://github.com/ggml-org/whisper.cpp.git";
+
+function findBuiltBinary(): WhisperResult | undefined {
+  for (const p of [
+    join(BUILD_DIR, "build", "bin", "whisper-cli"),
+    join(BUILD_DIR, "build", "whisper-cli"),
+  ]) {
+    if (existsSync(p)) return { executablePath: p, source: "build" };
+  }
+  return undefined;
+}
+
+function buildFromSource(onProgress?: (msg: string) => void): WhisperResult {
+  if (!existsSync(BUILD_DIR)) {
+    onProgress?.("Downloading whisper.cpp...");
+    mkdirSync(join(homedir(), ".cache", "hyperframes", "whisper"), { recursive: true });
+    execSync(`git clone --depth 1 ${WHISPER_REPO} ${BUILD_DIR}`, {
+      stdio: "ignore",
+      timeout: 60_000,
+    });
+  }
+
+  onProgress?.("Building whisper.cpp (this may take a minute)...");
+  execSync("cmake -B build && cmake --build build --config Release -j", {
+    cwd: BUILD_DIR,
+    stdio: "ignore",
+    timeout: 300_000,
+  });
+
+  const result = findBuiltBinary();
+  if (!result) throw new Error("Build completed but whisper-cli not found");
+  return result;
+}
+
 // --- Public API -------------------------------------------------------------
 
 export function findWhisper(): WhisperResult | undefined {
-  return findFromEnv() ?? findFromSystem();
+  return findFromEnv() ?? findFromSystem() ?? findBuiltBinary();
 }
 
 export function getInstallInstructions(): string {
   if (platform() === "darwin") {
     return "brew install whisper-cpp";
   }
-  if (platform() === "linux") {
-    return "See https://github.com/ggml-org/whisper.cpp#building";
-  }
-  return "See https://github.com/ggml-org/whisper.cpp";
+  return "See https://github.com/ggml-org/whisper.cpp#building";
 }
 
-export async function ensureWhisper(): Promise<WhisperResult> {
+function hasBrew(): boolean {
+  return whichBinary("brew") !== undefined;
+}
+
+function hasGit(): boolean {
+  return whichBinary("git") !== undefined;
+}
+
+function hasCmake(): boolean {
+  return whichBinary("cmake") !== undefined;
+}
+
+export async function ensureWhisper(options?: {
+  onProgress?: (msg: string) => void;
+}): Promise<WhisperResult> {
+  // 1. Already installed?
   const existing = findWhisper();
   if (existing) return existing;
 
+  // 2. Try brew (macOS, fastest — pre-built bottle)
+  if (platform() === "darwin" && hasBrew()) {
+    options?.onProgress?.("Installing whisper-cpp via Homebrew...");
+    try {
+      execSync("brew install whisper-cpp", { stdio: "ignore", timeout: 300_000 });
+      const installed = findFromSystem();
+      if (installed) return { ...installed, source: "brew" };
+    } catch {
+      // brew failed — fall through
+    }
+  }
+
+  // 3. Build from source (needs git + cmake + C compiler)
+  if (hasGit() && hasCmake()) {
+    try {
+      return buildFromSource(options?.onProgress);
+    } catch {
+      // build failed — fall through
+    }
+  }
+
+  // 4. Give up — tell the user how
   throw new Error(`whisper-cpp not found. Install: ${getInstallInstructions()}`);
 }
 
