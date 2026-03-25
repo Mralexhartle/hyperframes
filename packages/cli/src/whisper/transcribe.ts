@@ -102,7 +102,17 @@ export async function transcribe(
 
   execFileSync(
     whisper.executablePath,
-    ["--model", modelPath, "--output-json", "--output-file", outputBase, "--dtw", model, wavPath],
+    [
+      "--model",
+      modelPath,
+      "--output-json-full",
+      "--output-file",
+      outputBase,
+      "--dtw",
+      model,
+      "--suppress-nst",
+      wavPath,
+    ],
     { stdio: "ignore", timeout: 300_000 },
   );
 
