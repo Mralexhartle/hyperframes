@@ -319,26 +319,29 @@ def generate_html(data: dict) -> str:
             scene_name = layer.get("name", "")
             scene_comp = comp_by_name.get(scene_name)
             scene_start = layer.get("inPoint", 0)
-            scene_dur = layer.get("outPoint", 0)
-            if scene_dur <= scene_start:
-                scene_dur = scene_start + 5
+            scene_duration = layer.get("outPoint", 0)
+            if scene_duration <= 0:
+                scene_duration = 5
+            scene_end = scene_start + scene_duration
 
             scene_id = f"scene-{comp_idx}"
             comp_idx += 1
 
+            initial_opacity = 1 if scene_start < 0.01 else 0
             all_html.append(
-                f'    <!-- ═══ {scene_name} ({scene_start:.1f}-{scene_dur:.1f}s) ═══ -->'
+                f'    <!-- ═══ {scene_name} ({scene_start:.1f}-{scene_end:.1f}s) ═══ -->'
             )
             all_html.append(
                 f'    <div id="{scene_id}" data-start="{round(scene_start, 4)}" '
-                f'data-duration="{round(scene_dur - scene_start, 4)}" data-track-index="{layer_idx}" '
+                f'data-duration="{round(scene_duration, 4)}" data-track-index="{layer_idx}" '
                 f'style="position:absolute;top:0;left:0;width:{root_w}px;height:{root_h}px;'
-                f'overflow:hidden;opacity:0;">'
+                f'overflow:hidden;opacity:{initial_opacity};">'
             )
 
             # Scene fade in/out
-            all_gsap.append(f'      /* {scene_name} */')
-            all_gsap.append(f'      tl.to("#{scene_id}", {{ opacity: 1, duration: 0.01 }}, {round(scene_start, 4)});')
+            all_gsap.append(f'      /* {scene_name} ({scene_start:.1f}-{scene_end:.1f}s) */')
+            if initial_opacity == 0:
+                all_gsap.append(f'      tl.set("#{scene_id}", {{ opacity: 1 }}, {round(scene_start, 4)});')
 
             if scene_comp:
                 # Process scene layers
@@ -378,7 +381,7 @@ def generate_html(data: dict) -> str:
                         all_gsap.append(line)
 
             # Scene fade out
-            fade_out_t = round(scene_dur - 0.3, 4)
+            fade_out_t = round(scene_end - 0.3, 4)
             all_gsap.append(f'      tl.to("#{scene_id}", {{ opacity: 0, duration: 0.3 }}, {fade_out_t});')
             all_gsap.append("")
 
