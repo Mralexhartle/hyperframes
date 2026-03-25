@@ -425,13 +425,8 @@ def generate_html(data: dict) -> str:
             all_html.append("")
 
         elif layer["type"] == "solid":
-            el_html, el_gsap = layer_to_html(
-                layer, root_comp, root_w, root_h,
-                999, layer_idx, len(root_comp.get("layers", [])),
-                0,
-            )
-            all_html.append(el_html)
-            all_gsap.extend(el_gsap)
+            # Root-level solids (Color Control, etc.) are utility layers — skip
+            pass
 
     max_end = max(
         (layer.get("inPoint", 0) + layer.get("outPoint", 0) for layer in root_comp.get("layers", [])),
