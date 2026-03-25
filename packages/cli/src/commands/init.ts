@@ -605,8 +605,18 @@ export default defineCommand({
         initialValue: true,
       });
       if (!clack.isCancel(transcribeChoice) && transcribeChoice) {
+        const { findWhisper } = await import("../whisper/manager.js");
+        const needsInstall = findWhisper() === undefined;
+        if (needsInstall) {
+          clack.log.info(c.dim("whisper-cpp not found — installing automatically..."));
+        }
+
         const spin = clack.spinner();
-        spin.start("Setting up transcription...");
+        spin.start(
+          needsInstall
+            ? "Installing whisper-cpp (this may take a moment)..."
+            : "Preparing transcription...",
+        );
         try {
           const { ensureWhisper, ensureModel } = await import("../whisper/manager.js");
           await ensureWhisper({
