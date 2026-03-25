@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <title>APEX - Rise Above</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .composition {
+      width: 1920px;
+      height: 1080px;
+      position: relative;
+      overflow: hidden;
+      background: #0a0a0a;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* ===== PHASE 1: ELEGANT - Product Beauty Shots ===== */
+
+    .phase1-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse at 50% 50%, #1a1508 0%, #0a0a0a 70%);
+      opacity: 0;
+    }
+
+    .phase1-gold-line-top {
+      position: absolute;
+      top: 200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #c9a44e, transparent);
+    }
+
+    .phase1-gold-line-bottom {
+      position: absolute;
+      top: 700px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #c9a44e, transparent);
+    }
+
+    .product-tracker {
+      position: absolute;
+      top: 310px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 340px;
+      height: 340px;
+      opacity: 0;
+    }
+
+    .tracker-body {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 260px;
+      height: 260px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 40%, #1a1a1a 100%);
+      border: 2px solid #c9a44e;
+      box-shadow: 0 0 60px rgba(201, 164, 78, 0.15), inset 0 0 40px rgba(0,0,0,0.5);
+    }
+
+    .tracker-screen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #0d0d0d 0%, #111 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .tracker-time {
+      font-size: 42px;
+      font-weight: 300;
+      color: #c9a44e;
+      letter-spacing: 2px;
+      opacity: 0;
+    }
+
+    .tracker-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: rgba(201, 164, 78, 0.5);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-top: 4px;
+      opacity: 0;
+    }
+
+    .tracker-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(201, 164, 78, 0.08) 0%, transparent 70%);
+      opacity: 0;
+    }
+
+    .product-name {
+      position: absolute;
+      top: 680px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 64px;
+      font-weight: 200;
+      color: #c9a44e;
+      letter-spacing: 28px;
+      text-transform: uppercase;
+      opacity: 0;
+      white-space: nowrap;
+    }
+
+    .product-tagline-intro {
+      position: absolute;
+      top: 760px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      font-weight: 400;
+      color: rgba(201, 164, 78, 0.4);
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      opacity: 0;
+      white-space: nowrap;
+    }
+
+    .phase1-particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: #c9a44e;
+      border-radius: 50%;
+      opacity: 0;
+    }
+
+    /* ===== PHASE 2: ENERGETIC - Athletes in Motion ===== */
+
+    .phase2-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse at 40% 40%, #1a1508 0%, #0a0a0a 60%);
+      opacity: 0;
+    }
+
+    .athlete-silhouette {
+      position: absolute;
+      opacity: 0;
+    }
+
+    .athlete-1 {
+      top: 200px;
+      left: 150px;
+      width: 300px;
+      height: 500px;
+    }
+
+    .athlete-1-shape {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(201, 164, 78, 0.15) 0%, rgba(201, 164, 78, 0.03) 100%);
+      clip-path: polygon(50% 0%, 70% 15%, 85% 40%, 75% 70%, 60% 100%, 40% 100%, 25% 70%, 15% 40%, 30% 15%);
+    }
+
+    .athlete-2 {
+      top: 180px;
+      right: 150px;
+      width: 320px;
+      height: 520px;
+    }
+
+    .athlete-2-shape {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(201, 164, 78, 0.18) 0%, rgba(201, 164, 78, 0.02) 100%);
+      clip-path: polygon(35% 0%, 65% 0%, 80% 20%, 90% 50%, 70% 80%, 55% 100%, 45% 100%, 30% 80%, 10% 50%, 20% 20%);
+    }
+
+    .athlete-3 {
+      top: 220px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 350px;
+      height: 540px;
+    }
+
+    .athlete-3-shape {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, rgba(201, 164, 78, 0.2) 0%, rgba(201, 164, 78, 0.03) 100%);
+      clip-path: polygon(45% 0%, 55% 0%, 75% 15%, 85% 35%, 80% 60%, 65% 85%, 50% 100%, 35% 85%, 20% 60%, 15% 35%, 25% 15%);
+    }
+
+    .energy-line {
+      position: absolute;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #c9a44e, transparent);
+      opacity: 0;
+      transform-origin: left center;
+    }
+
+    .energy-line-1 { top: 350px; left: 0; width: 600px; }
+    .energy-line-2 { top: 480px; right: 0; left: auto; width: 500px; transform-origin: right center; }
+    .energy-line-3 { top: 550px; left: 200px; width: 400px; }
+    .energy-line-4 { top: 420px; left: 700px; width: 550px; }
+    .energy-line-5 { top: 300px; left: 900px; width: 450px; }
+
+    .stat-block {
+      position: absolute;
+      text-align: center;
+      opacity: 0;
+    }
+
+    .stat-block .stat-value {
+      font-size: 48px;
+      font-weight: 800;
+      color: #c9a44e;
+      line-height: 1;
+    }
+
+    .stat-block .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(201, 164, 78, 0.5);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-top: 8px;
+    }
+
+    .stat-1 { top: 160px; left: 660px; }
+    .stat-2 { top: 160px; left: 960px; }
+    .stat-3 { top: 160px; left: 1260px; }
+
+    .heartbeat-text {
+      position: absolute;
+      top: 780px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 120px;
+      font-weight: 900;
+      color: rgba(201, 164, 78, 0.08);
+      letter-spacing: 20px;
+      text-transform: uppercase;
+      opacity: 0;
+      white-space: nowrap;
+    }
+
+    .phase2-particle {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      background: #c9a44e;
+      border-radius: 50%;
+      opacity: 0;
+    }
+
+    /* ===== PHASE 3: PLAYFUL/TRIUMPHANT - Celebration + Tagline ===== */
+
+    .phase3-bg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse at 50% 40%, #2a1f08 0%, #0a0a0a 65%);
+      opacity: 0;
+    }
+
+    .celebration-burst {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 800px;
+      opacity: 0;
+    }
+
+    .burst-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      border: 1px solid rgba(201, 164, 78, 0.2);
+      opacity: 0;
+    }
+
+    .burst-ring-1 { width: 200px; height: 200px; }
+    .burst-ring-2 { width: 400px; height: 400px; }
+    .burst-ring-3 { width: 600px; height: 600px; }
+
+    .confetti-particle {
+      position: absolute;
+      opacity: 0;
+      border-radius: 2px;
+    }
+
+    .tagline-container {
+      position: absolute;
+      top: 400px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      opacity: 0;
+    }
+
+    .tagline-text {
+      font-size: 96px;
+      font-weight: 800;
+      color: #c9a44e;
+      letter-spacing: 12px;
+      text-transform: uppercase;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    .tagline-underline {
+      width: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #c9a44e, transparent);
+      margin: 20px auto 0;
+    }
+
+    .final-apex-logo {
+      position: absolute;
+      top: 560px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 28px;
+      font-weight: 300;
+      color: rgba(201, 164, 78, 0.6);
+      letter-spacing: 18px;
+      text-transform: uppercase;
+      opacity: 0;
+      white-space: nowrap;
+    }
+
+    .trophy-icon {
+      position: absolute;
+      top: 250px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 120px;
+      opacity: 0;
+    }
+
+    .trophy-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .phase3-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(201, 164, 78, 0.1) 0%, transparent 60%);
+      opacity: 0;
+    }
+
+    .winner-silhouette {
+      position: absolute;
+      bottom: 200px;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+    }
+
+    .winner-shape {
+      width: 200px;
+      height: 300px;
+      background: linear-gradient(180deg, rgba(201, 164, 78, 0.25) 0%, rgba(201, 164, 78, 0.05) 100%);
+      clip-path: polygon(50% 0%, 65% 10%, 80% 5%, 70% 25%, 75% 45%, 60% 55%, 55% 100%, 45% 100%, 40% 55%, 25% 45%, 30% 25%, 20% 5%, 35% 10%);
+    }
+
+    .supporting-text {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 13px;
+      font-weight: 400;
+      color: rgba(201, 164, 78, 0.35);
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      opacity: 0;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="composition" data-composition-id="gradual-escalation-apex" style="width: 1920px; height: 1080px; position: relative; overflow: hidden;">
+
+    <!-- ===== PHASE 1: ELEGANT ===== -->
+    <div class="phase1-bg"></div>
+    <div class="phase1-gold-line-top"></div>
+    <div class="phase1-gold-line-bottom"></div>
+
+    <!-- Floating gold particles for ambient depth -->
+    <div class="phase1-particle" style="top: 250px; left: 400px;"></div>
+    <div class="phase1-particle" style="top: 350px; left: 800px;"></div>
+    <div class="phase1-particle" style="top: 450px; left: 1200px;"></div>
+    <div class="phase1-particle" style="top: 300px; left: 1500px;"></div>
+    <div class="phase1-particle" style="top: 500px; left: 600px;"></div>
+    <div class="phase1-particle" style="top: 600px; left: 1000px;"></div>
+    <div class="phase1-particle" style="top: 400px; left: 300px;"></div>
+    <div class="phase1-particle" style="top: 550px; left: 1400px;"></div>
+
+    <div class="product-tracker">
+      <div class="tracker-glow"></div>
+      <div class="tracker-body">
+        <div class="tracker-screen">
+          <div class="tracker-time">12:48</div>
+          <div class="tracker-label">APEX</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="product-name">APEX</div>
+    <div class="product-tagline-intro">Precision Engineered Performance</div>
+
+    <!-- ===== PHASE 2: ENERGETIC ===== -->
+    <div class="phase2-bg"></div>
+
+    <div class="athlete-silhouette athlete-1"><div class="athlete-1-shape"></div></div>
+    <div class="athlete-silhouette athlete-2"><div class="athlete-2-shape"></div></div>
+    <div class="athlete-silhouette athlete-3"><div class="athlete-3-shape"></div></div>
+
+    <div class="energy-line energy-line-1"></div>
+    <div class="energy-line energy-line-2"></div>
+    <div class="energy-line energy-line-3"></div>
+    <div class="energy-line energy-line-4"></div>
+    <div class="energy-line energy-line-5"></div>
+
+    <div class="stat-block stat-1">
+      <div class="stat-value">185</div>
+      <div class="stat-label">BPM</div>
+    </div>
+    <div class="stat-block stat-2">
+      <div class="stat-value">42.8</div>
+      <div class="stat-label">KM</div>
+    </div>
+    <div class="stat-block stat-3">
+      <div class="stat-value">98%</div>
+      <div class="stat-label">VO2</div>
+    </div>
+
+    <div class="heartbeat-text">PUSH BEYOND</div>
+
+    <div class="phase2-particle" style="top: 300px; left: 200px;"></div>
+    <div class="phase2-particle" style="top: 400px; left: 500px;"></div>
+    <div class="phase2-particle" style="top: 250px; left: 900px;"></div>
+    <div class="phase2-particle" style="top: 500px; left: 1300px;"></div>
+    <div class="phase2-particle" style="top: 350px; left: 1600px;"></div>
+    <div class="phase2-particle" style="top: 600px; left: 700px;"></div>
+    <div class="phase2-particle" style="top: 450px; left: 1100px;"></div>
+    <div class="phase2-particle" style="top: 550px; left: 400px;"></div>
+    <div class="phase2-particle" style="top: 200px; left: 1400px;"></div>
+    <div class="phase2-particle" style="top: 650px; left: 1000px;"></div>
+
+    <!-- ===== PHASE 3: PLAYFUL/TRIUMPHANT ===== -->
+    <div class="phase3-bg"></div>
+    <div class="phase3-glow"></div>
+
+    <div class="celebration-burst">
+      <div class="burst-ring burst-ring-1"></div>
+      <div class="burst-ring burst-ring-2"></div>
+      <div class="burst-ring burst-ring-3"></div>
+    </div>
+
+    <!-- Confetti particles -->
+    <div class="confetti-particle" style="width: 8px; height: 8px; background: #c9a44e; top: 200px; left: 400px;"></div>
+    <div class="confetti-particle" style="width: 6px; height: 10px; background: #d4af5a; top: 150px; left: 700px;"></div>
+    <div class="confetti-particle" style="width: 10px; height: 6px; background: #c9a44e; top: 300px; left: 1000px;"></div>
+    <div class="confetti-particle" style="width: 7px; height: 7px; background: #e0c472; top: 180px; left: 1300px;"></div>
+    <div class="confetti-particle" style="width: 5px; height: 9px; background: #c9a44e; top: 250px; left: 500px;"></div>
+    <div class="confetti-particle" style="width: 9px; height: 5px; background: #d4af5a; top: 350px; left: 1500px;"></div>
+    <div class="confetti-particle" style="width: 6px; height: 8px; background: #c9a44e; top: 280px; left: 800px;"></div>
+    <div class="confetti-particle" style="width: 8px; height: 6px; background: #e0c472; top: 220px; left: 1100px;"></div>
+    <div class="confetti-particle" style="width: 7px; height: 9px; background: #c9a44e; top: 320px; left: 600px;"></div>
+    <div class="confetti-particle" style="width: 9px; height: 7px; background: #d4af5a; top: 160px; left: 1400px;"></div>
+    <div class="confetti-particle" style="width: 6px; height: 6px; background: #c9a44e; top: 380px; left: 900px;"></div>
+    <div class="confetti-particle" style="width: 8px; height: 10px; background: #e0c472; top: 270px; left: 1200px;"></div>
+
+    <div class="trophy-icon">
+      <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M35 25h50v35c0 18-11 30-25 33-14-3-25-15-25-33V25z" fill="rgba(201,164,78,0.15)" stroke="#c9a44e" stroke-width="1.5"/>
+        <path d="M35 35H20c0 15 8 25 15 28" stroke="#c9a44e" stroke-width="1" opacity="0.5"/>
+        <path d="M85 35h15c0 15-8 25-15 28" stroke="#c9a44e" stroke-width="1" opacity="0.5"/>
+        <rect x="50" y="93" width="20" height="8" rx="2" fill="rgba(201,164,78,0.2)" stroke="#c9a44e" stroke-width="1"/>
+        <rect x="42" y="101" width="36" height="6" rx="2" fill="rgba(201,164,78,0.15)" stroke="#c9a44e" stroke-width="1"/>
+      </svg>
+    </div>
+
+    <div class="winner-silhouette">
+      <div class="winner-shape"></div>
+    </div>
+
+    <div class="tagline-container">
+      <div class="tagline-text">Rise Above</div>
+      <div class="tagline-underline"></div>
+    </div>
+
+    <div class="final-apex-logo">APEX</div>
+    <div class="supporting-text">The Future of Fitness Technology</div>
+
+  </div>
+
+  <!-- CDN Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/CustomEase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/SplitText.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/CustomBounce.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/CustomWiggle.min.js"></script>
+  <script>
+    gsap.registerPlugin(CustomEase, SplitText, CustomBounce, CustomWiggle);
+
+    // ==========================================
+    // CUSTOM EASES (Principle 6: Slow In/Out)
+    // ==========================================
+
+    // Elegant: smooth sine-like curve with no sharp attacks
+    CustomEase.create("elegantReveal",
+      "M0,0 C0.15,0 0.25,0.1 0.35,0.35 0.45,0.6 0.55,0.9 0.65,0.97 0.75,1.02 0.85,1 1,1"
+    );
+
+    // Elegant drift: ultra-smooth continuous motion for emphasis holds
+    CustomEase.create("elegantDrift",
+      "M0,0 C0.3,0.1 0.7,0.9 1,1"
+    );
+
+    // Custom wiggles for Phase 3 (Principle 12: Appeal - idle wobbles = alive)
+    CustomWiggle.create("celebrationWobble", { wiggles: 4, type: "easeOut" });
+    CustomWiggle.create("idleBob", { wiggles: 3, type: "uniform" });
+
+    // CustomBounce for Phase 3 triumphant landings (Principle 1: Squash & Stretch)
+    CustomBounce.create("triumphBounce", {
+      strength: 0.5,
+      squash: 3,
+      squashID: "triumphBounce-squash"
+    });
+
+    // ==========================================
+    // MASTER TIMELINE
+    // ==========================================
+    const tl = gsap.timeline({ paused: true });
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["gradual-escalation-apex"] = tl;
+
+    // ==========================================
+    // PHASE 1: ELEGANT (0s - 15s)
+    // Mood recipe: restraint, no overshoot/bounce, long durations 1-2s,
+    //   sine.inOut, minimal displacement 15-40px
+    // Entrance: ensemble (20% = 3s)
+    // Emphasis: drift (65% = 9.75s)
+    // Exit: fade recede (15% = 2.25s)
+    // ==========================================
+    const phase1 = gsap.timeline();
+
+    const p1EntranceStart = 0;
+    const p1EmphasisStart = 3;
+    const p1ExitStart = 12.75;
+
+    // --- ENTRANCE: Ensemble ---
+    // Principle 3 (Staging): elements in 2-3 groups, slight offset but feels unified
+    // Principle 9 (Timing): long durations = cinematic/luxurious
+
+    // Group 1: Background + ambient particles (the stage)
+    phase1.to(".phase1-bg", {
+      opacity: 1, duration: 2, ease: "sine.inOut"
+    }, p1EntranceStart);
+
+    // Principle 8 (Secondary Action): gold dust particles fade as subtle reinforcement
+    phase1.to(".phase1-particle", {
+      opacity: 0.3, duration: 1.8, ease: "sine.inOut",
+      stagger: 0.15
+    }, p1EntranceStart + 0.3);
+
+    // Group 2: Product tracker (the hero)
+    // Principle 4 (Pose to Pose): two states + elegant ease = enough
+    phase1.fromTo(".product-tracker", {
+      opacity: 0, y: 15
+    }, {
+      opacity: 1, y: 0, duration: 1.5, ease: "elegantReveal"
+    }, p1EntranceStart + 0.6);
+
+    // Principle 5 (Follow-Through): glow follows tracker, lags behind
+    phase1.to(".tracker-glow", {
+      opacity: 1, duration: 1.8, ease: "sine.inOut"
+    }, p1EntranceStart + 0.8);
+
+    // Screen details emerge within the ensemble
+    phase1.to(".tracker-time", {
+      opacity: 1, duration: 1.2, ease: "sine.inOut"
+    }, p1EntranceStart + 1.2);
+
+    phase1.to(".tracker-label", {
+      opacity: 1, duration: 1.2, ease: "sine.inOut"
+    }, p1EntranceStart + 1.5);
+
+    // Gold framing lines — elegant reveal with long duration
+    phase1.to(".phase1-gold-line-top", {
+      width: 600, duration: 2, ease: "elegantReveal"
+    }, p1EntranceStart + 0.5);
+
+    phase1.to(".phase1-gold-line-bottom", {
+      width: 600, duration: 2, ease: "elegantReveal"
+    }, p1EntranceStart + 0.7);
+
+    // Group 3: Text (completes the ensemble)
+    // Minimal displacement per elegant recipe: y: 20px, y: 10px
+    phase1.fromTo(".product-name", {
+      y: 20, opacity: 0
+    }, {
+      y: 0, opacity: 1, duration: 1.5, ease: "sine.inOut"
+    }, p1EntranceStart + 1.8);
+
+    phase1.fromTo(".product-tagline-intro", {
+      y: 10, opacity: 0
+    }, {
+      y: 0, opacity: 1, duration: 1.2, ease: "sine.inOut"
+    }, p1EntranceStart + 2.2);
+
+    // --- EMPHASIS: Drift ---
+    // Principle 11 (Solid Drawing): parallax layers at different speeds = depth
+    // Principle 9 (Timing): full emphasis duration, gentle continuous motion
+
+    // Product tracker floats upward gently (minimal displacement: 12px)
+    phase1.to(".product-tracker", {
+      y: -12, duration: 9.75, ease: "elegantDrift"
+    }, p1EmphasisStart);
+
+    // Principle 8 (Secondary Action): glow breathes — gentle scale oscillation
+    phase1.to(".tracker-glow", {
+      scale: 1.08, opacity: 0.8, duration: 4.8, ease: "sine.inOut",
+      yoyo: true, repeat: 1
+    }, p1EmphasisStart);
+
+    // Parallax particle drift — each at a different speed for depth
+    phase1.to(".phase1-particle", {
+      y: "-=random(10,25)", x: "+=random(-12,15)",
+      duration: 9.75, ease: "sine.inOut",
+      stagger: { each: 0.2 }
+    }, p1EmphasisStart);
+
+    // Gold lines slowly continue extending — builds the sense of space
+    phase1.to(".phase1-gold-line-top", {
+      width: 800, duration: 9.75, ease: "sine.inOut"
+    }, p1EmphasisStart);
+    phase1.to(".phase1-gold-line-bottom", {
+      width: 800, duration: 9.75, ease: "sine.inOut"
+    }, p1EmphasisStart);
+
+    // Product name letter-spacing drifts wider — elegant micro-motion
+    phase1.to(".product-name", {
+      letterSpacing: "32px", duration: 9.75, ease: "sine.inOut"
+    }, p1EmphasisStart);
+
+    // --- EXIT: Fade Recede ---
+    // Elements fade + scale down slightly, sinking back into space
+    // Principle 9 (Timing): 2.25s slow exit = elegant departure
+
+    phase1.to(".product-tracker", {
+      opacity: 0, scale: 0.95, y: 10, duration: 2.25, ease: "sine.inOut"
+    }, p1ExitStart);
+
+    phase1.to(".tracker-glow", {
+      opacity: 0, duration: 2, ease: "sine.inOut"
+    }, p1ExitStart);
+
+    phase1.to(".product-name", {
+      opacity: 0, y: 10, duration: 2, ease: "sine.inOut"
+    }, p1ExitStart);
+
+    phase1.to(".product-tagline-intro", {
+      opacity: 0, y: 10, duration: 1.8, ease: "sine.inOut"
+    }, p1ExitStart + 0.1);
+
+    phase1.to(".phase1-gold-line-top, .phase1-gold-line-bottom", {
+      opacity: 0, width: 0, duration: 2, ease: "sine.inOut"
+    }, p1ExitStart);
+
+    phase1.to(".phase1-particle", {
+      opacity: 0, scale: 0.5, duration: 2, ease: "sine.inOut",
+      stagger: 0.05
+    }, p1ExitStart);
+
+    phase1.to(".phase1-bg", {
+      opacity: 0, duration: 2.25, ease: "sine.inOut"
+    }, p1ExitStart);
+
+    tl.add(phase1, 0);
+
+    // ==========================================
+    // PHASE 2: ENERGETIC (starts at 13.8s, 12s duration)
+    // Transition: elegant -> energetic = ESCALATION (0.8-1.5s overlap)
+    //   Phase 1 elements accelerate exit, Phase 2 inherits momentum
+    // Mood recipe: rapid cascade 0.03-0.05s, elastic overshoot,
+    //   short durations 0.2-0.4s, power3.out
+    // Entrance: cascade (15% = 1.8s)
+    // Emphasis: pulse (65% = 7.8s)
+    // Exit: scatter (20% = 2.4s)
+    // ==========================================
+    const phase2 = gsap.timeline();
+
+    const p2Duration = 12;
+    const p2EntranceStart = 0;
+    const p2EmphasisStart = 1.8;
+    const p2ExitStart = 9.6;
+
+    // Transition matrix: elegant -> energetic = escalation (0.8-1.5s)
+    const escalationOverlap = 1.2;
+    const phase2MasterStart = 15 - escalationOverlap;
+
+    // --- ENTRANCE: Cascade ---
+    // Principle 3 (Staging): rapid staggered entrances, eye cascades through elements
+    // Principle 2 (Anticipation): momentum carry from Phase 1's accelerating exit
+
+    phase2.to(".phase2-bg", {
+      opacity: 1, duration: 0.6, ease: "power3.out"
+    }, p2EntranceStart);
+
+    // Athletes cascade in — tight stagger 0.04s per energetic recipe
+    phase2.from(".athlete-silhouette", {
+      opacity: 0, y: 60, scale: 0.9,
+      duration: 0.4, ease: "power3.out",
+      stagger: { each: 0.04, from: "start" }
+    }, p2EntranceStart + 0.1);
+
+    // Energy lines slash in with momentum
+    phase2.from(".energy-line", {
+      opacity: 0, scaleX: 0,
+      duration: 0.35, ease: "power3.out",
+      stagger: { each: 0.05, from: "start" }
+    }, p2EntranceStart + 0.2);
+
+    // Principle 10 (Exaggeration): stats overshoot with back.out
+    phase2.from(".stat-block", {
+      opacity: 0, y: 30, scale: 0.85,
+      duration: 0.3, ease: "back.out(1.7)",
+      stagger: { each: 0.04 }
+    }, p2EntranceStart + 0.5);
+
+    // Principle 10 (Exaggeration): heartbeat text slams in with scale overshoot
+    phase2.fromTo(".heartbeat-text", {
+      opacity: 0, scale: 1.1
+    }, {
+      opacity: 1, scale: 1, duration: 0.3, ease: "power4.out"
+    }, p2EntranceStart + 0.8);
+
+    // Principle 8 (Secondary Action): particles burst in
+    phase2.from(".phase2-particle", {
+      opacity: 0, scale: 0,
+      duration: 0.25, ease: "back.out(2)",
+      stagger: { each: 0.03, from: "random" }
+    }, p2EntranceStart + 0.3);
+
+    // --- EMPHASIS: Pulse ---
+    // Principle 10 (Exaggeration): subtle scale oscillation on key elements (5-15%)
+    // Principle 5 (Follow-Through): elastic overshoot on arrivals
+
+    // Athletes pulse with energy
+    phase2.to(".athlete-1", {
+      scale: 1.02, duration: 0.4, ease: "sine.inOut",
+      yoyo: true, repeat: 9
+    }, p2EmphasisStart);
+
+    phase2.to(".athlete-2", {
+      scale: 1.03, duration: 0.35, ease: "sine.inOut",
+      yoyo: true, repeat: 10
+    }, p2EmphasisStart + 0.1);
+
+    phase2.to(".athlete-3", {
+      scale: 1.025, duration: 0.38, ease: "sine.inOut",
+      yoyo: true, repeat: 10
+    }, p2EmphasisStart + 0.05);
+
+    // Energy lines pulse opacity
+    phase2.to(".energy-line", {
+      opacity: 0.3, duration: 0.3, ease: "sine.inOut",
+      yoyo: true, repeat: 12,
+      stagger: { each: 0.08 }
+    }, p2EmphasisStart);
+
+    // Stat values pulse scale
+    phase2.to(".stat-value", {
+      scale: 1.08, duration: 0.3, ease: "sine.inOut",
+      yoyo: true, repeat: 12,
+      stagger: { each: 0.06 }
+    }, p2EmphasisStart);
+
+    // Heartbeat text intensity oscillation
+    phase2.to(".heartbeat-text", {
+      opacity: 0.12, scale: 1.01, duration: 0.5, ease: "sine.inOut",
+      yoyo: true, repeat: 7
+    }, p2EmphasisStart);
+
+    // Particles drift energetically (Principle 5: Follow-Through)
+    phase2.to(".phase2-particle", {
+      y: "random(-40, 40)", x: "random(-30, 30)",
+      duration: 1.5, ease: "power2.out",
+      stagger: { each: 0.1, repeat: 4, yoyo: true }
+    }, p2EmphasisStart);
+
+    // --- EXIT: Scatter ---
+    // Principle 5 (Follow-Through): elements scatter in different directions
+    // Each element gets its own random trajectory
+
+    phase2.to(".athlete-silhouette", {
+      opacity: 0, x: "random(-120, 120)", y: "random(-80, 80)",
+      rotation: "random(-10, 10)", duration: 0.5, ease: "power2.in",
+      stagger: 0.04
+    }, p2ExitStart);
+
+    phase2.to(".energy-line", {
+      opacity: 0, scaleX: 0, duration: 0.4, ease: "power3.in",
+      stagger: 0.03
+    }, p2ExitStart);
+
+    phase2.to(".stat-block", {
+      opacity: 0, y: -40, x: "random(-60, 60)",
+      duration: 0.4, ease: "power2.in",
+      stagger: 0.04
+    }, p2ExitStart + 0.1);
+
+    phase2.to(".heartbeat-text", {
+      opacity: 0, scale: 0.95, duration: 0.5, ease: "power2.in"
+    }, p2ExitStart + 0.1);
+
+    phase2.to(".phase2-particle", {
+      opacity: 0, x: "random(-100, 100)", y: "random(-80, 80)",
+      duration: 0.4, ease: "power2.in",
+      stagger: 0.03
+    }, p2ExitStart + 0.1);
+
+    phase2.to(".phase2-bg", {
+      opacity: 0, duration: 1.5, ease: "power2.in"
+    }, p2ExitStart + 0.5);
+
+    tl.add(phase2, phase2MasterStart);
+
+    // ==========================================
+    // PHASE 3: PLAYFUL/TRIUMPHANT (starts at ~23.8s, 13s duration)
+    // Transition: energetic -> playful = SOFT (1.5-3s overlap)
+    //   Phase 2 elements slowly fade/drift out, Phase 3 gradually emerges
+    // Mood synonym: "triumphant" -> playful (from lookup table)
+    // Mood recipe: everything overshoots, squash & stretch on landings,
+    //   stagger from center, idle motion, CustomBounce with squash,
+    //   back.out easing
+    // Entrance: cascade from center (20% = 2.6s)
+    // Emphasis: play with idle wobbles (60% = 7.8s)
+    // Exit: scatter (20% = 2.6s)
+    // ==========================================
+    const phase3 = gsap.timeline();
+
+    const p3Duration = 13;
+    const p3EntranceStart = 0;
+    const p3EmphasisStart = 2.6;
+    const p3ExitStart = 10.4;
+
+    // Transition matrix: energetic -> playful = soft (1.5-3s)
+    const softOverlap = 2;
+    const phase3MasterStart = phase2MasterStart + p2Duration - softOverlap;
+
+    // --- ENTRANCE: Cascade from center ---
+    // Principle 3 (Staging): stagger from "center" per playful recipe
+    // Principle 10 (Exaggeration): 15-40% overshoot for playful
+
+    phase3.to(".phase3-bg", {
+      opacity: 1, duration: 1.2, ease: "sine.inOut"
+    }, p3EntranceStart);
+
+    phase3.to(".phase3-glow", {
+      opacity: 1, duration: 1.5, ease: "sine.inOut"
+    }, p3EntranceStart + 0.2);
+
+    // Celebration burst container
+    phase3.to(".celebration-burst", {
+      opacity: 1, duration: 0.3
+    }, p3EntranceStart + 0.3);
+
+    // Burst rings expand outward from center with overshoot
+    phase3.fromTo(".burst-ring-1", {
+      opacity: 0, scale: 0.3
+    }, {
+      opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.7)"
+    }, p3EntranceStart + 0.3);
+
+    phase3.fromTo(".burst-ring-2", {
+      opacity: 0, scale: 0.3
+    }, {
+      opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.5)"
+    }, p3EntranceStart + 0.5);
+
+    phase3.fromTo(".burst-ring-3", {
+      opacity: 0, scale: 0.3
+    }, {
+      opacity: 1, scale: 1, duration: 0.7, ease: "back.out(1.3)"
+    }, p3EntranceStart + 0.7);
+
+    // Trophy bounces in with CustomBounce + squash
+    // Principle 1 (Squash & Stretch): CustomBounce with squash parameter
+    phase3.fromTo(".trophy-icon", {
+      opacity: 0, y: -80
+    }, {
+      opacity: 1, y: 0, duration: 1.2, ease: "triumphBounce"
+    }, p3EntranceStart + 0.4);
+
+    // Squash deformation on landing (Principle 1)
+    phase3.fromTo(".trophy-icon", {
+      scaleX: 1, scaleY: 1
+    }, {
+      scaleX: 1, scaleY: 1, duration: 1.2, ease: "triumphBounce-squash"
+    }, p3EntranceStart + 0.4);
+
+    // Winner silhouette cascades from center with overshoot
+    phase3.fromTo(".winner-silhouette", {
+      opacity: 0, y: 40, scale: 0.9
+    }, {
+      opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "back.out(1.7)"
+    }, p3EntranceStart + 0.8);
+
+    // Confetti particles burst from center
+    // Principle 8 (Secondary Action): reinforcing the celebration
+    phase3.fromTo(".confetti-particle", {
+      opacity: 0, scale: 0
+    }, {
+      opacity: 1, scale: 1,
+      duration: 0.5, ease: "back.out(2)",
+      stagger: { each: 0.04, from: "center" }
+    }, p3EntranceStart + 0.6);
+
+    // Tagline container appears
+    phase3.to(".tagline-container", {
+      opacity: 1, duration: 0.8, ease: "sine.out"
+    }, p3EntranceStart + 1.2);
+
+    // SplitText for tagline — chars stagger from center (playful recipe)
+    // Principle 5 (Follow-Through): words finish at different times
+    const taglineSplit = new SplitText(".tagline-text", { type: "words,chars" });
+    phase3.from(taglineSplit.chars, {
+      opacity: 0, y: 30, scale: 0.8,
+      duration: 0.5, ease: "back.out(1.7)",
+      stagger: { each: 0.04, from: "center" }
+    }, p3EntranceStart + 1.3);
+
+    // Tagline underline extends
+    phase3.to(".tagline-underline", {
+      width: 300, duration: 0.8, ease: "power2.out"
+    }, p3EntranceStart + 1.8);
+
+    // Final logo and supporting text enter with overshoot
+    phase3.fromTo(".final-apex-logo", {
+      opacity: 0, y: 10
+    }, {
+      opacity: 1, y: 0, duration: 0.6, ease: "back.out(1.4)"
+    }, p3EntranceStart + 2.0);
+
+    phase3.fromTo(".supporting-text", {
+      opacity: 0, y: 8
+    }, {
+      opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.2)"
+    }, p3EntranceStart + 2.2);
+
+    // --- EMPHASIS: Play ---
+    // Principle 12 (Appeal): idle wobbles/bobs = elements feel alive, not static
+    // Nothing stays still per playful recipe
+
+    // Burst rings slowly rotate (idle motion)
+    phase3.to(".burst-ring-1", {
+      rotation: 15, scale: 1.05, duration: 7.8, ease: "sine.inOut"
+    }, p3EmphasisStart);
+
+    phase3.to(".burst-ring-2", {
+      rotation: -10, scale: 1.03, duration: 7.8, ease: "sine.inOut"
+    }, p3EmphasisStart);
+
+    phase3.to(".burst-ring-3", {
+      rotation: 8, scale: 1.02, duration: 7.8, ease: "sine.inOut"
+    }, p3EmphasisStart);
+
+    // Trophy idle wobble with CustomWiggle (playful emphasis pattern)
+    phase3.to(".trophy-icon", {
+      rotation: 3, ease: "celebrationWobble", duration: 2,
+      repeat: 3, repeatDelay: 0.3
+    }, p3EmphasisStart);
+
+    // Principle 7 (Arcs): trophy gentle y float — arc not straight line
+    phase3.to(".trophy-icon", {
+      y: -8, duration: 2.5, ease: "sine.inOut",
+      yoyo: true, repeat: 2
+    }, p3EmphasisStart);
+
+    // Confetti particles idle float (playful: nothing stays still)
+    phase3.to(".confetti-particle", {
+      y: "random(-30, 30)", x: "random(-20, 20)",
+      rotation: "random(-45, 45)",
+      duration: 1.8, ease: "sine.inOut",
+      stagger: { each: 0.12, repeat: 3, yoyo: true }
+    }, p3EmphasisStart);
+
+    // Winner silhouette gentle bob
+    phase3.to(".winner-silhouette", {
+      y: -6, duration: 2, ease: "sine.inOut",
+      yoyo: true, repeat: 3
+    }, p3EmphasisStart);
+
+    // Tagline chars gentle idle wobble
+    // Principle 5 (Overlapping Action): staggered micro-motion creates life
+    phase3.to(taglineSplit.chars, {
+      y: -3, duration: 1.2, ease: "sine.inOut",
+      stagger: { each: 0.05, yoyo: true, repeat: 5 }
+    }, p3EmphasisStart + 0.5);
+
+    // Phase 3 glow breathes
+    phase3.to(".phase3-glow", {
+      scale: 1.1, opacity: 0.8, duration: 3.9, ease: "sine.inOut",
+      yoyo: true, repeat: 1
+    }, p3EmphasisStart);
+
+    // Final logo gentle scale pulse
+    phase3.to(".final-apex-logo", {
+      scale: 1.03, duration: 2.5, ease: "sine.inOut",
+      yoyo: true, repeat: 2
+    }, p3EmphasisStart + 0.5);
+
+    // --- EXIT: Scatter ---
+    // Principle 3 (Staging): tagline holds longest — it's the payoff, last to leave
+
+    phase3.to(".confetti-particle", {
+      opacity: 0, y: "random(-150, 150)", x: "random(-150, 150)",
+      rotation: "random(-90, 90)",
+      duration: 0.8, ease: "power2.in",
+      stagger: 0.03
+    }, p3ExitStart);
+
+    phase3.to(".burst-ring", {
+      opacity: 0, scale: 1.5, duration: 1.2, ease: "power2.in"
+    }, p3ExitStart);
+
+    phase3.to(".celebration-burst", {
+      opacity: 0, duration: 1.2, ease: "power2.in"
+    }, p3ExitStart + 0.3);
+
+    phase3.to(".trophy-icon", {
+      opacity: 0, y: -40, duration: 0.8, ease: "power2.in"
+    }, p3ExitStart + 0.2);
+
+    phase3.to(".winner-silhouette", {
+      opacity: 0, y: 30, duration: 0.8, ease: "power2.in"
+    }, p3ExitStart + 0.2);
+
+    phase3.to(".supporting-text", {
+      opacity: 0, y: 10, duration: 0.6, ease: "sine.inOut"
+    }, p3ExitStart + 0.3);
+
+    // Tagline underline retracts
+    phase3.to(".tagline-underline", {
+      width: 0, opacity: 0, duration: 1, ease: "sine.inOut"
+    }, p3ExitStart + 0.8);
+
+    // Logo fades
+    phase3.to(".final-apex-logo", {
+      opacity: 0, y: 5, duration: 1.2, ease: "sine.inOut"
+    }, p3ExitStart + 1.0);
+
+    // Tagline chars scatter from edges — last element, the climactic payoff
+    phase3.to(taglineSplit.chars, {
+      opacity: 0, y: -10, duration: 0.8, ease: "sine.inOut",
+      stagger: { each: 0.03, from: "edges" }
+    }, p3ExitStart + 1.2);
+
+    phase3.to(".tagline-container", {
+      opacity: 0, duration: 1, ease: "sine.inOut"
+    }, p3ExitStart + 1.5);
+
+    phase3.to(".phase3-glow", {
+      opacity: 0, duration: 2, ease: "sine.inOut"
+    }, p3ExitStart + 0.5);
+
+    phase3.to(".phase3-bg", {
+      opacity: 0, duration: 2.6, ease: "sine.inOut"
+    }, p3ExitStart);
+
+    tl.add(phase3, phase3MasterStart);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  .composition {
+    width: 1080px;
+    height: 700px;
+    overflow: hidden;
+    position: relative;
+    background: #0c0a09;
+    font-family: 'Inter', sans-serif;
+    color: #fafaf9;
+  }
+
+  /* ===== SCENE 1: Terminal Install ===== */
+  .scene-terminal {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+    perspective: 900px;
+  }
+  .terminal-window {
+    width: 780px;
+    background: #1c1917;
+    border-radius: 12px;
+    border: 1px solid #292524;
+    overflow: hidden;
+    transform: translateY(60px) rotateX(8deg);
+    transform-origin: center bottom;
+  }
+  .terminal-titlebar {
+    height: 38px;
+    background: #292524;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 8px;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-red { background: #ef4444; }
+  .dot-yellow { background: #eab308; }
+  .dot-green { background: #22c55e; }
+  .terminal-title {
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    color: #78716c;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .terminal-body {
+    padding: 20px;
+    font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    min-height: 320px;
+  }
+  .term-prompt {
+    color: #22c55e;
+  }
+  .term-command {
+    color: #fafaf9;
+  }
+  .term-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 16px;
+    background: #fafaf9;
+    vertical-align: middle;
+    margin-left: 2px;
+    opacity: 0;
+  }
+  .ascii-logo {
+    color: #fbbf24;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 4px;
+    opacity: 0;
+  }
+  .server-line {
+    color: #a8a29e;
+    opacity: 0;
+  }
+  .server-line.amber { color: #fbbf24; }
+  .server-line.green { color: #22c55e; }
+
+  /* ===== SCENE 2: Home Screen ===== */
+  .scene-home {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0;
+  }
+  .home-app {
+    width: 820px;
+    background: #1c1917;
+    border-radius: 16px;
+    border: 1px solid #292524;
+    padding: 48px 40px 40px;
+    text-align: center;
+    transform: scale(0.95);
+  }
+  .home-title {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 42px;
+    color: #fafaf9;
+    margin-bottom: 8px;
+    opacity: 0;
+  }
+  .home-tagline {
+    font-size: 16px;
+    color: #a8a29e;
+    margin-bottom: 36px;
+    opacity: 0;
+  }
+  .home-input-row {
+    display: flex;
+    align-items: center;
+    background: #292524;
+    border-radius: 28px;
+    padding: 6px 6px 6px 24px;
+    margin-bottom: 28px;
+    opacity: 0;
+  }
+  .home-input-text {
+    flex: 1;
+    font-size: 15px;
+    color: #78716c;
+    text-align: left;
+  }
+  .home-send-btn {
+    width: 44px; height: 44px;
+    background: #fbbf24;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .home-send-btn svg { width: 20px; height: 20px; }
+  .home-chips {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    opacity: 0;
+  }
+  .chip {
+    padding: 8px 18px;
+    background: #292524;
+    border-radius: 20px;
+    font-size: 13px;
+    color: #a8a29e;
+    border: 1px solid #3f3a36;
+  }
+  .chip.active {
+    background: #fbbf24;
+    color: #0c0a09;
+    border-color: #fbbf24;
+    font-weight: 600;
+  }
+
+  /* ===== SCENE 3: Chat Interface ===== */
+  .scene-chat {
+    position: absolute; inset: 0;
+    display: flex;
+    opacity: 0;
+  }
+  .chat-sidebar {
+    width: 220px;
+    background: #1c1917;
+    border-right: 1px solid #292524;
+    padding: 20px 14px;
+    opacity: 0;
+  }
+  .sidebar-title {
+    font-size: 12px;
+    color: #78716c;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+  .sidebar-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #a8a29e;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+  }
+  .sidebar-item.active {
+    background: #292524;
+    color: #fafaf9;
+  }
+  .chat-main {
+    flex: 1;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    opacity: 0;
+  }
+  .msg-user {
+    align-self: flex-end;
+    background: #292524;
+    padding: 14px 20px;
+    border-radius: 18px 18px 4px 18px;
+    max-width: 420px;
+    font-size: 14px;
+    color: #fafaf9;
+  }
+  .msg-assistant {
+    align-self: flex-start;
+    max-width: 480px;
+  }
+  .msg-assistant-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px;
+  }
+  .msg-avatar {
+    width: 28px; height: 28px;
+    background: #fbbf24;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: #0c0a09;
+  }
+  .msg-name { font-size: 13px; color: #a8a29e; }
+  .msg-body {
+    font-size: 14px;
+    line-height: 1.65;
+    color: #d6d3d1;
+  }
+  .msg-body .highlight { color: #fbbf24; font-weight: 600; }
+  .chat-right {
+    width: 260px;
+    background: #1c1917;
+    border-left: 1px solid #292524;
+    padding: 20px 14px;
+    opacity: 0;
+  }
+  .right-title {
+    font-size: 12px;
+    color: #78716c;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+  .step-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 0;
+    font-size: 13px;
+    color: #a8a29e;
+    opacity: 0;
+  }
+  .step-check {
+    width: 18px; height: 18px;
+    background: #22c55e;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #fff;
+  }
+  .tool-call {
+    background: #292524;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-top: 6px;
+    font-size: 12px;
+    font-family: monospace;
+    color: #fbbf24;
+    opacity: 0;
+  }
+
+  /* ===== SCENE 4: Provider Switch ===== */
+  .scene-providers {
+    position: absolute; inset: 0;
+    display: flex;
+    align-items: center; justify-content: center;
+    gap: 24px;
+    opacity: 0;
+    padding: 40px;
+  }
+  .provider-panel {
+    background: #1c1917;
+    border: 1px solid #292524;
+    border-radius: 14px;
+    padding: 20px;
+    width: 360px;
+    transform: scale(0.95);
+  }
+  .panel-header {
+    font-size: 13px;
+    color: #78716c;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #292524;
+  }
+  .prov-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #d6d3d1;
+    opacity: 0;
+  }
+  .prov-item.active-prov {
+    background: #292524;
+  }
+  .prov-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .model-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #d6d3d1;
+    opacity: 0;
+  }
+  .model-item.active-model {
+    background: #292524;
+    border: 1px solid #fbbf24;
+  }
+  .model-desc {
+    font-size: 11px;
+    color: #78716c;
+    margin-top: 2px;
+  }
+  .providers-tagline {
+    position: absolute;
+    bottom: 50px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 15px;
+    color: #a8a29e;
+    opacity: 0;
+  }
+
+  /* ===== SCENE 5: MCP Catalog ===== */
+  .scene-mcp {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+  }
+  .mcp-modal {
+    width: 860px;
+    background: #1c1917;
+    border: 1px solid #292524;
+    border-radius: 16px;
+    padding: 32px;
+    transform: scale(0.95);
+  }
+  .mcp-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fafaf9;
+    margin-bottom: 6px;
+    opacity: 0;
+  }
+  .mcp-subtitle {
+    font-size: 14px;
+    color: #78716c;
+    margin-bottom: 20px;
+    opacity: 0;
+  }
+  .mcp-filters {
+    display: flex; gap: 8px;
+    margin-bottom: 24px;
+    opacity: 0;
+  }
+  .filter-pill {
+    padding: 6px 16px;
+    border-radius: 16px;
+    font-size: 12px;
+    background: #292524;
+    color: #a8a29e;
+  }
+  .filter-pill.active-pill {
+    background: #fbbf24;
+    color: #0c0a09;
+    font-weight: 600;
+  }
+  .mcp-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .mcp-card {
+    background: #292524;
+    border-radius: 12px;
+    padding: 18px;
+    border: 1px solid #3f3a36;
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  .mcp-card-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  .mcp-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fafaf9;
+    margin-bottom: 4px;
+  }
+  .mcp-card-auth {
+    font-size: 11px;
+    color: #78716c;
+    margin-bottom: 10px;
+  }
+  .mcp-card-btn {
+    padding: 5px 14px;
+    background: #fbbf24;
+    color: #0c0a09;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+  }
+
+  /* ===== SCENE 6: Messaging Bots ===== */
+  .scene-bots {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0;
+  }
+  .bots-title {
+    font-size: 34px;
+    font-weight: 800;
+    color: #fafaf9;
+    margin-bottom: 8px;
+    opacity: 0;
+  }
+  .bots-subtitle {
+    font-size: 16px;
+    color: #a8a29e;
+    margin-bottom: 36px;
+    opacity: 0;
+  }
+  .bots-grid {
+    display: flex; gap: 18px;
+  }
+  .bot-card {
+    width: 200px;
+    background: #1c1917;
+    border: 1px solid #292524;
+    border-radius: 14px;
+    padding: 24px 18px;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  .bot-icon {
+    font-size: 36px;
+    margin-bottom: 10px;
+  }
+  .bot-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fafaf9;
+    margin-bottom: 4px;
+  }
+  .bot-status {
+    font-size: 12px;
+    color: #22c55e;
+    margin-bottom: 10px;
+  }
+  .bot-tags {
+    display: flex; flex-wrap: wrap; gap: 4px; justify-content: center;
+  }
+  .bot-tag {
+    padding: 3px 8px;
+    background: #292524;
+    border-radius: 4px;
+    font-size: 10px;
+    color: #a8a29e;
+  }
+
+  /* ===== SCENE 7: Logo Combo ===== */
+  .scene-logo {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+  }
+  /* Sub-scene A: converging lines + burst */
+  .logo-a {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+  }
+  .converge-line {
+    position: absolute;
+    background: #fbbf24;
+    height: 2px;
+    width: 0;
+    transform-origin: center center;
+  }
+  .center-burst {
+    width: 80px; height: 80px;
+    background: #fbbf24;
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(0);
+  }
+  .particle {
+    position: absolute;
+    width: 6px; height: 6px;
+    background: #fbbf24;
+    border-radius: 50%;
+    opacity: 0;
+  }
+  .grid-line {
+    position: absolute;
+    background: #292524;
+    opacity: 0;
+  }
+
+  /* Sub-scene B: text reveal */
+  .logo-b {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0;
+  }
+  .intro-text {
+    font-size: 16px;
+    color: #78716c;
+    margin-bottom: 12px;
+    opacity: 0;
+  }
+  .headline-word {
+    display: inline-block;
+    font-size: 40px;
+    font-weight: 800;
+    color: #fafaf9;
+    margin: 0 6px;
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  .headline-word.amber-word { color: #fbbf24; }
+  .model-names {
+    margin-top: 18px;
+    display: flex; gap: 14px;
+    opacity: 0;
+  }
+  .model-badge {
+    padding: 6px 14px;
+    background: #292524;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #a8a29e;
+    border: 1px solid #3f3a36;
+  }
+
+  /* Sub-scene C: provider icons */
+  .logo-c {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0;
+  }
+  .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 80px);
+    gap: 18px;
+    margin-bottom: 24px;
+  }
+  .icon-cell {
+    width: 80px; height: 80px;
+    background: #1c1917;
+    border: 1px solid #292524;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  .icon-tagline {
+    font-size: 16px;
+    color: #a8a29e;
+    opacity: 0;
+  }
+
+  /* ===== SCENE 8: GitHub CTA ===== */
+  .scene-github {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0;
+  }
+  .oss-label {
+    padding: 8px 20px;
+    background: #292524;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fbbf24;
+    letter-spacing: 2px;
+    margin-bottom: 28px;
+    opacity: 0;
+  }
+  .gh-logo {
+    width: 80px; height: 80px;
+    margin-bottom: 24px;
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.5);
+  }
+  .gh-logo svg {
+    width: 80px; height: 80px;
+    fill: #fafaf9;
+  }
+  .star-orbit {
+    position: absolute;
+    width: 160px; height: 160px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+  }
+  .orbit-star {
+    position: absolute;
+    font-size: 18px;
+    color: #fbbf24;
+  }
+  .gh-heading {
+    font-size: 30px;
+    font-weight: 700;
+    color: #fafaf9;
+    margin-bottom: 16px;
+    opacity: 0;
+  }
+  .gh-url-card {
+    padding: 14px 32px;
+    background: #1c1917;
+    border: 1px solid #292524;
+    border-radius: 10px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 16px;
+    color: #fbbf24;
+    opacity: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="composition" data-composition-id="openclawd-no-skill" data-width="1080" data-height="700" data-duration="37.3">
+
+  <!-- ===== SCENE 1: Terminal Install ===== -->
+  <div class="scene-terminal">
+    <div class="terminal-window">
+      <div class="terminal-titlebar">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+        <span class="terminal-title">Terminal</span>
+      </div>
+      <div class="terminal-body">
+        <div><span class="term-prompt">$ </span><span class="term-command" id="typed-cmd"></span><span class="term-cursor" id="cursor"></span></div>
+        <div class="ascii-logo" id="ascii-logo">
+ ___  ___  ___ _  _  ___ _      ___      _____ <br>
+/ _ \| _ \| __| \| |/ __| |    /_\ \    / /   \<br>
+| (_) |  _/| _|| .` | (__| |__ / _ \ \/\/ /| |) |<br>
+\___/|_|  |___|_|\_|\___|____/_/ \_\_/\_/ |___/<br>
+        </div>
+        <div class="server-line" id="sl1"><span style="color:#fbbf24">OpenClawd v1.2.0</span> &mdash; AI Desktop Agent</div>
+        <div class="server-line" id="sl2">SDK backends: <span style="color:#22c55e">anthropic</span>, <span style="color:#22c55e">openai</span>, <span style="color:#22c55e">google</span>, <span style="color:#22c55e">ollama</span></div>
+        <div class="server-line" id="sl3">Loaded <span style="color:#fbbf24">20 providers</span> / <span style="color:#fbbf24">80+ models</span></div>
+        <div class="server-line" id="sl4">Models: Opus 4.6, GPT-5.3, Gemini 3, DeepSeek-V4, Llama 4 Scout</div>
+        <div class="server-line" id="sl5">MCP servers: <span style="color:#22c55e">12 connected</span></div>
+        <div class="server-line green" id="sl6">Opening desktop app on <span style="color:#fafaf9">:3001</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCENE 2: Home Screen ===== -->
+  <div class="scene-home">
+    <div class="home-app">
+      <div class="home-title">OpenClawd</div>
+      <div class="home-tagline">Open Source Alternative to Claude Cowork</div>
+      <div class="home-input-row">
+        <span class="home-input-text">Ask anything or type / for commands...</span>
+        <div class="home-send-btn">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="#0c0a09" stroke-width="2" stroke-linecap="round"/><path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="#0c0a09" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="home-chips">
+        <div class="chip active">Claude Code</div>
+        <div class="chip">Opus 4.6</div>
+        <div class="chip">Attach</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCENE 3: Chat Interface ===== -->
+  <div class="scene-chat">
+    <div class="chat-sidebar">
+      <div class="sidebar-title">Chat History</div>
+      <div class="sidebar-item active">Review my API code</div>
+      <div class="sidebar-item">Refactor auth module</div>
+      <div class="sidebar-item">Debug WebSocket issue</div>
+      <div class="sidebar-item">Write unit tests</div>
+      <div class="sidebar-item">Deploy pipeline setup</div>
+    </div>
+    <div class="chat-main">
+      <div class="msg-user">Review my API code for potential security issues and suggest improvements</div>
+      <div class="msg-assistant">
+        <div class="msg-assistant-header">
+          <div class="msg-avatar">C</div>
+          <span class="msg-name">Claude &middot; Opus 4.6</span>
+        </div>
+        <div class="msg-body" id="streaming-text"></div>
+      </div>
+    </div>
+    <div class="chat-right">
+      <div class="right-title">Progress</div>
+      <div class="step-item" id="step1"><div class="step-check">&#10003;</div> Reading source files</div>
+      <div class="step-item" id="step2"><div class="step-check">&#10003;</div> Analyzing patterns</div>
+      <div class="step-item" id="step3"><div class="step-check">&#10003;</div> Security scan complete</div>
+      <div class="right-title" style="margin-top: 16px;">Tool Calls</div>
+      <div class="tool-call" id="tc1">read_file("src/api/auth.ts")</div>
+      <div class="tool-call" id="tc2">grep("SQL.*query", "src/")</div>
+      <div class="tool-call" id="tc3">analyze_security("src/api/")</div>
+    </div>
+  </div>
+
+  <!-- ===== SCENE 4: Provider Switch ===== -->
+  <div class="scene-providers">
+    <div class="provider-panel" id="prov-panel-left">
+      <div class="panel-header">Providers</div>
+      <div class="prov-item active-prov"><div class="prov-dot" style="background:#fbbf24"></div> Claude Code</div>
+      <div class="prov-item"><div class="prov-dot" style="background:#22c55e"></div> OpenCode</div>
+      <div class="prov-item"><div class="prov-dot" style="background:#6366f1"></div> OpenAI</div>
+      <div class="prov-item"><div class="prov-dot" style="background:#3b82f6"></div> Gemini</div>
+      <div class="prov-item"><div class="prov-dot" style="background:#06b6d4"></div> DeepSeek</div>
+      <div class="prov-item"><div class="prov-dot" style="background:#a855f7"></div> Llama 4</div>
+      <div class="prov-item"><div class="prov-dot" style="background:#ec4899"></div> MiniMax</div>
+      <div class="prov-item"><div class="prov-dot" style="background:#78716c"></div> Ollama</div>
+    </div>
+    <div class="provider-panel" id="prov-panel-right">
+      <div class="panel-header">Models</div>
+      <div class="model-item active-model">Opus 4.6<div class="model-desc">Most capable, complex reasoning</div></div>
+      <div class="model-item">Sonnet 4.5<div class="model-desc">Balanced speed &amp; quality</div></div>
+      <div class="model-item">GPT-5.3<div class="model-desc">OpenAI flagship</div></div>
+      <div class="model-item">Gemini 3 Pro<div class="model-desc">Google multimodal</div></div>
+      <div class="model-item">DeepSeek-V4<div class="model-desc">Open-weight powerhouse</div></div>
+      <div class="model-item">Llama 4 Scout<div class="model-desc">Meta open source</div></div>
+      <div class="model-item">Mistral Large 3<div class="model-desc">European excellence</div></div>
+    </div>
+    <div class="providers-tagline">Switch providers &amp; models in one click</div>
+  </div>
+
+  <!-- ===== SCENE 5: MCP Catalog ===== -->
+  <div class="scene-mcp">
+    <div class="mcp-modal">
+      <div class="mcp-title">MCP Server Catalog</div>
+      <div class="mcp-subtitle">20+ servers available &mdash; connect your AI to everything</div>
+      <div class="mcp-filters">
+        <div class="filter-pill active-pill">All</div>
+        <div class="filter-pill">Dev Tools</div>
+        <div class="filter-pill">Databases</div>
+        <div class="filter-pill">Communication</div>
+        <div class="filter-pill">Browser</div>
+      </div>
+      <div class="mcp-grid">
+        <div class="mcp-card" id="mc1">
+          <div class="mcp-card-icon">&#128193;</div>
+          <div class="mcp-card-name">Filesystem</div>
+          <div class="mcp-card-auth">No auth required</div>
+          <div class="mcp-card-btn">Install</div>
+        </div>
+        <div class="mcp-card" id="mc2">
+          <div class="mcp-card-icon">&#128268;</div>
+          <div class="mcp-card-name">Git</div>
+          <div class="mcp-card-auth">No auth required</div>
+          <div class="mcp-card-btn">Install</div>
+        </div>
+        <div class="mcp-card" id="mc3">
+          <div class="mcp-card-icon">&#128025;</div>
+          <div class="mcp-card-name">GitHub</div>
+          <div class="mcp-card-auth">OAuth token</div>
+          <div class="mcp-card-btn">Install</div>
+        </div>
+        <div class="mcp-card" id="mc4">
+          <div class="mcp-card-icon">&#128451;</div>
+          <div class="mcp-card-name">PostgreSQL</div>
+          <div class="mcp-card-auth">Connection string</div>
+          <div class="mcp-card-btn">Install</div>
+        </div>
+        <div class="mcp-card" id="mc5">
+          <div class="mcp-card-icon">&#128172;</div>
+          <div class="mcp-card-name">Slack</div>
+          <div class="mcp-card-auth">Bot token</div>
+          <div class="mcp-card-btn">Install</div>
+        </div>
+        <div class="mcp-card" id="mc6">
+          <div class="mcp-card-icon">&#127760;</div>
+          <div class="mcp-card-name">Puppeteer</div>
+          <div class="mcp-card-auth">No auth required</div>
+          <div class="mcp-card-btn">Install</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCENE 6: Messaging Bots ===== -->
+  <div class="scene-bots">
+    <div class="bots-title">Your AI, everywhere you chat</div>
+    <div class="bots-subtitle">Deploy OpenClawd as a bot on your favorite platforms</div>
+    <div class="bots-grid">
+      <div class="bot-card" id="bc1">
+        <div class="bot-icon">&#128242;</div>
+        <div class="bot-name">WhatsApp</div>
+        <div class="bot-status">&#9679; Connected</div>
+        <div class="bot-tags"><span class="bot-tag">Voice</span><span class="bot-tag">Images</span><span class="bot-tag">Groups</span></div>
+      </div>
+      <div class="bot-card" id="bc2">
+        <div class="bot-icon">&#9992;</div>
+        <div class="bot-name">Telegram</div>
+        <div class="bot-status">&#9679; Connected</div>
+        <div class="bot-tags"><span class="bot-tag">Commands</span><span class="bot-tag">Inline</span><span class="bot-tag">Files</span></div>
+      </div>
+      <div class="bot-card" id="bc3">
+        <div class="bot-icon">&#128274;</div>
+        <div class="bot-name">Signal</div>
+        <div class="bot-status">&#9679; Connected</div>
+        <div class="bot-tags"><span class="bot-tag">E2E</span><span class="bot-tag">Private</span></div>
+      </div>
+      <div class="bot-card" id="bc4">
+        <div class="bot-icon">&#128172;</div>
+        <div class="bot-name">iMessage</div>
+        <div class="bot-status">&#9679; Connected</div>
+        <div class="bot-tags"><span class="bot-tag">macOS</span><span class="bot-tag">Tapback</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SCENE 7: Logo Combo ===== -->
+  <div class="scene-logo">
+    <!-- Sub-scene A: converging lines + burst -->
+    <div class="logo-a">
+      <div class="converge-line" id="cl1" style="top:350px; left:0; transform:rotate(0deg)"></div>
+      <div class="converge-line" id="cl2" style="top:200px; left:0; transform:rotate(20deg)"></div>
+      <div class="converge-line" id="cl3" style="top:500px; left:0; transform:rotate(-20deg)"></div>
+      <div class="converge-line" id="cl4" style="top:100px; right:0; transform:rotate(-30deg)"></div>
+      <div class="converge-line" id="cl5" style="top:600px; right:0; transform:rotate(30deg)"></div>
+      <div class="converge-line" id="cl6" style="top:350px; right:0; transform:rotate(180deg)"></div>
+      <div class="center-burst" id="burst"></div>
+      <div class="particle" id="p1" style="top:50%;left:50%"></div>
+      <div class="particle" id="p2" style="top:50%;left:50%"></div>
+      <div class="particle" id="p3" style="top:50%;left:50%"></div>
+      <div class="particle" id="p4" style="top:50%;left:50%"></div>
+      <div class="particle" id="p5" style="top:50%;left:50%"></div>
+      <div class="particle" id="p6" style="top:50%;left:50%"></div>
+      <div class="particle" id="p7" style="top:50%;left:50%"></div>
+      <div class="particle" id="p8" style="top:50%;left:50%"></div>
+      <!-- Grid lines -->
+      <div class="grid-line" id="gl1" style="top:175px;left:0;width:1080px;height:1px"></div>
+      <div class="grid-line" id="gl2" style="top:350px;left:0;width:1080px;height:1px"></div>
+      <div class="grid-line" id="gl3" style="top:525px;left:0;width:1080px;height:1px"></div>
+      <div class="grid-line" id="gl4" style="top:0;left:270px;width:1px;height:700px"></div>
+      <div class="grid-line" id="gl5" style="top:0;left:540px;width:1px;height:700px"></div>
+      <div class="grid-line" id="gl6" style="top:0;left:810px;width:1px;height:700px"></div>
+    </div>
+
+    <!-- Sub-scene B: text reveal -->
+    <div class="logo-b">
+      <div class="intro-text" id="intro-text">Introducing</div>
+      <div id="headline-row">
+        <span class="headline-word amber-word">Open</span>
+        <span class="headline-word amber-word">Source</span>
+        <span class="headline-word">AI</span>
+        <span class="headline-word">Desktop</span>
+      </div>
+      <div class="model-names" id="model-names-row">
+        <span class="model-badge">Opus 4.6</span>
+        <span class="model-badge">GPT-5.3</span>
+        <span class="model-badge">Gemini 3</span>
+        <span class="model-badge">DeepSeek-V4</span>
+        <span class="model-badge">Llama 4</span>
+      </div>
+    </div>
+
+    <!-- Sub-scene C: provider icons -->
+    <div class="logo-c">
+      <div class="icon-grid">
+        <div class="icon-cell" id="ic1" style="color:#fbbf24">&#9672;</div>
+        <div class="icon-cell" id="ic2" style="color:#22c55e">&#9673;</div>
+        <div class="icon-cell" id="ic3" style="color:#6366f1">&#9670;</div>
+        <div class="icon-cell" id="ic4" style="color:#3b82f6">&#9671;</div>
+        <div class="icon-cell" id="ic5" style="color:#06b6d4">&#9674;</div>
+        <div class="icon-cell" id="ic6" style="color:#a855f7">&#9675;</div>
+        <div class="icon-cell" id="ic7" style="color:#ec4899">&#9676;</div>
+        <div class="icon-cell" id="ic8" style="color:#78716c">&#9677;</div>
+      </div>
+      <div class="icon-tagline" id="icon-tagline">One interface. Every model.</div>
+    </div>
+  </div>
+
+  <!-- ===== SCENE 8: GitHub CTA ===== -->
+  <div class="scene-github">
+    <div class="oss-label" id="oss-label">100% OPEN SOURCE</div>
+    <div class="gh-logo" id="gh-logo">
+      <svg viewBox="0 0 98 96"><path fill-rule="evenodd" clip-rule="evenodd" d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z"/></svg>
+    </div>
+    <div class="star-orbit" id="star-orbit">
+      <div class="orbit-star" style="top:0;left:50%;transform:translateX(-50%)">&#9733;</div>
+      <div class="orbit-star" style="top:50%;right:0;transform:translateY(-50%)">&#9733;</div>
+      <div class="orbit-star" style="bottom:0;left:50%;transform:translateX(-50%)">&#9733;</div>
+      <div class="orbit-star" style="top:50%;left:0;transform:translateY(-50%)">&#9733;</div>
+    </div>
+    <div class="gh-heading" id="gh-heading">Star us on GitHub</div>
+    <div class="gh-url-card" id="gh-url">github.com/openclawd/openclawd</div>
+  </div>
+
+</div>
+
+<!-- GSAP -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function() {
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+  window.__timelines["openclawd-no-skill"] = tl;
+
+  // Helper: standard scene transition in
+  function sceneIn(target, startTime, dur) {
+    tl.to(target, { opacity: 1, scale: 1, duration: dur || 0.5, ease: "power2.out" }, startTime);
+  }
+  // Helper: standard scene transition out
+  function sceneOut(target, startTime, dur) {
+    tl.to(target, { opacity: 0, scale: 0.95, duration: dur || 0.4, ease: "power2.in" }, startTime);
+  }
+
+  // ======================================================
+  // SCENE 1: Terminal Install (0s - 4s)
+  // ======================================================
+  var scn1 = ".scene-terminal";
+  tl.to(scn1, { opacity: 1, duration: 0.01 }, 0);
+  // Terminal slides in from bottom with perspective
+  tl.from(".terminal-window", {
+    y: 200,
+    rotateX: 15,
+    opacity: 0,
+    duration: 0.6,
+    ease: "power3.out"
+  }, 0);
+  tl.to(".terminal-window", {
+    y: 0,
+    rotateX: 0,
+    duration: 0.6,
+    ease: "power3.out"
+  }, 0);
+
+  // Cursor blink
+  tl.to("#cursor", { opacity: 1, duration: 0.01 }, 0.3);
+
+  // Type command character by character
+  var cmdText = "npx openclawd-cli";
+  var charDelay = 0.06;
+  var typeStart = 0.4;
+  for (var i = 0; i < cmdText.length; i++) {
+    (function(idx) {
+      tl.call(function() {
+        document.getElementById("typed-cmd").textContent = cmdText.substring(0, idx + 1);
+      }, null, typeStart + idx * charDelay);
+    })(i);
+  }
+  var typeEnd = typeStart + cmdText.length * charDelay;
+
+  // Hide cursor after typing
+  tl.to("#cursor", { opacity: 0, duration: 0.1 }, typeEnd + 0.15);
+
+  // Show ASCII logo
+  tl.to("#ascii-logo", { opacity: 1, duration: 0.3, ease: "power2.out" }, typeEnd + 0.25);
+
+  // Server lines appear progressively
+  var lines = ["#sl1", "#sl2", "#sl3", "#sl4", "#sl5", "#sl6"];
+  var lineStart = typeEnd + 0.55;
+  for (var li = 0; li < lines.length; li++) {
+    tl.to(lines[li], { opacity: 1, duration: 0.15, ease: "none" }, lineStart + li * 0.2);
+  }
+
+  // Scene 1 out
+  sceneOut(scn1, 3.5, 0.4);
+
+  // ======================================================
+  // SCENE 2: Home Screen (4s - 9s)
+  // ======================================================
+  var scn2 = ".scene-home";
+  tl.to(scn2, { opacity: 1, duration: 0.01 }, 4);
+  tl.to(".home-app", { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.4)" }, 4.1);
+  tl.to(".home-title", { opacity: 1, duration: 0.5, ease: "power2.out" }, 4.3);
+  tl.to(".home-tagline", { opacity: 1, duration: 0.5, ease: "power2.out" }, 4.6);
+  tl.to(".home-input-row", { opacity: 1, duration: 0.5, ease: "power2.out" }, 4.9);
+  tl.to(".home-chips", { opacity: 1, duration: 0.5, ease: "power2.out" }, 5.2);
+
+  // Hold, then out
+  sceneOut(scn2, 8.5, 0.4);
+
+  // ======================================================
+  // SCENE 3: Chat Interface (9s - 14.3s)
+  // ======================================================
+  var scn3 = ".scene-chat";
+  tl.to(scn3, { opacity: 1, duration: 0.01 }, 9);
+
+  // Sidebar in
+  tl.to(".chat-sidebar", { opacity: 1, duration: 0.4, ease: "power2.out" }, 9.2);
+  // Sidebar items stagger
+  tl.to(".sidebar-item", { opacity: 1, duration: 0.3, stagger: 0.1, ease: "power2.out" }, 9.4);
+
+  // Main chat area
+  tl.to(".chat-main", { opacity: 1, duration: 0.4, ease: "power2.out" }, 9.6);
+
+  // Streaming text simulation
+  var streamText = "I've identified <span class='highlight'>3 security findings</span> in your API code:\n\n1. <span class='highlight'>SQL injection risk</span> in auth.ts:42 - raw query interpolation\n2. Missing rate limiting on /api/tokens endpoint\n3. JWT secret loaded from env without validation";
+  var streamChars = streamText.replace(/<[^>]*>/g, '');
+  var streamStart = 10.0;
+  var streamCharTime = 0.018;
+  // We'll add text in chunks for performance
+  var chunkSize = 4;
+  var totalChunks = Math.ceil(streamChars.length / chunkSize);
+  for (var ci = 0; ci < totalChunks; ci++) {
+    (function(chunkIdx) {
+      tl.call(function() {
+        var visLen = (chunkIdx + 1) * chunkSize;
+        // Build partial HTML carefully
+        var count = 0;
+        var result = "";
+        var inTag = false;
+        for (var si = 0; si < streamText.length && count < visLen; si++) {
+          if (streamText[si] === '<') { inTag = true; result += streamText[si]; continue; }
+          if (streamText[si] === '>') { inTag = false; result += streamText[si]; continue; }
+          if (inTag) { result += streamText[si]; continue; }
+          count++;
+          result += streamText[si];
+        }
+        // Close any open tags
+        if (inTag) {
+          var closeIdx = streamText.indexOf('>', result.length);
+          if (closeIdx > -1) result = streamText.substring(0, closeIdx + 1);
+        }
+        document.getElementById("streaming-text").innerHTML = result.replace(/\n/g, "<br>");
+      }, null, streamStart + chunkIdx * (streamCharTime * chunkSize));
+    })(ci);
+  }
+
+  // Right panel
+  tl.to(".chat-right", { opacity: 1, duration: 0.4, ease: "power2.out" }, 10.5);
+  tl.to("#step1", { opacity: 1, duration: 0.25 }, 10.8);
+  tl.to("#step2", { opacity: 1, duration: 0.25 }, 11.1);
+  tl.to("#step3", { opacity: 1, duration: 0.25 }, 11.4);
+  tl.to("#tc1", { opacity: 1, duration: 0.25 }, 11.7);
+  tl.to("#tc2", { opacity: 1, duration: 0.25 }, 12.0);
+  tl.to("#tc3", { opacity: 1, duration: 0.25 }, 12.3);
+
+  // Scene 3 out
+  sceneOut(scn3, 13.8, 0.4);
+
+  // ======================================================
+  // SCENE 4: Provider Switch (14.3s - 18.6s)
+  // ======================================================
+  var scn4 = ".scene-providers";
+  tl.to(scn4, { opacity: 1, duration: 0.01 }, 14.3);
+  tl.to("#prov-panel-left", { scale: 1, duration: 0.5, ease: "back.out(1.2)" }, 14.4);
+  tl.to("#prov-panel-right", { scale: 1, duration: 0.5, ease: "back.out(1.2)" }, 14.6);
+
+  // Stagger provider items
+  tl.to("#prov-panel-left .prov-item", {
+    opacity: 1, duration: 0.2, stagger: 0.08, ease: "power2.out"
+  }, 14.8);
+
+  // Stagger model items
+  tl.to("#prov-panel-right .model-item", {
+    opacity: 1, duration: 0.2, stagger: 0.08, ease: "power2.out"
+  }, 15.0);
+
+  // Tagline
+  tl.to(".providers-tagline", { opacity: 1, duration: 0.4, ease: "power2.out" }, 16.5);
+
+  // Scene 4 out
+  sceneOut(scn4, 18.1, 0.4);
+
+  // ======================================================
+  // SCENE 5: MCP Catalog (18.6s - 23.3s)
+  // ======================================================
+  var scn5 = ".scene-mcp";
+  tl.to(scn5, { opacity: 1, duration: 0.01 }, 18.6);
+  tl.to(".mcp-modal", { scale: 1, duration: 0.5, ease: "back.out(1.2)" }, 18.7);
+  tl.to(".mcp-title", { opacity: 1, duration: 0.4 }, 18.9);
+  tl.to(".mcp-subtitle", { opacity: 1, duration: 0.4 }, 19.1);
+  tl.to(".mcp-filters", { opacity: 1, duration: 0.4 }, 19.3);
+
+  // Cards stagger
+  var mcCards = ["#mc1", "#mc2", "#mc3", "#mc4", "#mc5", "#mc6"];
+  for (var mci = 0; mci < mcCards.length; mci++) {
+    tl.to(mcCards[mci], {
+      opacity: 1, y: 0, duration: 0.35, ease: "back.out(1.4)"
+    }, 19.6 + mci * 0.18);
+  }
+
+  // Scene 5 out
+  sceneOut(scn5, 22.8, 0.4);
+
+  // ======================================================
+  // SCENE 6: Messaging Bots (23.3s - 27.3s)
+  // ======================================================
+  var scn6 = ".scene-bots";
+  tl.to(scn6, { opacity: 1, duration: 0.01 }, 23.3);
+  tl.to(".bots-title", { opacity: 1, duration: 0.5, ease: "power2.out" }, 23.5);
+  tl.to(".bots-subtitle", { opacity: 1, duration: 0.4, ease: "power2.out" }, 23.8);
+
+  var botCards = ["#bc1", "#bc2", "#bc3", "#bc4"];
+  for (var bi = 0; bi < botCards.length; bi++) {
+    tl.to(botCards[bi], {
+      opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.6)"
+    }, 24.2 + bi * 0.2);
+  }
+
+  // Scene 6 out
+  sceneOut(scn6, 26.8, 0.4);
+
+  // ======================================================
+  // SCENE 7: Logo Combo (27.3s - 33.3s)
+  // ======================================================
+  var scn7 = ".scene-logo";
+  tl.to(scn7, { opacity: 1, duration: 0.01 }, 27.3);
+
+  // --- Sub-scene A: converging lines + burst (27.3 - 29.3) ---
+  tl.to(".logo-a", { opacity: 1, duration: 0.01 }, 27.3);
+
+  // Lines converge toward center
+  var convLines = ["#cl1", "#cl2", "#cl3", "#cl4", "#cl5", "#cl6"];
+  for (var cli = 0; cli < convLines.length; cli++) {
+    tl.to(convLines[cli], {
+      width: 540,
+      duration: 0.6,
+      ease: "power3.in"
+    }, 27.4 + cli * 0.06);
+  }
+
+  // Center burst
+  tl.to("#burst", {
+    opacity: 1, scale: 1.5, duration: 0.3, ease: "power4.out"
+  }, 28.1);
+  tl.to("#burst", {
+    scale: 0.6, opacity: 0.6, duration: 0.4, ease: "power2.inOut"
+  }, 28.4);
+
+  // Particles explode out
+  var particleTargets = [
+    { x: -120, y: -100 }, { x: 130, y: -80 },
+    { x: -90, y: 110 }, { x: 100, y: 120 },
+    { x: -160, y: 20 }, { x: 170, y: -30 },
+    { x: 40, y: -150 }, { x: -30, y: 140 }
+  ];
+  for (var pi = 0; pi < 8; pi++) {
+    tl.to("#p" + (pi + 1), {
+      opacity: 1, x: particleTargets[pi].x, y: particleTargets[pi].y,
+      duration: 0.5, ease: "power2.out"
+    }, 28.2);
+    tl.to("#p" + (pi + 1), {
+      opacity: 0, duration: 0.3
+    }, 28.7);
+  }
+
+  // Grid lines fade in
+  for (var gli = 1; gli <= 6; gli++) {
+    tl.to("#gl" + gli, { opacity: 0.3, duration: 0.4 }, 28.5 + gli * 0.05);
+  }
+
+  // Fade out sub-scene A
+  tl.to(".logo-a", { opacity: 0, duration: 0.3 }, 29.0);
+
+  // --- Sub-scene B: text reveal (29.3 - 31.3) ---
+  tl.to(".logo-b", { opacity: 1, duration: 0.01 }, 29.3);
+  tl.to("#intro-text", { opacity: 1, duration: 0.4, ease: "power2.out" }, 29.4);
+
+  // Word by word headline
+  tl.to(".headline-word", {
+    opacity: 1, y: 0, duration: 0.35, stagger: 0.18, ease: "back.out(1.4)"
+  }, 29.8);
+
+  // Model names
+  tl.to("#model-names-row", { opacity: 1, duration: 0.4, ease: "power2.out" }, 30.6);
+
+  // Fade out sub-scene B
+  tl.to(".logo-b", { opacity: 0, duration: 0.3 }, 31.0);
+
+  // --- Sub-scene C: provider icons (31.3 - 33.3) ---
+  tl.to(".logo-c", { opacity: 1, duration: 0.01 }, 31.3);
+
+  // Icon cells stagger in
+  for (var ici = 1; ici <= 8; ici++) {
+    tl.to("#ic" + ici, {
+      opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)"
+    }, 31.4 + (ici - 1) * 0.12);
+  }
+
+  tl.to("#icon-tagline", { opacity: 1, duration: 0.4, ease: "power2.out" }, 32.4);
+
+  // Scene 7 out
+  sceneOut(scn7, 32.8, 0.4);
+
+  // ======================================================
+  // SCENE 8: GitHub CTA (33.3s - 37.3s)
+  // ======================================================
+  var scn8 = ".scene-github";
+  tl.to(scn8, { opacity: 1, duration: 0.01 }, 33.3);
+
+  // OSS label
+  tl.to("#oss-label", { opacity: 1, duration: 0.4, ease: "power2.out" }, 33.5);
+
+  // GitHub logo spins in
+  tl.to("#gh-logo", {
+    opacity: 1, rotation: 0, scale: 1, duration: 0.8, ease: "back.out(1.6)"
+  }, 33.8);
+
+  // Star orbit
+  tl.to("#star-orbit", { opacity: 1, duration: 0.3 }, 34.4);
+  tl.to("#star-orbit", {
+    rotation: 360, duration: 2.5, ease: "none"
+  }, 34.4);
+
+  // Heading
+  tl.to("#gh-heading", { opacity: 1, duration: 0.4, ease: "power2.out" }, 34.8);
+
+  // URL card
+  tl.to("#gh-url", { opacity: 1, duration: 0.4, ease: "power2.out" }, 35.2);
+
+  // Final fade out at the very end
+  tl.to(scn8, { opacity: 0, duration: 0.5, ease: "power2.in" }, 36.8);
+
+})();
+</script>
+
+</body>
+</html>

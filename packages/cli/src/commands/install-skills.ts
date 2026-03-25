@@ -54,7 +54,7 @@ const GSAP_CACHE = join(homedir(), ".cache", "hyperframes", "gsap-skills");
 
 function getBundledSkillsDir(): string {
   const dir = dirname(fileURLToPath(import.meta.url));
-  const devPath = resolve(dir, "..", "..", "..", "..", ".claude", "skills");
+  const devPath = resolve(dir, "..", "..", "..", "..", "skills");
   const builtPath = resolve(dir, "skills");
   return existsSync(devPath) ? devPath : builtPath;
 }

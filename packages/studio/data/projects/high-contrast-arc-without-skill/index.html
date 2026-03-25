@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, height=1080">
+<title>SHATTERED - Thriller Title Sequence</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+
+  .composition {
+    background: #0a0a0a;
+    font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
+    color: #fff;
+  }
+
+  /* --- Phase 1: Creeping fragments --- */
+  .fragment {
+    position: absolute;
+    opacity: 0;
+    font-size: 18px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.15);
+    font-weight: 300;
+    font-family: 'Courier New', monospace;
+  }
+
+  .fragment.red {
+    color: rgba(200, 30, 30, 0.2);
+  }
+
+  /* --- Noise / texture overlay --- */
+  .noise-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    opacity: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255,255,255,0.015) 2px,
+      rgba(255,255,255,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 50;
+  }
+
+  /* --- Vignette --- */
+  .vignette {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.8) 100%);
+    pointer-events: none;
+    z-index: 40;
+    opacity: 0;
+  }
+
+  /* --- Scan lines --- */
+  .scanlines {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    opacity: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(0,0,0,0.15) 3px,
+      rgba(0,0,0,0.15) 6px
+    );
+    pointer-events: none;
+    z-index: 45;
+  }
+
+  /* --- Red pulse flash --- */
+  .red-flash {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: radial-gradient(ellipse at center, rgba(180,20,20,0.6) 0%, rgba(100,0,0,0.3) 50%, transparent 80%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 30;
+  }
+
+  /* --- White flash for impact --- */
+  .white-flash {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 60;
+  }
+
+  /* --- Main title --- */
+  .title-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    white-space: nowrap;
+  }
+
+  .title-main {
+    font-size: 180px;
+    font-weight: 900;
+    letter-spacing: 30px;
+    text-transform: uppercase;
+    color: #fff;
+    opacity: 0;
+    text-shadow: 0 0 60px rgba(200, 30, 30, 0.8), 0 0 120px rgba(200, 30, 30, 0.4);
+    position: relative;
+  }
+
+  /* --- Subtitle --- */
+  .subtitle {
+    position: absolute;
+    top: 62%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 22px;
+    letter-spacing: 18px;
+    text-transform: uppercase;
+    color: rgba(200, 30, 30, 0.9);
+    opacity: 0;
+    font-weight: 300;
+    z-index: 20;
+  }
+
+  /* --- Glass shards --- */
+  .shard {
+    position: absolute;
+    opacity: 0;
+    z-index: 25;
+    pointer-events: none;
+  }
+
+  .shard svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* --- Crack lines --- */
+  .crack-line {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.9), rgba(200,30,30,0.6), transparent);
+    opacity: 0;
+    transform-origin: left center;
+    z-index: 22;
+  }
+
+  /* --- Floating debris --- */
+  .debris {
+    position: absolute;
+    opacity: 0;
+    z-index: 15;
+  }
+
+  .debris-dot {
+    width: 3px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+  }
+
+  .debris-dot.red {
+    background: rgba(200, 30, 30, 0.4);
+  }
+
+  .debris-line {
+    width: 20px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  /* --- Horizontal rule accent --- */
+  .hr-accent {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(200,30,30,0.8), transparent);
+    opacity: 0;
+    z-index: 18;
+  }
+
+  /* --- Ambient glow --- */
+  .ambient-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .glow-red {
+    width: 400px;
+    height: 400px;
+    background: rgba(180, 20, 20, 0.15);
+    top: 40%;
+    left: 45%;
+  }
+
+  .glow-white {
+    width: 300px;
+    height: 300px;
+    background: rgba(255, 255, 255, 0.05);
+    top: 35%;
+    left: 55%;
+  }
+
+  /* --- Edge light streaks --- */
+  .light-streak {
+    position: absolute;
+    height: 1px;
+    opacity: 0;
+    z-index: 10;
+  }
+
+  .light-streak.top { top: 0; left: 0; width: 100%; background: linear-gradient(90deg, transparent, rgba(200,30,30,0.3), transparent); }
+  .light-streak.bottom { bottom: 0; left: 0; width: 100%; background: linear-gradient(90deg, transparent, rgba(200,30,30,0.3), transparent); }
+</style>
+</head>
+<body>
+
+<div class="composition" data-composition-id="high-contrast-arc-shattered" style="width: 1920px; height: 1080px; position: relative; overflow: hidden;">
+
+  <!-- Atmosphere layers -->
+  <div class="noise-overlay"></div>
+  <div class="vignette"></div>
+  <div class="scanlines"></div>
+  <div class="red-flash"></div>
+  <div class="white-flash"></div>
+
+  <!-- Ambient glows -->
+  <div class="ambient-glow glow-red"></div>
+  <div class="ambient-glow glow-white"></div>
+
+  <!-- Light streaks -->
+  <div class="light-streak top"></div>
+  <div class="light-streak bottom"></div>
+
+  <!-- Horizontal rule accent -->
+  <div class="hr-accent"></div>
+
+  <!-- Phase 1: Drifting text fragments -->
+  <div class="fragment" style="top: 15%; left: 10%;">no escape</div>
+  <div class="fragment" style="top: 30%; left: 75%;">broken</div>
+  <div class="fragment red" style="top: 55%; left: 5%;">fear</div>
+  <div class="fragment" style="top: 70%; left: 65%;">silence</div>
+  <div class="fragment red" style="top: 20%; left: 50%;">shatter</div>
+  <div class="fragment" style="top: 80%; left: 30%;">the truth</div>
+  <div class="fragment" style="top: 45%; left: 85%;">lies</div>
+  <div class="fragment red" style="top: 10%; left: 40%;">blood</div>
+  <div class="fragment" style="top: 65%; left: 15%;">darkness</div>
+  <div class="fragment" style="top: 40%; left: 55%;">hidden</div>
+  <div class="fragment red" style="top: 85%; left: 70%;">revenge</div>
+  <div class="fragment" style="top: 25%; left: 25%;">nothing left</div>
+
+  <!-- Main title -->
+  <div class="title-container">
+    <div class="title-main">SHATTERED</div>
+  </div>
+
+  <!-- Subtitle -->
+  <div class="subtitle">EVERY TRUTH HAS A BREAKING POINT</div>
+
+  <!-- Glass shards (SVG triangles) -->
+  <div class="shard" style="width:120px;height:100px;top:30%;left:20%;">
+    <svg viewBox="0 0 120 100"><polygon points="60,5 115,95 5,95" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1"/></svg>
+  </div>
+  <div class="shard" style="width:80px;height:70px;top:25%;left:70%;">
+    <svg viewBox="0 0 80 70"><polygon points="10,5 75,30 40,65" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1"/></svg>
+  </div>
+  <div class="shard" style="width:100px;height:90px;top:60%;left:15%;">
+    <svg viewBox="0 0 100 90"><polygon points="50,5 95,85 5,60" fill="none" stroke="rgba(200,30,30,0.5)" stroke-width="1"/></svg>
+  </div>
+  <div class="shard" style="width:90px;height:80px;top:55%;left:75%;">
+    <svg viewBox="0 0 90 80"><polygon points="5,10 85,5 45,75" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1"/></svg>
+  </div>
+  <div class="shard" style="width:60px;height:55px;top:20%;left:45%;">
+    <svg viewBox="0 0 60 55"><polygon points="30,3 57,50 3,50" fill="none" stroke="rgba(200,30,30,0.6)" stroke-width="1"/></svg>
+  </div>
+  <div class="shard" style="width:70px;height:65px;top:70%;left:50%;">
+    <svg viewBox="0 0 70 65"><polygon points="5,5 65,20 35,60" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1"/></svg>
+  </div>
+  <div class="shard" style="width:110px;height:95px;top:40%;left:35%;">
+    <svg viewBox="0 0 110 95"><polygon points="55,5 105,90 5,70" fill="none" stroke="rgba(200,30,30,0.4)" stroke-width="1"/></svg>
+  </div>
+  <div class="shard" style="width:50px;height:45px;top:15%;left:60%;">
+    <svg viewBox="0 0 50 45"><polygon points="25,3 47,42 3,42" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1"/></svg>
+  </div>
+  <div class="shard" style="width:85px;height:75px;top:75%;left:25%;">
+    <svg viewBox="0 0 85 75"><polygon points="42,5 80,70 5,50" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1"/></svg>
+  </div>
+  <div class="shard" style="width:65px;height:58px;top:65%;left:80%;">
+    <svg viewBox="0 0 65 58"><polygon points="5,8 60,5 32,55" fill="none" stroke="rgba(200,30,30,0.5)" stroke-width="1"/></svg>
+  </div>
+
+  <!-- Crack lines radiating from center -->
+  <div class="crack-line" style="width: 500px; transform: rotate(-15deg);"></div>
+  <div class="crack-line" style="width: 450px; transform: rotate(25deg);"></div>
+  <div class="crack-line" style="width: 600px; transform: rotate(-45deg);"></div>
+  <div class="crack-line" style="width: 380px; transform: rotate(55deg);"></div>
+  <div class="crack-line" style="width: 520px; transform: rotate(-70deg);"></div>
+  <div class="crack-line" style="width: 470px; transform: rotate(10deg);"></div>
+  <div class="crack-line" style="width: 550px; transform: rotate(80deg);"></div>
+  <div class="crack-line" style="width: 400px; transform: rotate(-35deg);"></div>
+  <div class="crack-line" style="width: 350px; transform: rotate(42deg);"></div>
+  <div class="crack-line" style="width: 480px; transform: rotate(-60deg);"></div>
+  <div class="crack-line" style="width: 420px; transform: rotate(70deg);"></div>
+  <div class="crack-line" style="width: 560px; transform: rotate(-5deg);"></div>
+
+  <!-- Floating debris for aftermath -->
+  <div class="debris" style="top:20%;left:10%;"><div class="debris-dot"></div></div>
+  <div class="debris" style="top:30%;left:85%;"><div class="debris-dot red"></div></div>
+  <div class="debris" style="top:60%;left:25%;"><div class="debris-line"></div></div>
+  <div class="debris" style="top:15%;left:50%;"><div class="debris-dot"></div></div>
+  <div class="debris" style="top:75%;left:70%;"><div class="debris-dot red"></div></div>
+  <div class="debris" style="top:45%;left:5%;"><div class="debris-line"></div></div>
+  <div class="debris" style="top:80%;left:40%;"><div class="debris-dot"></div></div>
+  <div class="debris" style="top:10%;left:30%;"><div class="debris-dot red"></div></div>
+  <div class="debris" style="top:50%;left:90%;"><div class="debris-line"></div></div>
+  <div class="debris" style="top:35%;left:60%;"><div class="debris-dot"></div></div>
+  <div class="debris" style="top:70%;left:15%;"><div class="debris-dot"></div></div>
+  <div class="debris" style="top:25%;left:75%;"><div class="debris-line"></div></div>
+  <div class="debris" style="top:55%;left:45%;"><div class="debris-dot red"></div></div>
+  <div class="debris" style="top:85%;left:55%;"><div class="debris-dot"></div></div>
+  <div class="debris" style="top:40%;left:35%;"><div class="debris-line"></div></div>
+  <div class="debris" style="top:65%;left:80%;"><div class="debris-dot red"></div></div>
+  <div class="debris" style="top:90%;left:20%;"><div class="debris-dot"></div></div>
+  <div class="debris" style="top:5%;left:65%;"><div class="debris-line"></div></div>
+  <div class="debris" style="top:48%;left:12%;"><div class="debris-dot"></div></div>
+  <div class="debris" style="top:72%;left:88%;"><div class="debris-dot red"></div></div>
+
+</div>
+
+<!-- Scripts at end of body -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/CustomEase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/SplitText.min.js"></script>
+<script>
+gsap.registerPlugin(CustomEase, SplitText);
+
+// Custom eases
+CustomEase.create("creep", "M0,0 C0.1,0 0.15,0.02 0.2,0.04 0.35,0.1 0.4,0.12 0.5,0.5 0.6,0.88 0.65,0.95 1,1");
+CustomEase.create("shatterIn", "M0,0 C0,0 0.05,1.2 0.1,1 0.15,0.85 0.18,1.05 0.22,1 0.3,0.95 0.5,1 1,1");
+CustomEase.create("glassOut", "M0,0 C0.2,0.8 0.3,1 0.5,1 0.7,1 0.8,0.95 1,0.85");
+CustomEase.create("driftSlow", "M0,0 C0.25,0.1 0.25,1 1,1");
+
+const tl = gsap.timeline({ paused: true });
+
+// Register timeline
+window.__timelines = window.__timelines || {};
+window.__timelines["high-contrast-arc-shattered"] = tl;
+
+// --- Element references ---
+const fragments = document.querySelectorAll(".fragment");
+const shards = document.querySelectorAll(".shard");
+const crackLines = document.querySelectorAll(".crack-line");
+const debrisEls = document.querySelectorAll(".debris");
+const titleMain = document.querySelector(".title-main");
+const subtitle = document.querySelector(".subtitle");
+const noiseOverlay = document.querySelector(".noise-overlay");
+const vignette = document.querySelector(".vignette");
+const scanlines = document.querySelector(".scanlines");
+const redFlash = document.querySelector(".red-flash");
+const whiteFlash = document.querySelector(".white-flash");
+const hrAccent = document.querySelector(".hr-accent");
+const glowRed = document.querySelector(".glow-red");
+const glowWhite = document.querySelector(".glow-white");
+const lightStreakTop = document.querySelector(".light-streak.top");
+const lightStreakBottom = document.querySelector(".light-streak.bottom");
+
+// Split title text for per-character animation
+const splitTitle = new SplitText(titleMain, { type: "chars" });
+const titleChars = splitTitle.chars;
+
+// Set initial states for title chars
+gsap.set(titleChars, { opacity: 0, scale: 3, rotationX: -90, rotationY: gsap.utils.wrap([-30, 30]), transformOrigin: "50% 50% -50px" });
+
+// =====================================================
+// PHASE 1: CREEPING UNEASE (0s - 18s)
+// Fragments drift in darkness, slow tension building
+// =====================================================
+
+// Fade in atmospheric layers
+tl.to(vignette, { opacity: 1, duration: 3, ease: "power1.inOut" }, 0);
+tl.to(noiseOverlay, { opacity: 0.5, duration: 4, ease: "power1.inOut" }, 0.5);
+tl.to(scanlines, { opacity: 0.4, duration: 5, ease: "power1.inOut" }, 1);
+
+// Fragments fade in one by one, drifting slowly
+fragments.forEach(function(frag, i) {
+  var delay = 1 + i * 1.2;
+  var driftX = (Math.random() - 0.5) * 80;
+  var driftY = (Math.random() - 0.5) * 40;
+
+  tl.to(frag, {
+    opacity: frag.classList.contains("red") ? 0.25 : 0.18,
+    duration: 2.5,
+    ease: "creep"
+  }, delay);
+
+  // Slow continuous drift
+  tl.to(frag, {
+    x: driftX,
+    y: driftY,
+    duration: 15,
+    ease: "none"
+  }, delay);
+});
+
+// Subtle red ambient glow pulsing
+tl.to(glowRed, { opacity: 0.12, duration: 6, ease: "power1.inOut" }, 2);
+tl.to(glowRed, {
+  scale: 1.3,
+  duration: 8,
+  ease: "sine.inOut",
+  yoyo: true,
+  repeat: 1
+}, 2);
+
+// Occasional flicker on random fragments (unease)
+tl.to(fragments[2], { opacity: 0, duration: 0.05 }, 8);
+tl.to(fragments[2], { opacity: 0.25, duration: 0.05 }, 8.1);
+tl.to(fragments[2], { opacity: 0, duration: 0.03 }, 8.15);
+tl.to(fragments[2], { opacity: 0.25, duration: 0.15 }, 8.2);
+
+tl.to(fragments[7], { opacity: 0, duration: 0.04 }, 11);
+tl.to(fragments[7], { opacity: 0.18, duration: 0.06 }, 11.08);
+tl.to(fragments[7], { opacity: 0, duration: 0.03 }, 11.2);
+tl.to(fragments[7], { opacity: 0.18, duration: 0.1 }, 11.25);
+
+tl.to(fragments[4], { opacity: 0, duration: 0.05 }, 13.5);
+tl.to(fragments[4], { opacity: 0.3, duration: 0.03 }, 13.55);
+tl.to(fragments[4], { opacity: 0, duration: 0.04 }, 13.6);
+tl.to(fragments[4], { opacity: 0.25, duration: 0.2 }, 13.65);
+
+// Growing red pulse at ~15s (tension peak)
+tl.to(redFlash, { opacity: 0.08, duration: 1.5, ease: "power2.in" }, 14);
+tl.to(redFlash, { opacity: 0, duration: 1, ease: "power2.out" }, 15.5);
+
+// Slight camera-shake-like movement on fragments pre-impact
+tl.to(fragments, {
+  x: "+=3",
+  duration: 0.08,
+  ease: "none",
+  stagger: { each: 0.02, from: "random" }
+}, 16.5);
+tl.to(fragments, {
+  x: "-=6",
+  duration: 0.08,
+  ease: "none",
+  stagger: { each: 0.02, from: "random" }
+}, 16.6);
+tl.to(fragments, {
+  x: "+=3",
+  duration: 0.1,
+  ease: "power2.out",
+  stagger: { each: 0.02, from: "random" }
+}, 16.7);
+
+// Second stronger tremor
+tl.to(fragments, {
+  x: "+=5",
+  y: "+=2",
+  duration: 0.06,
+  ease: "none",
+  stagger: { each: 0.015, from: "random" }
+}, 17.2);
+tl.to(fragments, {
+  x: "-=10",
+  y: "-=4",
+  duration: 0.06,
+  ease: "none",
+  stagger: { each: 0.015, from: "random" }
+}, 17.3);
+tl.to(fragments, {
+  x: "+=5",
+  y: "+=2",
+  duration: 0.12,
+  ease: "power2.out",
+  stagger: { each: 0.015, from: "random" }
+}, 17.4);
+
+// Rapid fragment flicker right before the snap
+tl.to(fragments, {
+  opacity: 0,
+  duration: 0.03,
+  stagger: { each: 0.01, from: "random" }
+}, 17.8);
+tl.to(fragments, {
+  opacity: 0.3,
+  duration: 0.03,
+  stagger: { each: 0.01, from: "random" }
+}, 17.85);
+tl.to(fragments, {
+  opacity: 0,
+  duration: 0.03,
+  stagger: { each: 0.01, from: "random" }
+}, 17.9);
+
+// =====================================================
+// PHASE 2: THE SNAP - EXPLOSIVE REVEAL (18s - 26s)
+// White flash, title slams in, glass shatters
+// =====================================================
+
+var snapTime = 18;
+
+// Kill all fragments
+tl.to(fragments, { opacity: 0, duration: 0.1 }, snapTime);
+
+// WHITE FLASH - the snap moment
+tl.to(whiteFlash, { opacity: 1, duration: 0.08, ease: "power4.in" }, snapTime);
+tl.to(whiteFlash, { opacity: 0, duration: 0.6, ease: "power2.out" }, snapTime + 0.1);
+
+// Second flash echo
+tl.to(whiteFlash, { opacity: 0.4, duration: 0.04 }, snapTime + 0.5);
+tl.to(whiteFlash, { opacity: 0, duration: 0.3, ease: "power2.out" }, snapTime + 0.55);
+
+// RED flash hit
+tl.to(redFlash, { opacity: 0.7, duration: 0.1, ease: "power4.in" }, snapTime + 0.15);
+tl.to(redFlash, { opacity: 0, duration: 1.5, ease: "power2.out" }, snapTime + 0.3);
+
+// TITLE CHARS slam in with stagger
+tl.to(titleChars, {
+  opacity: 1,
+  scale: 1,
+  rotationX: 0,
+  rotationY: 0,
+  duration: 0.6,
+  ease: "shatterIn",
+  stagger: {
+    each: 0.04,
+    from: "center"
+  }
+}, snapTime + 0.1);
+
+// Title container slight overshoot scale
+tl.fromTo(titleMain,
+  { scale: 1.15 },
+  { scale: 1, duration: 0.8, ease: "power3.out", opacity: 1 },
+  snapTime + 0.1
+);
+
+// Crack lines burst from center
+crackLines.forEach(function(line, i) {
+  var lineDelay = snapTime + 0.12 + (i * 0.02);
+  tl.to(line, {
+    opacity: 0.9,
+    duration: 0.1,
+    ease: "power4.in"
+  }, lineDelay);
+  tl.fromTo(line,
+    { width: 0 },
+    { width: line.style.width, duration: 0.25, ease: "power4.out" },
+    lineDelay
+  );
+  // Fade crack lines out slowly
+  tl.to(line, {
+    opacity: 0,
+    duration: 2,
+    ease: "power1.inOut"
+  }, lineDelay + 0.8);
+});
+
+// Glass shards explode outward from center
+shards.forEach(function(shard, i) {
+  var angle = (i / shards.length) * Math.PI * 2;
+  var distance = 200 + Math.random() * 400;
+  var targetX = Math.cos(angle) * distance;
+  var targetY = Math.sin(angle) * distance;
+
+  // Start at center
+  gsap.set(shard, {
+    top: "50%",
+    left: "50%",
+    xPercent: -50,
+    yPercent: -50,
+    x: 0,
+    y: 0,
+    scale: 0,
+    rotation: 0
+  });
+
+  tl.to(shard, {
+    opacity: 0.8,
+    scale: 1,
+    x: targetX * 0.3,
+    y: targetY * 0.3,
+    rotation: (Math.random() - 0.5) * 90,
+    duration: 0.15,
+    ease: "power4.out"
+  }, snapTime + 0.08 + (i * 0.02));
+
+  // Continue outward and fade
+  tl.to(shard, {
+    x: targetX,
+    y: targetY,
+    rotation: (Math.random() - 0.5) * 180,
+    opacity: 0,
+    duration: 2.5,
+    ease: "glassOut"
+  }, snapTime + 0.25 + (i * 0.02));
+});
+
+// HR accent line expands under title
+tl.to(hrAccent, { opacity: 1, width: 600, duration: 0.8, ease: "power3.out" }, snapTime + 0.3);
+
+// Light streaks flash
+tl.to(lightStreakTop, { opacity: 0.8, duration: 0.1 }, snapTime + 0.05);
+tl.to(lightStreakTop, { opacity: 0, duration: 1.5, ease: "power2.out" }, snapTime + 0.2);
+tl.to(lightStreakBottom, { opacity: 0.8, duration: 0.1 }, snapTime + 0.1);
+tl.to(lightStreakBottom, { opacity: 0, duration: 1.5, ease: "power2.out" }, snapTime + 0.25);
+
+// Scanlines intensify then settle
+tl.to(scanlines, { opacity: 0.7, duration: 0.1 }, snapTime);
+tl.to(scanlines, { opacity: 0.3, duration: 2, ease: "power1.out" }, snapTime + 0.3);
+
+// Title text glow pulse
+tl.to(titleMain, {
+  textShadow: "0 0 80px rgba(200,30,30,1), 0 0 160px rgba(200,30,30,0.7), 0 0 240px rgba(180,20,20,0.4)",
+  duration: 0.3,
+  ease: "power2.in"
+}, snapTime + 0.15);
+tl.to(titleMain, {
+  textShadow: "0 0 40px rgba(200,30,30,0.5), 0 0 80px rgba(200,30,30,0.25), 0 0 120px rgba(180,20,20,0.1)",
+  duration: 3,
+  ease: "power2.out"
+}, snapTime + 0.5);
+
+// Second aftershock tremor on title
+tl.to(".title-container", { x: 8, duration: 0.04, ease: "none" }, snapTime + 0.7);
+tl.to(".title-container", { x: -12, duration: 0.04, ease: "none" }, snapTime + 0.74);
+tl.to(".title-container", { x: 6, duration: 0.04, ease: "none" }, snapTime + 0.78);
+tl.to(".title-container", { x: -3, duration: 0.04, ease: "none" }, snapTime + 0.82);
+tl.to(".title-container", { x: 0, duration: 0.15, ease: "power2.out" }, snapTime + 0.86);
+
+// Subtitle fades in
+tl.to(subtitle, {
+  opacity: 1,
+  duration: 2,
+  ease: "power1.inOut"
+}, snapTime + 2.5);
+
+// Ambient glows ignite
+tl.to(glowRed, { opacity: 0.3, scale: 1.5, duration: 1, ease: "power2.out" }, snapTime + 0.2);
+tl.to(glowWhite, { opacity: 0.12, scale: 1.3, duration: 1.2, ease: "power2.out" }, snapTime + 0.3);
+
+// =====================================================
+// PHASE 3: CALM AFTERMATH (26s - 45s)
+// Title holds, debris floats gently, everything settles
+// =====================================================
+
+var afterTime = 26;
+
+// HR accent slowly expands further then fades slightly
+tl.to(hrAccent, { width: 900, opacity: 0.5, duration: 8, ease: "driftSlow" }, afterTime);
+
+// Floating debris drifts in
+debrisEls.forEach(function(d, i) {
+  var startDelay = afterTime + (i * 0.4);
+  var floatDuration = 10 + Math.random() * 8;
+  var driftX = (Math.random() - 0.5) * 150;
+  var driftY = -30 - Math.random() * 60;
+
+  tl.to(d, {
+    opacity: d.querySelector(".red") ? 0.4 : 0.25,
+    duration: 2,
+    ease: "power1.inOut"
+  }, startDelay);
+
+  tl.to(d, {
+    x: driftX,
+    y: driftY,
+    rotation: (Math.random() - 0.5) * 60,
+    duration: floatDuration,
+    ease: "sine.inOut"
+  }, startDelay);
+});
+
+// Title glow breathes gently
+tl.to(titleMain, {
+  textShadow: "0 0 50px rgba(200,30,30,0.6), 0 0 100px rgba(200,30,30,0.3)",
+  duration: 4,
+  ease: "sine.inOut",
+  yoyo: true,
+  repeat: 2
+}, afterTime + 1);
+
+// Red ambient glow pulses slowly
+tl.to(glowRed, {
+  opacity: 0.2,
+  scale: 1.8,
+  duration: 6,
+  ease: "sine.inOut",
+  yoyo: true,
+  repeat: 1
+}, afterTime + 2);
+
+// Vignette slightly deepens
+tl.to(vignette, { opacity: 1.2, duration: 8, ease: "power1.inOut" }, afterTime + 3);
+
+// Occasional subtle flicker on title chars
+tl.to(titleChars[2], { opacity: 0.5, duration: 0.04 }, afterTime + 5);
+tl.to(titleChars[2], { opacity: 1, duration: 0.08 }, afterTime + 5.06);
+tl.to(titleChars[6], { opacity: 0.4, duration: 0.03 }, afterTime + 8);
+tl.to(titleChars[6], { opacity: 1, duration: 0.1 }, afterTime + 8.05);
+
+// Light streak whisper
+tl.to(lightStreakTop, { opacity: 0.15, duration: 0.5, ease: "power1.inOut" }, afterTime + 6);
+tl.to(lightStreakTop, { opacity: 0, duration: 2, ease: "power1.out" }, afterTime + 6.5);
+
+// Final fade: everything gently dims as we approach 45s
+var fadeOutTime = 40;
+
+tl.to(titleMain, { opacity: 0.7, duration: 5, ease: "power1.inOut" }, fadeOutTime);
+tl.to(subtitle, { opacity: 0.5, duration: 5, ease: "power1.inOut" }, fadeOutTime);
+tl.to(hrAccent, { opacity: 0.2, duration: 5, ease: "power1.inOut" }, fadeOutTime);
+tl.to(debrisEls, {
+  opacity: 0,
+  duration: 4,
+  ease: "power1.inOut",
+  stagger: { each: 0.1, from: "random" }
+}, fadeOutTime + 1);
+tl.to(glowRed, { opacity: 0.05, duration: 5, ease: "power1.inOut" }, fadeOutTime);
+tl.to(glowWhite, { opacity: 0, duration: 4, ease: "power1.inOut" }, fadeOutTime + 1);
+tl.to(scanlines, { opacity: 0.15, duration: 5, ease: "power1.inOut" }, fadeOutTime);
+
+// Final hold to ~45s with gentle darkness
+tl.to({}, { duration: 0.5 }, 45);
+
+</script>
+</body>
+</html>

@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>GSAP Plugin Showcase</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/MotionPathPlugin.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/CustomEase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/CustomBounce.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/CustomWiggle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/MorphSVGPlugin.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/DrawSVGPlugin.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/SplitText.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap");
+      body, html { margin:0; padding:0; background:#050505; overflow:hidden; width:1920px; height:1080px; }
+      #root { position:relative; width:1920px; height:1080px; background:#050505; overflow:hidden; }
+      .section { position:absolute; top:0; left:0; width:1920px; height:1080px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="plugin-showcase" data-width="1920" data-height="1080" data-duration="42">
+
+      <!-- ═══ S1: SplitText — Masked Line Reveal + 3D Char Cascade (0-7s) ═══ -->
+      <div id="s1" class="section">
+        <!-- Masked lines: overflow clip containers -->
+        <div style="position:absolute;top:260px;left:160px;overflow:hidden;height:160px;">
+          <div id="t1" style="font-family:'Syne',sans-serif;font-weight:800;font-size:150px;color:#fff;line-height:1;white-space:nowrap;transform:translateY(160px);">SPLIT</div>
+        </div>
+        <div style="position:absolute;top:420px;left:160px;overflow:hidden;height:160px;">
+          <div id="t2" style="font-family:'Syne',sans-serif;font-weight:800;font-size:150px;color:transparent;-webkit-text-stroke:1.5px #fff;line-height:1;white-space:nowrap;transform:translateY(160px);">EVERY</div>
+        </div>
+        <div style="position:absolute;top:580px;left:160px;overflow:hidden;height:160px;">
+          <div id="t3" style="font-family:'Syne',sans-serif;font-weight:800;font-size:150px;color:#fff;line-height:1;white-space:nowrap;transform:translateY(160px);">LETTER</div>
+        </div>
+        <!-- Color accent chars overlaid -->
+        <div style="position:absolute;top:260px;left:160px;overflow:hidden;height:160px;">
+          <div id="t1c" style="font-family:'Syne',sans-serif;font-weight:800;font-size:150px;color:#e84393;line-height:1;white-space:nowrap;opacity:0;">SPLIT</div>
+        </div>
+        <!-- Horizontal rule -->
+        <div id="s1-rule" style="position:absolute;top:780px;left:160px;width:0;height:1px;background:#fff;"></div>
+        <div id="s1-sub" style="position:absolute;top:800px;left:160px;font-family:'Space Grotesk',sans-serif;font-weight:300;font-size:18px;color:rgba(255,255,255,0.3);letter-spacing:0.15em;text-transform:uppercase;opacity:0;">SplitText — per-character reveal with mask, stagger, and 3D rotation</div>
+      </div>
+
+      <!-- ═══ S2: MorphSVG — Continuous Shape Dance (7-14s) ═══ -->
+      <div id="s2" class="section" style="opacity:0;">
+        <svg viewBox="0 0 1920 1080" style="position:absolute;top:0;left:0;width:1920px;height:1080px;">
+          <defs>
+            <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <linearGradient id="mg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e84393"/><stop offset="50%" stop-color="#6c5ce7"/><stop offset="100%" stop-color="#00cec9"/></linearGradient>
+          </defs>
+          <!-- Main shape — starts as circle -->
+          <path id="ms" d="M 960,340 C 1071,340 1160,429 1160,540 C 1160,651 1071,740 960,740 C 849,740 760,651 760,540 C 760,429 849,340 960,340 Z" fill="none" stroke="url(#mg)" stroke-width="2" filter="url(#glow)" opacity="0"/>
+          <!-- Shadow/echo shape (follows with delay) -->
+          <path id="ms-echo" d="M 960,340 C 1071,340 1160,429 1160,540 C 1160,651 1071,740 960,740 C 849,740 760,651 760,540 C 760,429 849,340 960,340 Z" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" opacity="0"/>
+          <!-- Morph targets -->
+          <path id="mt-star" d="M 960,320 L 1000,470 L 1160,470 L 1030,570 L 1080,720 L 960,630 L 840,720 L 890,570 L 760,470 L 920,470 Z" opacity="0"/>
+          <path id="mt-diamond" d="M 960,320 L 1180,540 L 960,760 L 740,540 Z" opacity="0"/>
+          <path id="mt-flower" d="M 960,340 C 1020,340 1060,440 1060,440 C 1060,440 1160,400 1160,460 C 1160,520 1060,520 1060,520 C 1060,520 1160,580 1160,640 C 1160,700 1060,660 1060,660 C 1060,660 1020,760 960,760 C 900,760 860,660 860,660 C 860,660 760,700 760,640 C 760,580 860,520 860,520 C 860,520 760,520 760,460 C 760,400 860,440 860,440 C 860,440 900,340 960,340 Z" opacity="0"/>
+          <path id="mt-infinity" d="M 960,540 C 960,440 1100,380 1160,460 C 1220,540 1100,700 960,540 C 820,380 700,540 760,620 C 820,700 960,640 960,540 Z" opacity="0"/>
+          <path id="mt-heart" d="M 960,420 C 960,380 1000,320 1060,320 C 1140,320 1180,400 1180,460 C 1180,580 960,740 960,740 C 960,740 740,580 740,460 C 740,400 780,320 860,320 C 920,320 960,380 960,420 Z" opacity="0"/>
+        </svg>
+        <div id="s2-label" style="position:absolute;bottom:80px;left:0;width:1920px;text-align:center;font-family:'Space Grotesk',sans-serif;font-weight:300;font-size:16px;color:rgba(255,255,255,0.2);letter-spacing:0.2em;text-transform:uppercase;opacity:0;">MorphSVGPlugin — rotational interpolation with echo trail</div>
+      </div>
+
+      <!-- ═══ S3: DrawSVG — Architectural Blueprint (14-21s) ═══ -->
+      <div id="s3" class="section" style="opacity:0;">
+        <svg viewBox="0 0 1920 1080" style="position:absolute;top:0;left:0;width:1920px;height:1080px;">
+          <!-- Fine grid -->
+          <g id="d-grid" opacity="0.04">
+            <line x1="0" y1="180" x2="1920" y2="180" stroke="#fff" stroke-width="0.5"/>
+            <line x1="0" y1="360" x2="1920" y2="360" stroke="#fff" stroke-width="0.5"/>
+            <line x1="0" y1="540" x2="1920" y2="540" stroke="#fff" stroke-width="0.5"/>
+            <line x1="0" y1="720" x2="1920" y2="720" stroke="#fff" stroke-width="0.5"/>
+            <line x1="0" y1="900" x2="1920" y2="900" stroke="#fff" stroke-width="0.5"/>
+            <line x1="384" y1="0" x2="384" y2="1080" stroke="#fff" stroke-width="0.5"/>
+            <line x1="768" y1="0" x2="768" y2="1080" stroke="#fff" stroke-width="0.5"/>
+            <line x1="1152" y1="0" x2="1152" y2="1080" stroke="#fff" stroke-width="0.5"/>
+            <line x1="1536" y1="0" x2="1536" y2="1080" stroke="#fff" stroke-width="0.5"/>
+          </g>
+          <!-- Building: foundation -->
+          <rect id="db-base" x="560" y="780" width="800" height="8" fill="none" stroke="#fff" stroke-width="1"/>
+          <!-- Columns -->
+          <line id="db-col1" x1="620" y1="780" x2="620" y2="380" stroke="#fff" stroke-width="1"/>
+          <line id="db-col2" x1="820" y1="780" x2="820" y2="380" stroke="#fff" stroke-width="1"/>
+          <line id="db-col3" x1="1100" y1="780" x2="1100" y2="380" stroke="#fff" stroke-width="1"/>
+          <line id="db-col4" x1="1300" y1="780" x2="1300" y2="380" stroke="#fff" stroke-width="1"/>
+          <!-- Roof / triangle -->
+          <path id="db-roof" d="M 540,380 L 960,200 L 1380,380 Z" fill="none" stroke="#fff" stroke-width="1"/>
+          <!-- Windows -->
+          <rect id="db-w1" x="660" y="480" width="120" height="160" rx="4" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="0.8"/>
+          <rect id="db-w2" x="860" y="480" width="200" height="260" rx="4" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="0.8"/>
+          <rect id="db-w3" x="1140" y="480" width="120" height="160" rx="4" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="0.8"/>
+          <!-- Door arch -->
+          <path id="db-door" d="M 910,780 L 910,620 C 910,590 960,560 960,560 C 960,560 1010,590 1010,620 L 1010,780" fill="none" stroke="#fff" stroke-width="1"/>
+          <!-- Detail: pediment decoration -->
+          <path id="db-pedi" d="M 680,380 L 960,260 L 1240,380" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="0.8"/>
+          <!-- Steps -->
+          <line id="db-step1" x1="580" y1="800" x2="1340" y2="800" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+          <line id="db-step2" x1="600" y1="816" x2="1320" y2="816" stroke="rgba(255,255,255,0.3)" stroke-width="0.8"/>
+          <line id="db-step3" x1="620" y1="832" x2="1300" y2="832" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+          <!-- Dimension lines -->
+          <line id="db-dim-h" x1="540" y1="860" x2="1380" y2="860" stroke="#e84393" stroke-width="0.5" stroke-dasharray="4,4"/>
+          <line id="db-dim-v" x1="1420" y1="200" x2="1420" y2="780" stroke="#6c5ce7" stroke-width="0.5" stroke-dasharray="4,4"/>
+          <!-- Dimension labels -->
+          <text id="db-dim-ht" x="960" y="880" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="12" fill="#e84393" opacity="0">24.0m</text>
+          <text id="db-dim-vt" x="1445" y="500" font-family="Space Grotesk, sans-serif" font-size="12" fill="#6c5ce7" opacity="0" transform="rotate(90,1445,500)">16.5m</text>
+        </svg>
+        <div id="s3-label" style="position:absolute;top:48px;left:64px;font-family:'Space Grotesk',sans-serif;font-weight:300;font-size:16px;color:rgba(255,255,255,0.2);letter-spacing:0.2em;text-transform:uppercase;opacity:0;">DrawSVGPlugin — progressive architectural reveal</div>
+      </div>
+
+      <!-- ═══ S4: MotionPath — Double Helix (21-28s) ═══ -->
+      <div id="s4" class="section" style="opacity:0;">
+        <svg viewBox="0 0 1920 1080" style="position:absolute;top:0;left:0;width:1920px;height:1080px;">
+          <!-- Helix strand paths -->
+          <path id="helix-a" d="M 260,540 C 370,240 590,840 700,540 C 810,240 1030,840 1140,540 C 1250,240 1470,840 1580,540" fill="none" stroke="rgba(232,67,147,0.15)" stroke-width="1"/>
+          <path id="helix-b" d="M 260,540 C 370,840 590,240 700,540 C 810,840 1030,240 1140,540 C 1250,840 1470,240 1580,540" fill="none" stroke="rgba(108,92,231,0.15)" stroke-width="1"/>
+          <!-- Rungs connecting the helixes -->
+          <line class="rung" x1="480" y1="440" x2="480" y2="640" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+          <line class="rung" x1="700" y1="540" x2="700" y2="540" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+          <line class="rung" x1="920" y1="640" x2="920" y2="440" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+          <line class="rung" x1="1140" y1="540" x2="1140" y2="540" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+          <line class="rung" x1="1360" y1="440" x2="1360" y2="640" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+        </svg>
+        <!-- Helix particles (strand A — pink) -->
+        <div id="ha1" style="position:absolute;width:14px;height:14px;border-radius:50%;background:#e84393;box-shadow:0 0 20px rgba(232,67,147,0.5);opacity:0;"></div>
+        <div id="ha2" style="position:absolute;width:10px;height:10px;border-radius:50%;background:rgba(232,67,147,0.6);opacity:0;"></div>
+        <div id="ha3" style="position:absolute;width:6px;height:6px;border-radius:50%;background:rgba(232,67,147,0.3);opacity:0;"></div>
+        <!-- Helix particles (strand B — purple) -->
+        <div id="hb1" style="position:absolute;width:14px;height:14px;border-radius:50%;background:#6c5ce7;box-shadow:0 0 20px rgba(108,92,231,0.5);opacity:0;"></div>
+        <div id="hb2" style="position:absolute;width:10px;height:10px;border-radius:50%;background:rgba(108,92,231,0.6);opacity:0;"></div>
+        <div id="hb3" style="position:absolute;width:6px;height:6px;border-radius:50%;background:rgba(108,92,231,0.3);opacity:0;"></div>
+        <div id="s4-label" style="position:absolute;bottom:80px;left:0;width:1920px;text-align:center;font-family:'Space Grotesk',sans-serif;font-weight:300;font-size:16px;color:rgba(255,255,255,0.2);letter-spacing:0.2em;text-transform:uppercase;opacity:0;">MotionPathPlugin — double helix with trailing particles</div>
+      </div>
+
+      <!-- ═══ S5: CustomEase + Bounce + Wiggle — Physics Playground (28-35s) ═══ -->
+      <div id="s5" class="section" style="opacity:0;">
+        <!-- Pendulum -->
+        <div id="pendulum-arm" style="position:absolute;top:100px;left:356px;width:2px;height:400px;background:rgba(255,255,255,0.15);transform-origin:top center;">
+          <div id="pendulum-bob" style="position:absolute;bottom:-30px;left:-29px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#e84393,#6c5ce7);"></div>
+        </div>
+        <div style="position:absolute;top:96px;left:351px;width:12px;height:12px;border-radius:50%;background:#333;border:2px solid rgba(255,255,255,0.3);"></div>
+        <!-- Newton's cradle: 5 balls -->
+        <div style="position:absolute;top:100px;left:900px;">
+          <div style="position:relative;width:300px;height:10px;">
+            <div id="nc-arm1" style="position:absolute;left:0;top:0;width:1px;height:300px;background:rgba(255,255,255,0.1);transform-origin:top center;">
+              <div id="nc1" style="position:absolute;bottom:-20px;left:-20px;width:40px;height:40px;border-radius:50%;background:#fff;"></div>
+            </div>
+            <div id="nc-arm2" style="position:absolute;left:60px;top:0;width:1px;height:300px;background:rgba(255,255,255,0.1);transform-origin:top center;">
+              <div style="position:absolute;bottom:-20px;left:-20px;width:40px;height:40px;border-radius:50%;background:#ddd;"></div>
+            </div>
+            <div id="nc-arm3" style="position:absolute;left:120px;top:0;width:1px;height:300px;background:rgba(255,255,255,0.1);transform-origin:top center;">
+              <div style="position:absolute;bottom:-20px;left:-20px;width:40px;height:40px;border-radius:50%;background:#bbb;"></div>
+            </div>
+            <div id="nc-arm4" style="position:absolute;left:180px;top:0;width:1px;height:300px;background:rgba(255,255,255,0.1);transform-origin:top center;">
+              <div style="position:absolute;bottom:-20px;left:-20px;width:40px;height:40px;border-radius:50%;background:#ddd;"></div>
+            </div>
+            <div id="nc-arm5" style="position:absolute;left:240px;top:0;width:1px;height:300px;background:rgba(255,255,255,0.1);transform-origin:top center;">
+              <div style="position:absolute;bottom:-20px;left:-20px;width:40px;height:40px;border-radius:50%;background:#fff;"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Bouncing ball with squash/stretch -->
+        <div id="squash-ball" style="position:absolute;top:200px;left:1500px;width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#55efc4,#00b894);transform-origin:center bottom;opacity:0;"></div>
+        <div style="position:absolute;top:800px;left:1400px;width:280px;height:1px;background:rgba(255,255,255,0.08);"></div>
+        <!-- Labels -->
+        <div style="position:absolute;top:560px;left:280px;font-family:'Space Grotesk',sans-serif;font-size:14px;color:rgba(255,255,255,0.2);letter-spacing:0.15em;text-align:center;width:160px;">PENDULUM<br><span style="color:#e84393;">CustomWiggle</span></div>
+        <div style="position:absolute;top:560px;left:940px;font-family:'Space Grotesk',sans-serif;font-size:14px;color:rgba(255,255,255,0.2);letter-spacing:0.15em;text-align:center;width:200px;">NEWTON'S CRADLE<br><span style="color:#6c5ce7;">CustomEase</span></div>
+        <div style="position:absolute;top:900px;left:1460px;font-family:'Space Grotesk',sans-serif;font-size:14px;color:rgba(255,255,255,0.2);letter-spacing:0.15em;text-align:center;width:180px;">SQUASH &amp; STRETCH<br><span style="color:#00b894;">CustomBounce</span></div>
+      </div>
+
+      <!-- ═══ S6: Finale (35-42s) ═══ -->
+      <div id="s6" class="section" style="opacity:0;">
+        <svg viewBox="0 0 1920 1080" style="position:absolute;top:0;left:0;width:1920px;height:1080px;">
+          <defs><linearGradient id="fg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e84393"/><stop offset="100%" stop-color="#6c5ce7"/></linearGradient></defs>
+          <path id="fr1" d="M 960,240 C 1125.7,240 1260,374.3 1260,540 C 1260,705.7 1125.7,840 960,840 C 794.3,840 660,705.7 660,540 C 660,374.3 794.3,240 960,240 Z" fill="none" stroke="url(#fg)" stroke-width="1.5"/>
+          <path id="fr2" d="M 960,180 C 1158.8,180 1320,341.2 1320,540 C 1320,738.8 1158.8,900 960,900 C 761.2,900 600,738.8 600,540 C 600,341.2 761.2,180 960,180 Z" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+          <path id="f-morph" d="M 960,490 C 987.6,490 1010,512.4 1010,540 C 1010,567.6 987.6,590 960,590 C 932.4,590 910,567.6 910,540 C 910,512.4 932.4,490 960,490 Z" fill="url(#fg)" opacity="0"/>
+          <path id="f-morph-target" d="M 960,490 L 978,522 L 1010,530 L 985,555 L 990,590 L 960,572 L 930,590 L 935,555 L 910,530 L 942,522 Z" opacity="0"/>
+        </svg>
+        <div id="f-dot" style="position:absolute;width:8px;height:8px;border-radius:50%;background:#e84393;box-shadow:0 0 12px rgba(232,67,147,0.5);opacity:0;"></div>
+        <div id="f-text" style="position:absolute;top:660px;left:0;width:1920px;text-align:center;font-family:'Syne',sans-serif;font-weight:800;font-size:64px;color:#fff;opacity:0;">Seven Plugins. One Timeline.</div>
+      </div>
+    </div>
+
+    <script>
+      gsap.registerPlugin(MotionPathPlugin, CustomEase, CustomBounce, CustomWiggle, MorphSVGPlugin, DrawSVGPlugin, SplitText);
+
+      CustomEase.create("snap", "M0,0 C0.14,0 0.27,0.58 0.32,0.72 0.42,1 0.62,1 1,1");
+      CustomEase.create("cradleSwing", "M0,0 C0.3,1 0.7,1 1,0");
+      CustomBounce.create("squashBounce", { strength: 0.6, squash: 4 });
+      CustomWiggle.create("pendulum", { wiggles: 6, type: "easeOut" });
+
+      var s1a = SplitText.create("#t1", { type: "chars" });
+      var s1b = SplitText.create("#t2", { type: "chars" });
+      var s1c = SplitText.create("#t3", { type: "chars" });
+      var s1color = SplitText.create("#t1c", { type: "chars" });
+      var sFin = SplitText.create("#f-text", { type: "chars" });
+
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      /* ═══ S1: SplitText (0-7s) ═══ */
+
+      /* Line 1: masked slide up per-char with 3D rotation */
+      tl.to(s1a.chars, {
+        y: -160, duration: 0.6, ease: "power3.out",
+        stagger: 0.04
+      }, 0.3);
+      /* Overlay pink chars flash then fade — color echo effect */
+      tl.set("#t1c", { opacity: 1 }, 0.3);
+      tl.to(s1color.chars, {
+        y: -160, duration: 0.6, ease: "power3.out",
+        stagger: 0.04
+      }, 0.35);
+      tl.to("#t1c", { opacity: 0, duration: 0.4 }, 1.0);
+
+      /* Line 2: chars slide up with rotationX — 3D flip feel */
+      tl.to(s1b.chars, {
+        y: -160, rotationX: 0, duration: 0.5, ease: "power3.out",
+        stagger: 0.03
+      }, 0.8);
+      tl.from(s1b.chars, {
+        rotationX: -90, duration: 0.5, ease: "power3.out",
+        stagger: 0.03
+      }, 0.8);
+
+      /* Line 3: chars slide up from center outward */
+      tl.to(s1c.chars, {
+        y: -160, duration: 0.7, ease: "elastic.out(1,0.5)",
+        stagger: { each: 0.05, from: "center" }
+      }, 1.5);
+
+      /* Rule + subtitle */
+      tl.to("#s1-rule", { width: 500, duration: 0.8, ease: "power3.out" }, 2.8);
+      tl.to("#s1-sub", { opacity: 1, duration: 0.4 }, 3.0);
+
+      /* Exit: each line slides up and out through its mask */
+      tl.to(s1a.chars, { y: -320, stagger: 0.02, duration: 0.3, ease: "power2.in" }, 5.5);
+      tl.to(s1b.chars, { y: -320, stagger: 0.02, duration: 0.3, ease: "power2.in" }, 5.6);
+      tl.to(s1c.chars, { y: -320, stagger: { each: 0.02, from: "end" }, duration: 0.3, ease: "power2.in" }, 5.7);
+      tl.to("#s1-rule", { width: 0, duration: 0.2, ease: "power2.in" }, 6.0);
+      tl.to("#s1-sub", { opacity: 0, duration: 0.2 }, 6.0);
+      tl.to("#s1", { opacity: 0, duration: 0.3 }, 6.5);
+
+      /* ═══ S2: MorphSVG (7-14s) ═══ */
+
+      tl.to("#s2", { opacity: 1, duration: 0.3 }, 7.0);
+      tl.to("#ms", { opacity: 1, duration: 0.4 }, 7.2);
+      tl.to("#ms-echo", { opacity: 1, duration: 0.4 }, 7.4);
+      tl.to("#s2-label", { opacity: 1, duration: 0.4 }, 7.3);
+
+      /* Continuous morph chain with echo delay */
+      var morphChain = [
+        { target: "#mt-star", time: 7.8 },
+        { target: "#mt-diamond", time: 8.8 },
+        { target: "#mt-flower", time: 9.8 },
+        { target: "#mt-infinity", time: 10.8 },
+        { target: "#mt-heart", time: 11.8 }
+      ];
+      for (var i = 0; i < morphChain.length; i++) {
+        var m = morphChain[i];
+        tl.to("#ms", { morphSVG: { shape: m.target, type: "rotational" }, duration: 0.8, ease: "power2.inOut" }, m.time);
+        tl.to("#ms-echo", { morphSVG: { shape: m.target, type: "rotational" }, duration: 0.8, ease: "power2.inOut" }, m.time + 0.15);
+      }
+
+      tl.to("#s2", { opacity: 0, duration: 0.4 }, 13.5);
+
+      /* ═══ S3: DrawSVG — Blueprint (14-21s) ═══ */
+
+      tl.to("#s3", { opacity: 1, duration: 0.3 }, 14.0);
+      tl.to("#s3-label", { opacity: 1, duration: 0.3 }, 14.1);
+
+      /* Set everything to 0 */
+      tl.set(["#db-base","#db-col1","#db-col2","#db-col3","#db-col4","#db-roof","#db-w1","#db-w2","#db-w3","#db-door","#db-pedi","#db-step1","#db-step2","#db-step3","#db-dim-h","#db-dim-v"], { drawSVG: "0%" }, 14.0);
+
+      /* Foundation draws first */
+      tl.to("#db-base", { drawSVG: "100%", duration: 0.6, ease: "none" }, 14.5);
+      /* Steps draw down */
+      tl.to("#db-step1", { drawSVG: "100%", duration: 0.4, ease: "none" }, 14.8);
+      tl.to("#db-step2", { drawSVG: "100%", duration: 0.4, ease: "none" }, 14.9);
+      tl.to("#db-step3", { drawSVG: "100%", duration: 0.4, ease: "none" }, 15.0);
+      /* Columns rise */
+      tl.to("#db-col1", { drawSVG: "100%", duration: 0.8, ease: "power2.out" }, 15.2);
+      tl.to("#db-col2", { drawSVG: "100%", duration: 0.8, ease: "power2.out" }, 15.3);
+      tl.to("#db-col3", { drawSVG: "100%", duration: 0.8, ease: "power2.out" }, 15.4);
+      tl.to("#db-col4", { drawSVG: "100%", duration: 0.8, ease: "power2.out" }, 15.5);
+      /* Roof draws */
+      tl.to("#db-roof", { drawSVG: "100%", duration: 1.0, ease: "power2.inOut" }, 16.0);
+      tl.to("#db-pedi", { drawSVG: "100%", duration: 0.6, ease: "power2.inOut" }, 16.5);
+      /* Windows appear */
+      tl.to("#db-w1", { drawSVG: "100%", duration: 0.5, ease: "snap" }, 17.0);
+      tl.to("#db-w2", { drawSVG: "100%", duration: 0.6, ease: "snap" }, 17.1);
+      tl.to("#db-w3", { drawSVG: "100%", duration: 0.5, ease: "snap" }, 17.2);
+      /* Door */
+      tl.to("#db-door", { drawSVG: "100%", duration: 0.8, ease: "power2.inOut" }, 17.5);
+      /* Dimension lines + labels */
+      tl.to("#db-dim-h", { drawSVG: "100%", duration: 0.6, ease: "none" }, 18.2);
+      tl.to("#db-dim-v", { drawSVG: "100%", duration: 0.6, ease: "none" }, 18.4);
+      tl.to("#db-dim-ht", { opacity: 1, duration: 0.3 }, 18.6);
+      tl.to("#db-dim-vt", { opacity: 1, duration: 0.3 }, 18.8);
+
+      tl.to("#s3", { opacity: 0, duration: 0.4 }, 20.5);
+
+      /* ═══ S4: MotionPath — Double Helix (21-28s) ═══ */
+
+      tl.to("#s4", { opacity: 1, duration: 0.3 }, 21.0);
+      tl.to("#s4-label", { opacity: 1, duration: 0.3 }, 21.1);
+
+      /* Strand A particles */
+      tl.set("#ha1", { opacity: 1 }, 21.3);
+      tl.to("#ha1", { motionPath: { path: "#helix-a", align: "#helix-a", alignOrigin: [0.5,0.5] }, duration: 5.5, ease: "none" }, 21.3);
+      tl.set("#ha2", { opacity: 1 }, 21.6);
+      tl.to("#ha2", { motionPath: { path: "#helix-a", align: "#helix-a", alignOrigin: [0.5,0.5] }, duration: 5.2, ease: "none" }, 21.6);
+      tl.set("#ha3", { opacity: 1 }, 21.9);
+      tl.to("#ha3", { motionPath: { path: "#helix-a", align: "#helix-a", alignOrigin: [0.5,0.5] }, duration: 4.9, ease: "none" }, 21.9);
+
+      /* Strand B particles (opposite wave) */
+      tl.set("#hb1", { opacity: 1 }, 21.3);
+      tl.to("#hb1", { motionPath: { path: "#helix-b", align: "#helix-b", alignOrigin: [0.5,0.5] }, duration: 5.5, ease: "none" }, 21.3);
+      tl.set("#hb2", { opacity: 1 }, 21.6);
+      tl.to("#hb2", { motionPath: { path: "#helix-b", align: "#helix-b", alignOrigin: [0.5,0.5] }, duration: 5.2, ease: "none" }, 21.6);
+      tl.set("#hb3", { opacity: 1 }, 21.9);
+      tl.to("#hb3", { motionPath: { path: "#helix-b", align: "#helix-b", alignOrigin: [0.5,0.5] }, duration: 4.9, ease: "none" }, 21.9);
+
+      /* Rungs pulse as particles pass */
+      tl.to(".rung", { opacity: 0.2, duration: 0.3, stagger: 0.8, ease: "power2.out" }, 22.0);
+      tl.to(".rung", { opacity: 0.04, duration: 0.5, stagger: 0.8, ease: "power2.in" }, 22.5);
+
+      tl.to("#s4", { opacity: 0, duration: 0.4 }, 27.5);
+
+      /* ═══ S5: Easing Physics Playground (28-35s) ═══ */
+
+      tl.to("#s5", { opacity: 1, duration: 0.3 }, 28.0);
+
+      /* Pendulum swings with CustomWiggle */
+      tl.to("#pendulum-arm", { rotation: 40, duration: 4, ease: "pendulum" }, 28.3);
+
+      /* Newton's cradle: ball 1 swings out then back, ball 5 responds */
+      tl.to("#nc-arm1", { rotation: -30, duration: 0.4, ease: "power2.out" }, 28.5);
+      tl.to("#nc-arm1", { rotation: 0, duration: 0.3, ease: "power2.in" }, 28.9);
+      tl.to("#nc-arm5", { rotation: 30, duration: 0.3, ease: "power2.out" }, 29.2);
+      tl.to("#nc-arm5", { rotation: 0, duration: 0.3, ease: "power2.in" }, 29.5);
+      /* Second swing (smaller) */
+      tl.to("#nc-arm1", { rotation: -20, duration: 0.35, ease: "power2.out" }, 29.8);
+      tl.to("#nc-arm1", { rotation: 0, duration: 0.25, ease: "power2.in" }, 30.15);
+      tl.to("#nc-arm5", { rotation: 20, duration: 0.25, ease: "power2.out" }, 30.4);
+      tl.to("#nc-arm5", { rotation: 0, duration: 0.25, ease: "power2.in" }, 30.65);
+      /* Third swing (even smaller) */
+      tl.to("#nc-arm1", { rotation: -12, duration: 0.3, ease: "power2.out" }, 30.9);
+      tl.to("#nc-arm1", { rotation: 0, duration: 0.2, ease: "power2.in" }, 31.2);
+      tl.to("#nc-arm5", { rotation: 12, duration: 0.2, ease: "power2.out" }, 31.4);
+      tl.to("#nc-arm5", { rotation: 0, duration: 0.2, ease: "power2.in" }, 31.6);
+
+      /* Bouncing ball with squash/stretch */
+      tl.set("#squash-ball", { opacity: 1 }, 28.5);
+      tl.to("#squash-ball", { y: 520, duration: 2.0, ease: "squashBounce" }, 28.5);
+      /* Squash on each bounce impact — scaleX widens, scaleY compresses */
+      tl.to("#squash-ball", { scaleX: 1.3, scaleY: 0.7, duration: 0.08, ease: "power2.out" }, 29.3);
+      tl.to("#squash-ball", { scaleX: 1, scaleY: 1, duration: 0.3, ease: "elastic.out(1,0.3)" }, 29.38);
+      tl.to("#squash-ball", { scaleX: 1.2, scaleY: 0.8, duration: 0.06, ease: "power2.out" }, 30.0);
+      tl.to("#squash-ball", { scaleX: 1, scaleY: 1, duration: 0.2, ease: "elastic.out(1,0.4)" }, 30.06);
+
+      tl.to("#s5", { opacity: 0, duration: 0.4 }, 34.5);
+
+      /* ═══ S6: Finale (35-42s) ═══ */
+
+      tl.to("#s6", { opacity: 1, duration: 0.3 }, 35.0);
+
+      tl.set(["#fr1","#fr2"], { drawSVG: "0%" }, 35.0);
+      tl.to("#fr1", { drawSVG: "100%", duration: 1.5, ease: "power2.inOut" }, 35.2);
+      tl.to("#fr2", { drawSVG: "100%", duration: 2.0, ease: "power2.inOut" }, 35.4);
+
+      tl.to("#f-morph", { opacity: 1, duration: 0.3 }, 35.5);
+      tl.to("#f-morph", { morphSVG: { shape: "#f-morph-target", type: "rotational" }, duration: 1.5, ease: "power2.inOut" }, 36.0);
+
+      tl.set("#f-dot", { opacity: 1 }, 35.5);
+      tl.to("#f-dot", { motionPath: { path: "#fr1", align: "#fr1", alignOrigin: [0.5,0.5] }, duration: 5.0, ease: "none" }, 35.5);
+
+      tl.set("#f-text", { opacity: 1 }, 36.5);
+      tl.from(sFin.chars, { opacity: 0, y: 30, scale: 0.9, duration: 0.4, ease: "snap", stagger: 0.025 }, 36.5);
+
+      tl.to("#s6", { opacity: 0, duration: 1.0 }, 40.5);
+
+      window.__timelines["plugin-showcase"] = tl;
+    </script>
+  </body>
+</html>

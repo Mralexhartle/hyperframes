@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <title>SHATTERED — Title Sequence</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
+
+    .composition {
+      background: #0a0a0a;
+      font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* === PHASE 1: Creeping Unease — drifting text fragments === */
+    .vignette {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%);
+      opacity: 0;
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .fragment {
+      position: absolute;
+      color: rgba(255, 255, 255, 0.06);
+      font-size: 22px;
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+    .fragment-0 { top: 180px; left: 200px; font-size: 18px; }
+    .fragment-1 { top: 340px; left: 1400px; font-size: 26px; }
+    .fragment-2 { top: 520px; left: 600px; font-size: 16px; }
+    .fragment-3 { top: 700px; left: 1050px; font-size: 20px; }
+    .fragment-4 { top: 260px; left: 850px; font-size: 14px; }
+    .fragment-5 { top: 800px; left: 300px; font-size: 24px; }
+    .fragment-6 { top: 450px; left: 1600px; font-size: 15px; }
+    .fragment-7 { top: 150px; left: 1100px; font-size: 19px; }
+
+    .red-line {
+      position: absolute;
+      background: rgba(180, 20, 20, 0.3);
+      height: 1px;
+      width: 0;
+      opacity: 0;
+    }
+    .red-line-0 { top: 400px; left: 100px; }
+    .red-line-1 { top: 650px; left: 800px; }
+    .red-line-2 { top: 280px; left: 500px; }
+
+    /* === PHASE 2: Title and Impact === */
+    .anticipation-darken {
+      position: absolute; inset: 0;
+      background: #000;
+      opacity: 0;
+      z-index: 55;
+      pointer-events: none;
+    }
+
+    .title-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 100;
+      opacity: 0;
+    }
+    .title-text {
+      font-size: 180px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: 28px;
+      text-transform: uppercase;
+      position: relative;
+      will-change: transform, opacity;
+    }
+    .title-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 180px;
+      font-weight: 900;
+      color: transparent;
+      letter-spacing: 28px;
+      text-transform: uppercase;
+      text-shadow: 0 0 60px rgba(200, 30, 30, 0.6), 0 0 120px rgba(200, 30, 30, 0.3);
+      opacity: 0;
+      pointer-events: none;
+      will-change: opacity;
+    }
+    .title-shadow {
+      position: absolute;
+      top: 52%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 180px;
+      font-weight: 900;
+      color: transparent;
+      letter-spacing: 28px;
+      text-transform: uppercase;
+      text-shadow: 0 8px 30px rgba(0,0,0,0.8);
+      opacity: 0;
+      pointer-events: none;
+      will-change: opacity, transform;
+    }
+
+    /* Shockwave ring */
+    .shockwave {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 100px;
+      height: 100px;
+      border: 2px solid rgba(200, 30, 30, 0.5);
+      border-radius: 50%;
+      transform: translate(-50%, -50%) scale(0.5);
+      opacity: 0;
+      z-index: 90;
+      pointer-events: none;
+    }
+
+    /* === Glass Shards === */
+    .shard {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0; height: 0;
+      opacity: 0;
+      z-index: 80;
+      will-change: transform, opacity;
+      pointer-events: none;
+    }
+    /* Each shard is a CSS triangle */
+    .shard-light {
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 20px solid rgba(255, 255, 255, 0.6);
+    }
+    .shard-red {
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 16px solid rgba(200, 40, 40, 0.5);
+    }
+    .shard-dim {
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-bottom: 12px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Shard reflections (secondary — drag behind shards) */
+    .shard-reflection {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 3px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      opacity: 0;
+      z-index: 79;
+      will-change: transform, opacity;
+      pointer-events: none;
+    }
+
+    /* === PHASE 3: Floating Debris === */
+    .debris {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 1px;
+      opacity: 0;
+      z-index: 60;
+      will-change: transform, opacity;
+      pointer-events: none;
+    }
+
+    /* Subtitle */
+    .subtitle {
+      position: absolute;
+      top: 62%;
+      left: 50%;
+      transform: translate(-50%, 0);
+      font-size: 24px;
+      letter-spacing: 14px;
+      color: rgba(200, 40, 40, 0.7);
+      text-transform: uppercase;
+      opacity: 0;
+      z-index: 100;
+      will-change: opacity;
+    }
+
+    /* Ambient red pulse on background */
+    .bg-pulse {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at center, rgba(120, 10, 10, 0.08) 0%, transparent 70%);
+      opacity: 0;
+      z-index: 5;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="composition" data-composition-id="high-contrast-arc-shattered-v2" style="width: 1920px; height: 1080px; position: relative; overflow: hidden;">
+
+    <!-- Background pulse -->
+    <div class="bg-pulse" id="bg-pulse"></div>
+
+    <!-- Vignette -->
+    <div class="vignette" id="vignette"></div>
+
+    <!-- Anticipation darkening layer -->
+    <div class="anticipation-darken" id="anticipation-darken"></div>
+
+    <!-- Phase 1: Text fragments -->
+    <div class="fragment fragment-0" id="frag-0">NOTHING</div>
+    <div class="fragment fragment-1" id="frag-1">IS SAFE</div>
+    <div class="fragment fragment-2" id="frag-2">THE TRUTH</div>
+    <div class="fragment fragment-3" id="frag-3">BREAKS</div>
+    <div class="fragment fragment-4" id="frag-4">EVERY MIRROR</div>
+    <div class="fragment fragment-5" id="frag-5">LIES</div>
+    <div class="fragment fragment-6" id="frag-6">BENEATH</div>
+    <div class="fragment fragment-7" id="frag-7">THE SURFACE</div>
+
+    <!-- Red accent lines -->
+    <div class="red-line red-line-0" id="red-line-0"></div>
+    <div class="red-line red-line-1" id="red-line-1"></div>
+    <div class="red-line red-line-2" id="red-line-2"></div>
+
+    <!-- Glass shards (generated positions, scattered from center) -->
+    <div class="shard shard-light" id="shard-0"></div>
+    <div class="shard shard-red" id="shard-1"></div>
+    <div class="shard shard-dim" id="shard-2"></div>
+    <div class="shard shard-light" id="shard-3"></div>
+    <div class="shard shard-red" id="shard-4"></div>
+    <div class="shard shard-dim" id="shard-5"></div>
+    <div class="shard shard-light" id="shard-6"></div>
+    <div class="shard shard-red" id="shard-7"></div>
+    <div class="shard shard-dim" id="shard-8"></div>
+    <div class="shard shard-light" id="shard-9"></div>
+    <div class="shard shard-red" id="shard-10"></div>
+    <div class="shard shard-dim" id="shard-11"></div>
+    <div class="shard shard-light" id="shard-12"></div>
+    <div class="shard shard-red" id="shard-13"></div>
+    <div class="shard shard-light" id="shard-14"></div>
+    <div class="shard shard-dim" id="shard-15"></div>
+    <div class="shard shard-red" id="shard-16"></div>
+    <div class="shard shard-light" id="shard-17"></div>
+
+    <!-- Shard reflections (drag behind shards) -->
+    <div class="shard-reflection" id="ref-0"></div>
+    <div class="shard-reflection" id="ref-1"></div>
+    <div class="shard-reflection" id="ref-2"></div>
+    <div class="shard-reflection" id="ref-3"></div>
+    <div class="shard-reflection" id="ref-4"></div>
+    <div class="shard-reflection" id="ref-5"></div>
+    <div class="shard-reflection" id="ref-6"></div>
+    <div class="shard-reflection" id="ref-7"></div>
+    <div class="shard-reflection" id="ref-8"></div>
+
+    <!-- Shockwave -->
+    <div class="shockwave" id="shockwave"></div>
+
+    <!-- Title -->
+    <div class="title-container" id="title-container">
+      <div class="title-shadow" id="title-shadow">SHATTERED</div>
+      <div class="title-glow" id="title-glow">SHATTERED</div>
+      <div class="title-text" id="title-text">SHATTERED</div>
+    </div>
+
+    <!-- Subtitle -->
+    <div class="subtitle" id="subtitle">A THRILLER</div>
+
+    <!-- Phase 3: Floating debris particles -->
+    <div class="debris" id="debris-0" style="width:4px;height:4px;top:200px;left:300px;"></div>
+    <div class="debris" id="debris-1" style="width:3px;height:6px;top:400px;left:1500px;"></div>
+    <div class="debris" id="debris-2" style="width:5px;height:3px;top:600px;left:900px;"></div>
+    <div class="debris" id="debris-3" style="width:2px;height:5px;top:300px;left:1200px;"></div>
+    <div class="debris" id="debris-4" style="width:6px;height:2px;top:750px;left:500px;"></div>
+    <div class="debris" id="debris-5" style="width:3px;height:3px;top:150px;left:1600px;"></div>
+    <div class="debris" id="debris-6" style="width:4px;height:5px;top:850px;left:800px;"></div>
+    <div class="debris" id="debris-7" style="width:2px;height:4px;top:500px;left:200px;"></div>
+    <div class="debris" id="debris-8" style="width:5px;height:2px;top:680px;left:1350px;"></div>
+    <div class="debris" id="debris-9" style="width:3px;height:4px;top:100px;left:700px;"></div>
+    <div class="debris" id="debris-10" style="width:4px;height:3px;top:920px;left:1100px;"></div>
+    <div class="debris" id="debris-11" style="width:2px;height:6px;top:350px;left:400px;"></div>
+    <div class="debris" id="debris-12" style="width:3px;height:2px;top:550px;left:1700px;background:rgba(200,40,40,0.1);"></div>
+    <div class="debris" id="debris-13" style="width:5px;height:4px;top:780px;left:150px;"></div>
+    <div class="debris" id="debris-14" style="width:2px;height:3px;top:430px;left:1000px;background:rgba(200,40,40,0.1);"></div>
+    <div class="debris" id="debris-15" style="width:4px;height:2px;top:620px;left:1800px;"></div>
+
+  </div>
+
+  <!-- GSAP Core + Plugins -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/CustomEase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/MotionPathPlugin.min.js"></script>
+  <script>
+    gsap.registerPlugin(CustomEase, MotionPathPlugin);
+
+    // ============================================================
+    //  TIMING SCALE: 0.08s | 0.4s | 1.2s | 3s
+    //  Multiples/fractions used: 0.08, 0.4, 1.2, 2.4, 3, 6, 9, 12
+    // ============================================================
+
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines = window.__timelines || {};
+    window.__timelines["high-contrast-arc-shattered-v2"] = tl;
+
+    // Custom eases
+    // Creep: barely moves for most of the duration, then rushes at the end
+    CustomEase.create("creep", "M0,0 C0.6,0.02 0.65,0.04 0.75,0.08 0.85,0.3 0.92,0.65 1,1");
+    // Tension snap: holds even longer, snaps harder
+    CustomEase.create("tensionSnap", "M0,0 C0.8,0 0.7,0.05 0.8,0.1 0.9,0.4 0.95,0.7 1,1");
+
+    // ============================================================
+    //  PHASE 1: CREEPING UNEASE (0s - 18s)
+    //  Mood: Tense. Slow reveals, micro-drift, uncomfortable holds.
+    // ============================================================
+
+    // Vignette tightens slowly — staging through light
+    tl.to("#vignette", { opacity: 0.7, duration: 6, ease: "power1.in" }, 0);
+    tl.to("#vignette", { opacity: 0.9, duration: 12, ease: "sine.inOut" }, 6);
+
+    // Background pulse — barely visible red warmth creeping in
+    tl.to("#bg-pulse", { opacity: 0.4, duration: 6, ease: "creep" }, 3);
+
+    // Text fragments — creep in one at a time, long uncomfortable gaps
+    // Each fragment drifts slightly after appearing (moving hold)
+    const fragments = [
+      { id: "#frag-0", enterAt: 1.2, driftX: 8, driftY: -3 },
+      { id: "#frag-1", enterAt: 3.6, driftX: -5, driftY: 4 },
+      { id: "#frag-2", enterAt: 5.4, driftX: 6, driftY: -5 },
+      { id: "#frag-3", enterAt: 7.2, driftX: -7, driftY: 3 },
+      { id: "#frag-4", enterAt: 8.4, driftX: 4, driftY: -4 },
+      { id: "#frag-5", enterAt: 10.2, driftX: -6, driftY: 5 },
+      { id: "#frag-6", enterAt: 11.4, driftX: 5, driftY: -3 },
+      { id: "#frag-7", enterAt: 12.6, driftX: -4, driftY: 4 }
+    ];
+
+    fragments.forEach((f) => {
+      // Entrance: creeping in from slightly off (barely moves for 80%, then arrives)
+      tl.fromTo(f.id,
+        { opacity: 0, y: 15 },
+        { opacity: 1, y: 0, duration: 3, ease: "creep" },
+        f.enterAt
+      );
+
+      // Moving hold: perpetual micro-drift after entrance — nothing is ever still
+      tl.to(f.id, {
+        x: f.driftX, y: f.driftY,
+        duration: 6, ease: "sine.inOut",
+        yoyo: true, repeat: 3
+      }, f.enterAt + 3);
+    });
+
+    // Red accent lines — thin, creeping, ominous
+    tl.to("#red-line-0", { width: 180, opacity: 0.6, duration: 3, ease: "creep" }, 4.8);
+    tl.to("#red-line-1", { width: 120, opacity: 0.4, duration: 3, ease: "creep" }, 7.2);
+    tl.to("#red-line-2", { width: 200, opacity: 0.5, duration: 3, ease: "creep" }, 9.6);
+
+    // Red lines also get a moving hold — slow width oscillation
+    ["#red-line-0", "#red-line-1", "#red-line-2"].forEach((id, i) => {
+      tl.to(id, {
+        width: "+=15", opacity: "-=0.05",
+        duration: 3, ease: "sine.inOut",
+        yoyo: true, repeat: 2
+      }, 8 + i * 1.2);
+    });
+
+    // Phase 1 Exit: fragments compress inward (tense exit style)
+    fragments.forEach((f, i) => {
+      tl.to(f.id, {
+        x: 0, y: 0, opacity: 0,
+        duration: 1.2, ease: "power2.in"
+      }, 15.6 + i * 0.08);
+    });
+
+    // Red lines fade
+    tl.to(".red-line", { opacity: 0, width: 0, duration: 1.2, ease: "power2.in" }, 16);
+
+    // ============================================================
+    //  PHASE 2: ANTICIPATION + EXPLOSIVE REVEAL (18s - 28s)
+    //  Transition: Hard cut from tense to punchy
+    //  2.5s anticipation → 0.08s slam → secondaries AFTER
+    // ============================================================
+
+    // --- ANTICIPATION: 18s - 20.4s (2.4s of near-stillness) ---
+    // The silence IS the anticipation.
+
+    // Scene darkens — a held breath
+    tl.to("#anticipation-darken", {
+      opacity: 0.4, duration: 2.4, ease: "tensionSnap"
+    }, 18);
+
+    // Vignette tightens further
+    tl.to("#vignette", { opacity: 1, duration: 2.4, ease: "power1.in" }, 18);
+
+    // Background pulse dims — the world contracts
+    tl.to("#bg-pulse", { opacity: 0.1, duration: 2.4, ease: "power2.in" }, 18);
+
+    // Barely perceptible camera zoom (via inner wrapper to not break studio)
+    // Omitted — scaling .composition breaks HyperFrames Studio rendering
+
+    // --- THE SLAM: 20.4s — 0.08s duration. NOTHING else moves. ---
+    const slamTime = 20.4;
+
+    // Title container appears
+    tl.set("#title-container", { opacity: 1 }, slamTime);
+
+    // Title text: scale overshoot with squash (volume preserved)
+    // Arrives at scaleY: 0.7, scaleX: 1.43 (volume = 0.7 * 1.43 = 1.001)
+    tl.fromTo("#title-text",
+      { scaleY: 2.2, scaleX: 0.45, opacity: 0 },
+      { scaleY: 0.7, scaleX: 1.43, opacity: 1, duration: 0.08, ease: "power4.out" },
+      slamTime
+    );
+
+    // Squash recovery — elastic settle
+    tl.to("#title-text", {
+      scaleY: 1.08, scaleX: 0.93, duration: 0.4, ease: "power3.out"
+    }, slamTime + 0.08);
+    tl.to("#title-text", {
+      scaleY: 0.97, scaleX: 1.03, duration: 0.4, ease: "sine.inOut"
+    }, slamTime + 0.48);
+    tl.to("#title-text", {
+      scaleY: 1, scaleX: 1, duration: 0.4, ease: "sine.out"
+    }, slamTime + 0.88);
+
+    // Camera zoom reset omitted — see above
+
+    // --- SECONDARY ACTIONS: all AFTER the slam (slamTime + 0.08 and later) ---
+
+    // Anticipation darken layer clears
+    tl.to("#anticipation-darken", {
+      opacity: 0, duration: 0.4, ease: "power2.out"
+    }, slamTime + 0.08);
+
+    // Title shadow — DRAGS 0.05s behind the title
+    tl.fromTo("#title-shadow",
+      { opacity: 0, scaleY: 0.7, scaleX: 1.43 },
+      { opacity: 0.6, scaleY: 1, scaleX: 1, duration: 0.4, ease: "power2.out" },
+      slamTime + 0.05
+    );
+
+    // Title glow — DRAGS 0.08s behind the title
+    tl.to("#title-glow", {
+      opacity: 0.7, duration: 1.2, ease: "sine.out"
+    }, slamTime + 0.08);
+
+    // Shockwave — expands AFTER slam
+    tl.fromTo("#shockwave",
+      { scale: 0.5, opacity: 0.7 },
+      { scale: 15, opacity: 0, duration: 1.2, ease: "power2.out" },
+      slamTime + 0.12
+    );
+
+    // Vignette reacts
+    tl.to("#vignette", {
+      opacity: 0.5, duration: 0.4, ease: "power2.out"
+    }, slamTime + 0.16);
+
+    // Background pulse flares red after impact
+    tl.to("#bg-pulse", {
+      opacity: 0.8, duration: 0.08, ease: "power4.out"
+    }, slamTime + 0.12);
+    tl.to("#bg-pulse", {
+      opacity: 0.2, duration: 1.2, ease: "sine.out"
+    }, slamTime + 0.2);
+
+    // === GLASS SHARDS — scatter on ARCS after slam ===
+    // Faster shards = flatter arcs, lighter = faster
+    // Each shard has a reflection that drags 0.04-0.06s behind
+
+    const shardData = [
+      // { id, refId, angle (degrees), speed (px), arcDepth, dur, rotation }
+      { id: "#shard-0",  ref: "#ref-0", x: -420, y: -280, arc: -90,  dur: 1.2, rot: -220 },
+      { id: "#shard-1",  ref: "#ref-1", x: 380,  y: -310, arc: -80,  dur: 1.2, rot: 195 },
+      { id: "#shard-2",  ref: null,     x: -280, y: 200,  arc: 60,   dur: 0.4, rot: -150 },
+      { id: "#shard-3",  ref: "#ref-2", x: 500,  y: -180, arc: -50,  dur: 0.4, rot: 280 },
+      { id: "#shard-4",  ref: null,     x: -600, y: -120, arc: -30,  dur: 0.4, rot: -310 },
+      { id: "#shard-5",  ref: "#ref-3", x: 200,  y: 320,  arc: 100,  dur: 1.2, rot: 160 },
+      { id: "#shard-6",  ref: null,     x: -350, y: -400, arc: -110, dur: 1.2, rot: -240 },
+      { id: "#shard-7",  ref: "#ref-4", x: 650,  y: 100,  arc: 25,   dur: 0.4, rot: 190 },
+      { id: "#shard-8",  ref: null,     x: -150, y: 350,  arc: 80,   dur: 1.2, rot: -130 },
+      { id: "#shard-9",  ref: "#ref-5", x: 300,  y: -450, arc: -120, dur: 1.2, rot: 260 },
+      { id: "#shard-10", ref: null,     x: -500, y: 250,  arc: 70,   dur: 0.4, rot: -200 },
+      { id: "#shard-11", ref: "#ref-6", x: 450,  y: 280,  arc: 55,   dur: 1.2, rot: 175 },
+      { id: "#shard-12", ref: null,     x: -250, y: -350, arc: -95,  dur: 0.4, rot: -265 },
+      { id: "#shard-13", ref: "#ref-7", x: 550,  y: -250, arc: -45,  dur: 0.4, rot: 230 },
+      { id: "#shard-14", ref: null,     x: -450, y: 150,  arc: 40,   dur: 1.2, rot: -180 },
+      { id: "#shard-15", ref: "#ref-8", x: 180,  y: -200, arc: -70,  dur: 0.4, rot: 145 },
+      { id: "#shard-16", ref: null,     x: -320, y: -150, arc: -35,  dur: 0.4, rot: -160 },
+      { id: "#shard-17", ref: null,     x: 400,  y: 350,  arc: 90,   dur: 1.2, rot: 210 }
+    ];
+
+    const shardLaunchTime = slamTime + 0.12;
+
+    shardData.forEach((s, i) => {
+      const stagger = i * 0.02; // slight cascade, not simultaneous
+      const launchT = shardLaunchTime + stagger;
+
+      // Shard appears and moves on an arc
+      // Arc: x goes to target, y arcs via a midpoint
+      const midY = s.arc; // arc depth — deeper for slower shards
+      const halfDur = s.dur / 2;
+
+      tl.set(s.id, { opacity: 1 }, launchT);
+
+      // Horizontal + rotation over full duration
+      tl.to(s.id, {
+        x: s.x, rotation: s.rot,
+        duration: s.dur, ease: "power2.out"
+      }, launchT);
+
+      // Vertical arc: up first half, down second half (parabolic arc)
+      tl.to(s.id, {
+        y: midY, duration: halfDur, ease: "power2.out"
+      }, launchT);
+      tl.to(s.id, {
+        y: s.y, duration: halfDur, ease: "power2.in"
+      }, launchT + halfDur);
+
+      // Fade out at end
+      tl.to(s.id, {
+        opacity: 0, duration: 0.4, ease: "power1.in"
+      }, launchT + s.dur - 0.4);
+
+      // Reflection DRAGS behind shard by 0.04-0.06s
+      if (s.ref) {
+        const dragDelay = 0.04 + (i % 3) * 0.01;
+        tl.set(s.ref, { opacity: 0.4 }, launchT + dragDelay);
+        tl.to(s.ref, {
+          x: s.x * 0.9, y: s.y * 0.9, rotation: s.rot * 0.7,
+          duration: s.dur, ease: "power2.out"
+        }, launchT + dragDelay);
+        tl.to(s.ref, {
+          opacity: 0, duration: 0.4, ease: "power1.in"
+        }, launchT + dragDelay + s.dur - 0.4);
+      }
+    });
+
+    // Title moving hold: subtle breathing after it settles (from ~21.8s onward)
+    const titleSettleTime = slamTime + 1.2 + 0.08;
+    tl.to("#title-text", {
+      scaleY: 1.005, scaleX: 0.995,
+      duration: 3, ease: "sine.inOut",
+      yoyo: true, repeat: 3
+    }, titleSettleTime);
+
+    tl.to("#title-shadow", {
+      y: 2, opacity: 0.55,
+      duration: 3, ease: "sine.inOut",
+      yoyo: true, repeat: 3
+    }, titleSettleTime + 0.06);
+
+    tl.to("#title-glow", {
+      opacity: 0.5,
+      duration: 3, ease: "sine.inOut",
+      yoyo: true, repeat: 3
+    }, titleSettleTime + 0.08);
+
+    // Subtitle enters — proportional exaggeration (slight scale overshoot matching title's world)
+    tl.fromTo("#subtitle",
+      { opacity: 0, y: 15, scaleX: 1.06 },
+      { opacity: 0.7, y: 0, scaleX: 1, duration: 1.2, ease: "power3.out" },
+      slamTime + 1.6
+    );
+
+    // Subtitle moving hold
+    tl.to("#subtitle", {
+      y: -2, opacity: 0.65,
+      duration: 3, ease: "sine.inOut",
+      yoyo: true, repeat: 3
+    }, slamTime + 2.8);
+
+    // ============================================================
+    //  PHASE 3: CALM AFTERMATH (28s - 45s)
+    //  Mood: Calm. Floating debris, deep arcs, perpetual moving holds.
+    //  Transition: Soft dissolve from impact energy into serenity
+    // ============================================================
+
+    const phase3Start = 28;
+
+    // Vignette softens
+    tl.to("#vignette", {
+      opacity: 0.4, duration: 3, ease: "sine.inOut"
+    }, phase3Start);
+
+    // Background pulse settles to gentle warmth
+    tl.to("#bg-pulse", {
+      opacity: 0.15, duration: 3, ease: "sine.inOut"
+    }, phase3Start);
+
+    // Title glow dims to soft
+    tl.to("#title-glow", {
+      opacity: 0.3, duration: 3, ease: "sine.inOut"
+    }, phase3Start);
+
+    // Floating debris — each on deep, curved arcs (slow = deep arcs)
+    // These drift perpetually with moving holds
+    const debrisData = [
+      { id: "#debris-0",  startAt: 28,   driftX: 80,  driftY: -40,  arcY: -25,  dur: 12 },
+      { id: "#debris-1",  startAt: 28.4, driftX: -60, driftY: -50,  arcY: -30,  dur: 9 },
+      { id: "#debris-2",  startAt: 29.2, driftX: 50,  driftY: -35,  arcY: -20,  dur: 12 },
+      { id: "#debris-3",  startAt: 28.8, driftX: -70, driftY: -45,  arcY: -28,  dur: 9 },
+      { id: "#debris-4",  startAt: 30,   driftX: 90,  driftY: -30,  arcY: -18,  dur: 12 },
+      { id: "#debris-5",  startAt: 29.6, driftX: -40, driftY: -55,  arcY: -35,  dur: 9 },
+      { id: "#debris-6",  startAt: 30.4, driftX: 65,  driftY: -25,  arcY: -15,  dur: 12 },
+      { id: "#debris-7",  startAt: 28.4, driftX: -55, driftY: -40,  arcY: -22,  dur: 9 },
+      { id: "#debris-8",  startAt: 31.2, driftX: 45,  driftY: -50,  arcY: -30,  dur: 12 },
+      { id: "#debris-9",  startAt: 29.2, driftX: -75, driftY: -35,  arcY: -20,  dur: 9 },
+      { id: "#debris-10", startAt: 30,   driftX: 55,  driftY: -45,  arcY: -25,  dur: 12 },
+      { id: "#debris-11", startAt: 30.8, driftX: -50, driftY: -30,  arcY: -18,  dur: 9 },
+      { id: "#debris-12", startAt: 31.2, driftX: 35,  driftY: -55,  arcY: -32,  dur: 12 },
+      { id: "#debris-13", startAt: 29.6, driftX: -80, driftY: -40,  arcY: -24,  dur: 9 },
+      { id: "#debris-14", startAt: 30.4, driftX: 60,  driftY: -35,  arcY: -20,  dur: 12 },
+      { id: "#debris-15", startAt: 31.6, driftX: -45, driftY: -50,  arcY: -28,  dur: 9 }
+    ];
+
+    debrisData.forEach((d) => {
+      // Fade in gently
+      tl.to(d.id, {
+        opacity: 0.3, duration: 3, ease: "sine.inOut"
+      }, d.startAt);
+
+      // Deep arc drift — x and y as separate tweens for arc shape
+      // Horizontal: slow continuous
+      tl.to(d.id, {
+        x: d.driftX, duration: d.dur, ease: "sine.inOut",
+        yoyo: true, repeat: 3
+      }, d.startAt + 1.2);
+
+      // Vertical: slower, deeper arc (different duration creates curve)
+      tl.to(d.id, {
+        y: d.driftY, duration: d.dur * 0.8, ease: "sine.inOut",
+        yoyo: true, repeat: 3
+      }, d.startAt + 1.2);
+
+      // Subtle rotation drift — nothing moves in a straight line
+      tl.to(d.id, {
+        rotation: d.driftX > 0 ? 15 : -15,
+        duration: d.dur * 1.2, ease: "sine.inOut",
+        yoyo: true, repeat: 3
+      }, d.startAt + 1.2);
+    });
+
+    // Final fade: everything gently recedes at the very end
+    // Title fades last (it has the most mass, the most presence)
+    tl.to(".debris", {
+      opacity: 0, duration: 3, ease: "sine.in"
+    }, 42);
+
+    tl.to("#subtitle", {
+      opacity: 0, y: 10, duration: 3, ease: "sine.in"
+    }, 41.5);
+
+    tl.to("#title-glow", {
+      opacity: 0, duration: 3, ease: "sine.inOut"
+    }, 42);
+
+    tl.to("#title-shadow", {
+      opacity: 0, duration: 3, ease: "sine.inOut"
+    }, 42);
+
+    tl.to("#title-text", {
+      opacity: 0, duration: 3, ease: "sine.in"
+    }, 42.5);
+
+    tl.to("#vignette", {
+      opacity: 0, duration: 3, ease: "sine.in"
+    }, 42);
+
+    tl.to("#bg-pulse", {
+      opacity: 0, duration: 3, ease: "sine.in"
+    }, 42);
+
+    // Ensure timeline reaches 45s
+    tl.set({}, {}, 45);
+  </script>
+</body>
+</html>
