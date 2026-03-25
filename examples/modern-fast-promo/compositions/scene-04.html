@@ -1,5 +1,5 @@
 <template id="scene-04-template">
-  <div data-composition-id="scene-04" data-width="1920" data-height="1080">
+  <div data-composition-id="scene-04" data-duration="5.35" data-width="1920" data-height="1080">
 
     <style>
       [data-composition-id="scene-04"] {
@@ -11,21 +11,24 @@
       }
       [data-composition-id="scene-04"] .photo-placeholder {
         position: absolute;
-        background: #333333;
+        background: transparent;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-family: 'Montserrat', sans-serif;
-        font-size: 18px;
-        color: #666666;
-        letter-spacing: 0.05em;
         overflow: hidden;
       }
-      [data-composition-id="scene-04"] .photo-placeholder::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(135deg, #444444 0%, #222222 100%);
+      [data-composition-id="scene-04"] .photo-placeholder .photo-label {
+        position: relative;
+        z-index: 1;
+        padding: 6px 14px;
+        border: 1px solid #333;
+        border-radius: 4px;
+        background: rgba(0,0,0,0.6);
+        font-family: 'Montserrat', sans-serif;
+        font-size: 11px;
+        color: #555;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
       [data-composition-id="scene-04"] .photo-tinted {
         filter: grayscale(1) sepia(0.3);
@@ -63,7 +66,7 @@
     <div class="photo-placeholder" id="sc04-photo8"
       data-start="0" data-duration="2.77" data-track-index="0"
       style="left:0; top:0; width:1920px; height:1080px; z-index:0;">
-      <span style="z-index:1;">Photo/Video_08</span>
+      <span class="photo-label">Photo/Video_08</span>
     </div>
 
     <!-- L28/L30: Photo/Video_08 with Tint (0.0-1.37s) -->
@@ -116,20 +119,24 @@
              background:transparent; z-index:5; opacity:0;">
     </div>
 
-    <!-- L23: text_09 "change" sub-comp (0.83-1.07s, 3 scale kf, Fill) -->
+    <!-- L23: text_09 "CHANGE" — inlined (0.83-1.07s) -->
     <div id="sc04-text09"
-      data-composition-id="text-09" data-composition-src="compositions/text-09.html"
       data-start="0.83" data-duration="1.07" data-track-index="10"
-      data-width="1920" data-height="114"
-      style="position:absolute; left:0; top:360px; z-index:6;">
+      style="position:absolute; left:0; top:360px; width:1920px; height:163px;
+             display:flex; align-items:center; justify-content:center; z-index:6;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:56px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">CHANGE</span>
     </div>
 
-    <!-- L21: text_10 "media files" sub-comp (0.83-1.07s, 3 scale kf, Fill) -->
+    <!-- L21: text_10 "MEDIA FILES" — inlined (0.83-1.07s) -->
     <div id="sc04-text10"
-      data-composition-id="text-10" data-composition-src="compositions/text-10.html"
       data-start="0.83" data-duration="1.07" data-track-index="11"
-      data-width="1920" data-height="114"
-      style="position:absolute; left:0; top:560px; z-index:6;">
+      style="position:absolute; left:0; top:560px; width:1920px; height:137px;
+             display:flex; align-items:center; justify-content:center; z-index:6;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:52px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">MEDIA FILES</span>
     </div>
 
     <!-- L19: Cyan Solid with Fill (0.93-0.7s) -->
@@ -182,20 +189,24 @@
       style="background:#ff3333; z-index:12; opacity:0;">
     </div>
 
-    <!-- L11: text_11 "trendy" sub-comp (2.74-0.7s, Fill) -->
+    <!-- L11: text_11 "TRENDY" — inlined (2.74-0.7s) -->
     <div id="sc04-text11"
-      data-composition-id="text-11" data-composition-src="compositions/text-11.html"
       data-start="2.74" data-duration="0.7" data-track-index="19"
-      data-width="1920" data-height="114"
-      style="position:absolute; left:0; top:420px; z-index:13;">
+      style="position:absolute; left:0; top:420px; width:1920px; height:321px;
+             display:flex; align-items:center; justify-content:center; z-index:13;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:96px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">TRENDY</span>
     </div>
 
-    <!-- L12: text_11 duplicate (2.74-0.37s) -->
+    <!-- L12: text_11 duplicate "TRENDY" — inlined (2.74-0.37s) -->
     <div id="sc04-text11-dup"
-      data-composition-id="text-11" data-composition-src="compositions/text-11.html"
       data-start="2.74" data-duration="0.37" data-track-index="20"
-      data-width="1920" data-height="114"
-      style="position:absolute; left:0; top:560px; z-index:14;">
+      style="position:absolute; left:0; top:560px; width:1920px; height:321px;
+             display:flex; align-items:center; justify-content:center; z-index:14;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:96px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">TRENDY</span>
     </div>
 
     <!-- L1: Shape Layer 7 — Venetian Blinds + Fill (3.54-0.88s) -->
@@ -222,25 +233,29 @@
       <div class="blind-strip" id="sc04-vb3-6"></div>
     </div>
 
-    <!-- L4/L6: text_12 "THANKS FOR WATCHING" (4.4-0.88s, scale kf, Fill) -->
+    <!-- L4/L6: text_12 "THANKS FOR WATCHING" — inlined (4.4-0.88s) -->
     <div id="sc04-text12"
-      data-composition-id="text-12" data-composition-src="compositions/text-12.html"
       data-start="4.4" data-duration="0.88" data-track-index="23"
-      data-width="2062" data-height="142"
-      style="position:absolute; left:-71px; top:400px; z-index:17;">
+      style="position:absolute; left:-71px; top:400px; width:2062px; height:142px;
+             display:flex; align-items:center; justify-content:center; z-index:17;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:56px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">THANKS FOR WATCHING</span>
     </div>
     <div id="sc04-text12-dup"
-      data-composition-id="text-12" data-composition-src="compositions/text-12.html"
       data-start="4.4" data-duration="0.88" data-track-index="24"
-      data-width="2062" data-height="142"
-      style="position:absolute; left:-71px; top:540px; z-index:16; opacity:0.3;">
+      style="position:absolute; left:-71px; top:540px; width:2062px; height:142px;
+             display:flex; align-items:center; justify-content:center; z-index:16; opacity:0.3;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:56px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">THANKS FOR WATCHING</span>
     </div>
 
     <!-- L8: Photo/Video_10 (4.9s, final photo) -->
     <div class="photo-placeholder" id="sc04-photo10"
       data-start="4.9" data-duration="0.45" data-track-index="25"
       style="left:0; top:0; width:1920px; height:1080px; z-index:18; opacity:0;">
-      <span style="z-index:1;">Photo/Video_10</span>
+      <span class="photo-label">Photo/Video_10</span>
     </div>
 
     <script>
@@ -312,7 +327,7 @@
       tl.to("#sc04-shape3", { opacity: 0, duration: 0.2 }, 2.57);
       tl.to("#sc04-shape4", { opacity: 0, duration: 0.2 }, 2.57);
 
-      /* L23: text_09 "change" — 3 scale keyframes */
+      /* L23: text_09 "CHANGE" — 3 scale keyframes */
       tl.fromTo("#sc04-text09",
         { scale: 0.4, opacity: 0 },
         { scale: 1.1, opacity: 1, duration: 0.2, ease: "power3.out" },
@@ -321,8 +336,10 @@
       tl.to("#sc04-text09", { scale: 0.95, duration: 0.1, ease: "power1.inOut" }, 1.03);
       tl.to("#sc04-text09", { scale: 1.0, duration: 0.1, ease: "power1.out" }, 1.13);
       tl.to("#sc04-text09", { opacity: 0, duration: 0.2, ease: "power2.in" }, 1.7);
+      /* text_09 text fade-in */
+      tl.fromTo("#sc04-text09 .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 0.83);
 
-      /* L21: text_10 "media files" — 3 scale keyframes */
+      /* L21: text_10 "MEDIA FILES" — 3 scale keyframes */
       tl.fromTo("#sc04-text10",
         { scale: 0.4, opacity: 0 },
         { scale: 1.08, opacity: 1, duration: 0.2, ease: "power3.out" },
@@ -331,6 +348,8 @@
       tl.to("#sc04-text10", { scale: 0.96, duration: 0.1, ease: "power1.inOut" }, 1.03);
       tl.to("#sc04-text10", { scale: 1.0, duration: 0.1, ease: "power1.out" }, 1.13);
       tl.to("#sc04-text10", { opacity: 0, duration: 0.2, ease: "power2.in" }, 1.7);
+      /* text_10 text fade-in */
+      tl.fromTo("#sc04-text10 .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 0.83);
 
       /* L19: Cyan solid flash */
       tl.to("#sc04-cyan", { opacity: 0.7, duration: 0.15, ease: "power2.out" }, 0.93);
@@ -382,13 +401,15 @@
       tl.to("#sc04-magenta", { opacity: 0.4, duration: 0.2, ease: "power2.out" }, 2.74);
       tl.to("#sc04-magenta", { opacity: 0, duration: 0.3, ease: "power2.in" }, 3.14);
 
-      /* L11: text_11 "trendy" */
+      /* L11: text_11 "TRENDY" */
       tl.fromTo("#sc04-text11",
         { scale: 0.5, opacity: 0 },
         { scale: 1.0, opacity: 1, duration: 0.3, ease: "power3.out" },
         2.74
       );
       tl.to("#sc04-text11", { opacity: 0, duration: 0.2 }, 3.24);
+      /* text_11 text fade-in */
+      tl.fromTo("#sc04-text11 .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 2.74);
 
       /* L12: text_11 duplicate */
       tl.fromTo("#sc04-text11-dup",
@@ -397,6 +418,8 @@
         2.74
       );
       tl.to("#sc04-text11-dup", { opacity: 0, duration: 0.15 }, 2.96);
+      /* text_11-dup text fade-in */
+      tl.fromTo("#sc04-text11-dup .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 2.74);
 
       /* Photo/Video_09 tint fades */
       tl.to("#sc04-photo9-tint", { opacity: 0, duration: 0.3 }, 3.81);
@@ -427,12 +450,16 @@
         4.4
       );
       tl.to("#sc04-text12", { scale: 1.0, duration: 0.15, ease: "power1.out" }, 4.7);
+      /* text_12 text fade-in */
+      tl.fromTo("#sc04-text12 .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 4.4);
 
       tl.fromTo("#sc04-text12-dup",
         { scale: 0.3, opacity: 0 },
         { scale: 1.05, opacity: 0.3, duration: 0.3, ease: "power3.out" },
         4.4
       );
+      /* text_12-dup text fade-in */
+      tl.fromTo("#sc04-text12-dup .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 4.4);
 
       /* L8: Photo/Video_10 final reveal (4.9s) */
       tl.fromTo("#sc04-photo10",

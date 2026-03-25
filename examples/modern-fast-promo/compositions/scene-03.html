@@ -1,5 +1,5 @@
 <template id="scene-03-template">
-  <div data-composition-id="scene-03" data-width="1920" data-height="1080">
+  <div data-composition-id="scene-03" data-duration="7.01" data-width="1920" data-height="1080">
 
     <style>
       [data-composition-id="scene-03"] {
@@ -11,21 +11,24 @@
       }
       [data-composition-id="scene-03"] .photo-placeholder {
         position: absolute;
-        background: #333333;
+        background: transparent;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-family: 'Montserrat', sans-serif;
-        font-size: 18px;
-        color: #666666;
-        letter-spacing: 0.05em;
         overflow: hidden;
       }
-      [data-composition-id="scene-03"] .photo-placeholder::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(135deg, #444444 0%, #222222 100%);
+      [data-composition-id="scene-03"] .photo-placeholder .photo-label {
+        position: relative;
+        z-index: 1;
+        padding: 6px 14px;
+        border: 1px solid #333;
+        border-radius: 4px;
+        background: rgba(0,0,0,0.6);
+        font-family: 'Montserrat', sans-serif;
+        font-size: 11px;
+        color: #555;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
       [data-composition-id="scene-03"] .photo-tinted {
         filter: grayscale(1) sepia(0.3);
@@ -55,6 +58,18 @@
         color: #ffffff;
         pointer-events: none;
       }
+      [data-composition-id="scene-03"] .geo-line {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        pointer-events: none;
+      }
+      [data-composition-id="scene-03"] .geo-line line {
+        stroke: #ffffff;
+        fill: none;
+      }
     </style>
 
     <!-- L22/L23: Photo/Video_05 (0.0-2.64s, scale + opacity keyframes) -->
@@ -65,7 +80,7 @@
     <div class="photo-placeholder" id="sc03-photo5"
       data-start="0" data-duration="2.64" data-track-index="1"
       style="left:0; top:0; width:1920px; height:1080px; z-index:1;">
-      <span style="z-index:1;">Photo/Video_05</span>
+      <span class="photo-label">Photo/Video_05</span>
     </div>
 
     <!-- L21: White solid strip (0.17-1.03s, half-width split-screen mask) -->
@@ -74,36 +89,67 @@
       style="left:0; top:0; width:960px; height:1080px; z-index:2; opacity:0;">
     </div>
 
-    <!-- L17: text_04 "stylish" sub-comp (0.33-2.64s, 7 scale kf, opacity 2kf, Fill) -->
+    <!-- L17: text_04 "STYLISH" — inlined (0.33-2.31s) -->
     <div id="sc03-text04"
-      data-composition-id="text-04" data-composition-src="compositions/text-04.html"
       data-start="0.33" data-duration="2.31" data-track-index="3"
-      data-width="1920" data-height="114"
-      style="position:absolute; left:0; top:300px; z-index:3;">
+      style="position:absolute; left:0; top:300px; width:1920px; height:114px;
+             display:flex; align-items:center; justify-content:center; z-index:3;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:48px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">STYLISH</span>
     </div>
 
-    <!-- L15: text_06 "modern" sub-comp (0.5-2.3s, 7 scale kf, opacity 2kf, Fill) -->
+    <!-- L15: text_06 "MODERN" — inlined (0.5-1.8s) -->
     <div id="sc03-text06"
-      data-composition-id="text-06" data-composition-src="compositions/text-06.html"
       data-start="0.5" data-duration="1.8" data-track-index="4"
-      data-width="1920" data-height="114"
-      style="position:absolute; left:0; top:440px; z-index:4;">
+      style="position:absolute; left:0; top:440px; width:1920px; height:114px;
+             display:flex; align-items:center; justify-content:center; z-index:4;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:48px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">MODERN</span>
     </div>
 
-    <!-- L16: text_05 "creative" sub-comp (0.67-2.47s, 4 scale kf, opacity 2kf, Tint+Fill) -->
+    <!-- L16: text_05 "CREATIVE" — inlined (0.67-1.97s) -->
     <div id="sc03-text05"
-      data-composition-id="text-05" data-composition-src="compositions/text-05.html"
       data-start="0.67" data-duration="1.97" data-track-index="5"
-      data-width="1920" data-height="114"
-      style="position:absolute; left:0; top:580px; z-index:5;">
+      style="position:absolute; left:0; top:580px; width:1920px; height:114px;
+             display:flex; align-items:center; justify-content:center; z-index:5;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:48px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">CREATIVE</span>
     </div>
 
-    <!-- L18: Effect_01 sub-comp (2.54-1.37s) -->
+    <!-- L18: Effect_01 — inlined 9 SVG lines radiating from center (2.54-1.37s) -->
     <div id="sc03-effect01"
-      data-composition-id="effect-01" data-composition-src="compositions/effect-01.html"
       data-start="2.54" data-duration="1.37" data-track-index="6"
-      data-width="1920" data-height="1080"
-      style="z-index:6;">
+      style="position:absolute; left:0; top:0; width:1920px; height:1080px; z-index:6; overflow:hidden;">
+      <svg class="geo-line" id="sc03-eff-s9">
+        <line x1="960" y1="540" x2="518" y2="412" stroke-width="31" stroke-dasharray="540" stroke-dashoffset="540" />
+      </svg>
+      <svg class="geo-line" id="sc03-eff-s8">
+        <line x1="960" y1="540" x2="702" y2="-88" stroke-width="127" stroke-dasharray="670" stroke-dashoffset="670" />
+      </svg>
+      <svg class="geo-line" id="sc03-eff-s6">
+        <line x1="960" y1="540" x2="-292" y2="290" stroke-width="47" stroke-dasharray="1280" stroke-dashoffset="1280" />
+      </svg>
+      <svg class="geo-line" id="sc03-eff-s5">
+        <line x1="960" y1="540" x2="465" y2="120" stroke-width="25" stroke-dasharray="630" stroke-dashoffset="630" />
+      </svg>
+      <svg class="geo-line" id="sc03-eff-s4">
+        <line x1="960" y1="540" x2="-368" y2="12" stroke-width="92" stroke-dasharray="1410" stroke-dashoffset="1410" />
+      </svg>
+      <svg class="geo-line" id="sc03-eff-s3">
+        <line x1="960" y1="540" x2="-461" y2="-156" stroke-width="15" stroke-dasharray="1560" stroke-dashoffset="1560" />
+      </svg>
+      <svg class="geo-line" id="sc03-eff-s2">
+        <line x1="960" y1="540" x2="286" y2="-220" stroke-width="37" stroke-dasharray="1010" stroke-dashoffset="1010" />
+      </svg>
+      <svg class="geo-line" id="sc03-eff-s1">
+        <line x1="960" y1="540" x2="-60" y2="-336" stroke-width="29" stroke-dasharray="1320" stroke-dashoffset="1320" />
+      </svg>
+      <svg class="geo-line" id="sc03-eff-s7">
+        <line x1="960" y1="540" x2="-565" y2="-336" stroke-width="53" stroke-dasharray="1720" stroke-dashoffset="1720" />
+      </svg>
     </div>
 
     <!-- L19/L20: Photo/Video_06 with Tint (2.6-1.3s) -->
@@ -120,7 +166,7 @@
     <div class="photo-placeholder" id="sc03-photo6-a"
       data-start="2.6" data-duration="2.07" data-track-index="9"
       style="left:0; top:0; width:960px; height:1080px; z-index:8; opacity:0;">
-      <span style="z-index:1;">Photo/Video_06</span>
+      <span class="photo-label">Photo/Video_06</span>
     </div>
     <div class="photo-placeholder" id="sc03-photo6-b"
       data-start="2.6" data-duration="2.07" data-track-index="10"
@@ -133,19 +179,21 @@
       style="left:956px; top:0; width:8px; height:1080px; z-index:9; opacity:0;">
     </div>
 
-    <!-- L9: text_07 "dynamic" sub-comp (3.9-1.47s, Fill) -->
+    <!-- L9: text_07 "DYNAMIC" — inlined (3.9-1.47s) -->
     <div id="sc03-text07"
-      data-composition-id="text-07" data-composition-src="compositions/text-07.html"
       data-start="3.9" data-duration="1.47" data-track-index="12"
-      data-width="1920" data-height="114"
-      style="position:absolute; left:0; top:483px; z-index:10;">
+      style="position:absolute; left:0; top:483px; width:1920px; height:148px;
+             display:flex; align-items:center; justify-content:center; z-index:10;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:48px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">DYNAMIC</span>
     </div>
 
-    <!-- L10: Photo/Video_07 with Tint (4.64-2.54s) -->
+    <!-- L10: Photo/Video_07 with Tint (4.64-2.37s) -->
     <div class="photo-placeholder photo-tinted" id="sc03-photo7"
       data-start="4.64" data-duration="2.37" data-track-index="13"
       style="left:0; top:0; width:1920px; height:1080px; z-index:11; opacity:0;">
-      <span style="z-index:1;">Photo/Video_07</span>
+      <span class="photo-label">Photo/Video_07</span>
     </div>
 
     <!-- L5-L8: Shape Layers 12-15 (4.64-7.01s, geometric frames, varying opacity 0.35-0.7) -->
@@ -172,7 +220,7 @@
       style="left:0; top:536px; width:1920px; height:8px; z-index:13; opacity:0;">
     </div>
 
-    <!-- L2/L4: text_08 "dynamic" full-screen (5.37-7.01s, Fill) -->
+    <!-- L2/L4: text_08 "DYNAMIC" full-screen (5.37-7.01s) -->
     <div class="fullscreen-text" id="sc03-text08-bg"
       data-start="5.37" data-duration="1.64" data-track-index="19"
       style="left:0; top:0; width:1920px; height:1080px;
@@ -180,10 +228,12 @@
       DYNAMIC
     </div>
     <div id="sc03-text08"
-      data-composition-id="text-08" data-composition-src="compositions/text-08.html"
       data-start="5.37" data-duration="1.64" data-track-index="20"
-      data-width="1920" data-height="114"
-      style="position:absolute; left:0; top:483px; z-index:15;">
+      style="position:absolute; left:0; top:483px; width:1920px; height:1080px;
+             display:flex; align-items:center; justify-content:center; z-index:15;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:120px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">DYNAMIC</span>
     </div>
 
     <!-- L1/L3: White solid strips (final masking) -->
@@ -218,7 +268,7 @@
       );
       tl.to("#sc03-strip1", { opacity: 0, duration: 0.2, ease: "power2.in" }, 1.0);
 
-      /* L17: text_04 "stylish" — 7 scale keyframes, staggered reveal */
+      /* L17: text_04 "STYLISH" — 7 scale keyframes, staggered reveal */
       tl.fromTo("#sc03-text04",
         { scale: 0.3, opacity: 0 },
         { scale: 1.1, opacity: 1, duration: 0.25, ease: "power3.out" },
@@ -230,8 +280,10 @@
       tl.to("#sc03-text04", { scale: 1.0, duration: 0.1, ease: "power1.out" }, 0.88);
       tl.to("#sc03-text04", { scale: 1.0, duration: 1.0 }, 0.98);
       tl.to("#sc03-text04", { scale: 0.8, opacity: 0, duration: 0.3, ease: "power2.in" }, 2.34);
+      /* text_04 text fade-in */
+      tl.fromTo("#sc03-text04 .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 0.33);
 
-      /* L15: text_06 "modern" — 7 scale keyframes */
+      /* L15: text_06 "MODERN" — 7 scale keyframes */
       tl.fromTo("#sc03-text06",
         { scale: 0.3, opacity: 0 },
         { scale: 1.08, opacity: 1, duration: 0.25, ease: "power3.out" },
@@ -243,8 +295,10 @@
       tl.to("#sc03-text06", { scale: 1.0, duration: 0.1, ease: "power1.out" }, 1.05);
       tl.to("#sc03-text06", { scale: 1.0, duration: 0.8 }, 1.15);
       tl.to("#sc03-text06", { scale: 0.85, opacity: 0, duration: 0.3, ease: "power2.in" }, 2.0);
+      /* text_06 text fade-in */
+      tl.fromTo("#sc03-text06 .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 0.5);
 
-      /* L16: text_05 "creative" — 4 scale keyframes, Tint+Fill */
+      /* L16: text_05 "CREATIVE" — 4 scale keyframes, Tint+Fill */
       tl.fromTo("#sc03-text05",
         { scale: 0.4, opacity: 0 },
         { scale: 1.05, opacity: 1, duration: 0.3, ease: "power3.out" },
@@ -253,6 +307,37 @@
       tl.to("#sc03-text05", { scale: 0.97, duration: 0.15, ease: "power1.inOut" }, 0.97);
       tl.to("#sc03-text05", { scale: 1.0, duration: 0.12, ease: "power1.out" }, 1.12);
       tl.to("#sc03-text05", { scale: 0.8, opacity: 0, duration: 0.3, ease: "power2.in" }, 2.34);
+      /* text_05 text fade-in */
+      tl.fromTo("#sc03-text05 .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 0.67);
+
+      /* L18: Effect_01 — inlined SVG draw-on animation (starts at 2.54s) */
+      var effLines = [
+        { sel: "#sc03-eff-s9 line", dash: 540 },
+        { sel: "#sc03-eff-s8 line", dash: 670 },
+        { sel: "#sc03-eff-s6 line", dash: 1280 },
+        { sel: "#sc03-eff-s5 line", dash: 630 },
+        { sel: "#sc03-eff-s4 line", dash: 1410 },
+        { sel: "#sc03-eff-s3 line", dash: 1560 },
+        { sel: "#sc03-eff-s2 line", dash: 1010 },
+        { sel: "#sc03-eff-s1 line", dash: 1320 },
+        { sel: "#sc03-eff-s7 line", dash: 1720 }
+      ];
+      for (var ei = 0; ei < effLines.length; ei++) {
+        var eDelay = 2.54 + ei * 0.08;
+        tl.to(effLines[ei].sel, {
+          attr: { "stroke-dashoffset": 0 },
+          duration: 0.45,
+          ease: "power2.out"
+        }, eDelay);
+      }
+      /* Fade out all effect lines */
+      for (var ej = 0; ej < effLines.length; ej++) {
+        tl.to(effLines[ej].sel, {
+          opacity: 0,
+          duration: 0.2,
+          ease: "power2.in"
+        }, 3.54 + ej * 0.025);
+      }
 
       /* L19/L20: Photo/Video_06 tint layers (2.6s) */
       tl.fromTo("#sc03-photo6-tint-a",
@@ -288,13 +373,15 @@
       );
       tl.to("#sc03-strip-divider", { opacity: 0, duration: 0.2 }, 4.47);
 
-      /* L9: text_07 "dynamic" (3.9s) */
+      /* L9: text_07 "DYNAMIC" (3.9s) */
       tl.fromTo("#sc03-text07",
         { scale: 0.5, opacity: 0 },
         { scale: 1.0, opacity: 1, duration: 0.35, ease: "power3.out" },
         3.9
       );
       tl.to("#sc03-text07", { opacity: 0, duration: 0.25, ease: "power2.in" }, 5.12);
+      /* text_07 text fade-in */
+      tl.fromTo("#sc03-text07 .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 3.9);
 
       /* Photos fade out before geometric frames */
       tl.to("#sc03-photo6-a", { opacity: 0, duration: 0.3 }, 4.34);
@@ -336,7 +423,7 @@
         4.64
       );
 
-      /* L2/L4: text_08 "dynamic" full-screen (5.37s) */
+      /* L2/L4: text_08 "DYNAMIC" full-screen (5.37s) */
       tl.fromTo("#sc03-text08-bg",
         { opacity: 0, scale: 0.7 },
         { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" },
@@ -347,6 +434,8 @@
         { scale: 1.0, opacity: 1, duration: 0.4, ease: "power3.out" },
         5.47
       );
+      /* text_08 text fade-in */
+      tl.fromTo("#sc03-text08 .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 5.37);
 
       /* L1/L3: Final white strips */
       tl.to("#sc03-strip-final-a", { opacity: 1, duration: 0.15 }, 5.37);

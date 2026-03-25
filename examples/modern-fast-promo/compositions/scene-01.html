@@ -1,5 +1,5 @@
 <template id="scene-01-template">
-  <div data-composition-id="scene-01" data-width="1920" data-height="1080">
+  <div data-composition-id="scene-01" data-width="1920" data-height="1080" data-duration="7.77">
 
     <style>
       [data-composition-id="scene-01"] {
@@ -11,21 +11,24 @@
       }
       [data-composition-id="scene-01"] .photo-placeholder {
         position: absolute;
-        background: #333333;
+        background: transparent;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-family: 'Montserrat', sans-serif;
-        font-size: 18px;
-        color: #666666;
-        letter-spacing: 0.05em;
         overflow: hidden;
       }
-      [data-composition-id="scene-01"] .photo-placeholder::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(135deg, #444444 0%, #222222 100%);
+      [data-composition-id="scene-01"] .photo-placeholder .photo-label {
+        position: relative;
+        z-index: 1;
+        padding: 6px 14px;
+        border: 1px solid #333;
+        border-radius: 4px;
+        background: rgba(0,0,0,0.6);
+        font-family: 'Montserrat', sans-serif;
+        font-size: 11px;
+        color: #555;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
       [data-composition-id="scene-01"] .photo-tinted {
         filter: grayscale(1) sepia(0.3);
@@ -45,19 +48,26 @@
         background: #ff3333;
         transform-origin: top center;
       }
+      [data-composition-id="scene-01"] .wipe-strip {
+        position: absolute;
+        left: 0;
+        width: 1920px;
+        height: 216px;
+        background: #ffffff;
+      }
     </style>
 
-    <!-- L18: Background solid (0.0-7.77s) — Fill effect #ff3333 -->
+    <!-- L18: Background solid (0.0-7.77s) -->
     <div id="sc01-bg"
       data-start="0" data-duration="7.77" data-track-index="0"
-      style="position:absolute; left:0; top:0; width:1920px; height:1080px; background:#ff3333;">
+      style="position:absolute; left:0; top:0; width:1920px; height:1080px; background:#111111;">
     </div>
 
-    <!-- L17: Photo/Video_01 placeholder (0.0-4.24s, full size) -->
+    <!-- L17: Photo/Video_01 placeholder (0.0-4.24s) -->
     <div class="photo-placeholder" id="sc01-photo1"
       data-start="0" data-duration="4.24" data-track-index="1"
       style="left:0; top:0; width:1920px; height:1080px; z-index:1;">
-      <span style="z-index:1;">Photo/Video_01</span>
+      <span class="photo-label">Photo/Video_01</span>
     </div>
 
     <!-- L16: Photo/Video_01 with Tint (0.0-3.1s) -->
@@ -66,12 +76,15 @@
       style="left:0; top:0; width:1920px; height:1080px; z-index:2;">
     </div>
 
-    <!-- L15: Transition_01 sub-composition (0.0-3.1s) -->
+    <!-- L15: Transition_01 — inlined 5 white wipe strips (0.0-1.5s) -->
     <div id="sc01-transition"
-      data-composition-id="transition-01" data-composition-src="compositions/transition-01.html"
       data-start="0" data-duration="1.5" data-track-index="3"
-      data-width="1920" data-height="1080"
-      style="z-index:3;">
+      style="position:absolute; left:0; top:0; width:1920px; height:1080px; z-index:3; overflow:hidden;">
+      <div class="wipe-strip" id="sc01-trans-s1" style="top:0; transform-origin:left center;"></div>
+      <div class="wipe-strip" id="sc01-trans-s2" style="top:216px; transform-origin:right center;"></div>
+      <div class="wipe-strip" id="sc01-trans-s3" style="top:432px; transform-origin:left center;"></div>
+      <div class="wipe-strip" id="sc01-trans-s4" style="top:648px; transform-origin:right center;"></div>
+      <div class="wipe-strip" id="sc01-trans-s5" style="top:864px; transform-origin:left center;"></div>
     </div>
 
     <!-- L14: Shape Layer 1 — Venetian Blinds + Fill (1.33-6.44s) -->
@@ -88,12 +101,14 @@
       <div class="blind-strip" id="sc01-vb8"></div>
     </div>
 
-    <!-- L13: text_01 "modern promo" sub-comp (1.0-2.04s, scale keyframes) -->
+    <!-- L13: text_01 "MODERN PROMO" — inlined (1.0-2.04s) -->
     <div id="sc01-text01"
-      data-composition-id="text-01" data-composition-src="compositions/text-01.html"
       data-start="1.0" data-duration="2.04" data-track-index="5"
-      data-width="1574" data-height="128"
-      style="position:absolute; left:173px; top:476px; z-index:5;">
+      style="position:absolute; left:173px; top:476px; width:1574px; height:128px;
+             display:flex; align-items:center; justify-content:center; z-index:5;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:52px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">MODERN PROMO</span>
     </div>
 
     <!-- L12: Shape Layer 3 (2.34-0.7s) — accent bar -->
@@ -124,11 +139,11 @@
       style="left:400px; top:200px; width:6px; height:680px; background:#ffffff; z-index:7; opacity:0;">
     </div>
 
-    <!-- L11: Photo/Video_02 (3.54-0.53s, scale keyframes) -->
+    <!-- L11: Photo/Video_02 (3.54-0.53s) -->
     <div class="photo-placeholder" id="sc01-photo2"
       data-start="3.54" data-duration="0.53" data-track-index="12"
       style="left:960px; top:200px; width:880px; height:600px; z-index:8; opacity:0;">
-      <span style="z-index:1;">Photo/Video_02</span>
+      <span class="photo-label">Photo/Video_02</span>
     </div>
 
     <!-- L4: Photo/Video_02 with Tint (3.54-0.63s) -->
@@ -137,12 +152,14 @@
       style="left:960px; top:200px; width:880px; height:600px; z-index:9; opacity:0;">
     </div>
 
-    <!-- L1: text_02 "clean design" sub-comp (3.54-2.7s, 7 scale keyframes) -->
+    <!-- L1: text_02 "CLEAN DESIGN" — inlined (3.54-2.7s) -->
     <div id="sc01-text02"
-      data-composition-id="text-02" data-composition-src="compositions/text-02.html"
       data-start="3.54" data-duration="2.7" data-track-index="14"
-      data-width="1338" data-height="133"
-      style="position:absolute; left:291px; top:474px; z-index:10;">
+      style="position:absolute; left:291px; top:474px; width:1338px; height:133px;
+             display:flex; align-items:center; justify-content:center; z-index:10;">
+      <span class="text-content" style="font-family:'Montserrat',sans-serif; font-weight:900;
+            font-size:52px; color:#ffffff; text-transform:uppercase; letter-spacing:0.1em;
+            white-space:nowrap; opacity:0;">CLEAN DESIGN</span>
     </div>
 
     <!-- L3: Shape Layer 8 (3.67-0.5s) -->
@@ -175,6 +192,25 @@
         0.3
       );
 
+      /* L15: Transition_01 — inlined wipe strips */
+      tl.set("#sc01-trans-s1", { scaleX: 0 });
+      tl.set("#sc01-trans-s2", { scaleX: 0 });
+      tl.set("#sc01-trans-s3", { scaleX: 0 });
+      tl.set("#sc01-trans-s4", { scaleX: 0 });
+      tl.set("#sc01-trans-s5", { scaleX: 0 });
+      /* Wipe in: staggered */
+      tl.to("#sc01-trans-s1", { scaleX: 1, duration: 0.35, ease: "power3.inOut" }, 0.0);
+      tl.to("#sc01-trans-s2", { scaleX: 1, duration: 0.35, ease: "power3.inOut" }, 0.05);
+      tl.to("#sc01-trans-s3", { scaleX: 1, duration: 0.35, ease: "power3.inOut" }, 0.10);
+      tl.to("#sc01-trans-s4", { scaleX: 1, duration: 0.35, ease: "power3.inOut" }, 0.15);
+      tl.to("#sc01-trans-s5", { scaleX: 1, duration: 0.35, ease: "power3.inOut" }, 0.20);
+      /* Wipe out from opposite origin */
+      tl.to("#sc01-trans-s1", { scaleX: 0, duration: 0.35, ease: "power3.inOut", transformOrigin: "right center" }, 0.85);
+      tl.to("#sc01-trans-s2", { scaleX: 0, duration: 0.35, ease: "power3.inOut", transformOrigin: "left center" }, 0.90);
+      tl.to("#sc01-trans-s3", { scaleX: 0, duration: 0.35, ease: "power3.inOut", transformOrigin: "right center" }, 0.95);
+      tl.to("#sc01-trans-s4", { scaleX: 0, duration: 0.35, ease: "power3.inOut", transformOrigin: "left center" }, 1.00);
+      tl.to("#sc01-trans-s5", { scaleX: 0, duration: 0.35, ease: "power3.inOut", transformOrigin: "right center" }, 1.05);
+
       /* L14: Venetian blinds reveal (1.33s) */
       tl.set("#sc01-venetian", { opacity: 1 }, 1.33);
       var blinds = ["#sc01-vb1","#sc01-vb2","#sc01-vb3","#sc01-vb4","#sc01-vb5","#sc01-vb6","#sc01-vb7","#sc01-vb8"];
@@ -196,6 +232,8 @@
         { scale: 1.05, duration: 0.3, ease: "power1.inOut" },
         1.5
       );
+      /* text_01 text fade-in */
+      tl.fromTo("#sc01-text01 .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 1.0);
 
       /* L12: Shape Layer 3 accent bar (2.34s) */
       tl.fromTo("#sc01-shape3",
@@ -232,7 +270,7 @@
         3.6
       );
 
-      /* L1: text_02 "clean design" 7 scale keyframes (3.54s) */
+      /* L1: text_02 "CLEAN DESIGN" 7 scale keyframes (3.54s) */
       tl.fromTo("#sc01-text02",
         { scale: 0.3, opacity: 0 },
         { scale: 1.1, opacity: 1, duration: 0.3, ease: "power3.out" },
@@ -244,6 +282,8 @@
       tl.to("#sc01-text02", { scale: 1.0, duration: 0.15, ease: "power1.out" }, 4.21);
       tl.to("#sc01-text02", { scale: 1.0, duration: 1.5 }, 4.36);
       tl.to("#sc01-text02", { scale: 0.8, opacity: 0, duration: 0.35, ease: "power2.in" }, 5.86);
+      /* text_02 text fade-in */
+      tl.fromTo("#sc01-text02 .text-content", {opacity:0, y:20}, {opacity:1, y:0, duration:0.4, ease:"power2.out"}, 3.54);
 
       /* L3: Shape Layer 8 (3.67s) */
       tl.fromTo("#sc01-shape8",
