@@ -1,28 +1,21 @@
-import { execSync, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, createWriteStream, chmodSync } from "node:fs";
-import { homedir, platform, arch } from "node:os";
+import { execSync } from "node:child_process";
+import { existsSync, mkdirSync, createWriteStream } from "node:fs";
+import { homedir, platform } from "node:os";
 import { join } from "node:path";
 import { get as httpsGet } from "node:https";
 import { pipeline } from "node:stream/promises";
 
-const WHISPER_VERSION = "1.7.3";
-const CACHE_DIR = join(homedir(), ".cache", "hyperframes", "whisper");
-const BIN_DIR = join(CACHE_DIR, "bin");
-const MODELS_DIR = join(CACHE_DIR, "models");
+const MODELS_DIR = join(homedir(), ".cache", "hyperframes", "whisper", "models");
 const DEFAULT_MODEL = "base.en";
 
-export type WhisperSource = "env" | "cache" | "system" | "download";
+export type WhisperSource = "env" | "system" | "brew";
 
 export interface WhisperResult {
   executablePath: string;
   source: WhisperSource;
 }
 
-export interface EnsureWhisperOptions {
-  onProgress?: (message: string) => void;
-}
-
-// --- Download helpers -------------------------------------------------------
+// --- Download helper --------------------------------------------------------
 
 function downloadFile(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -47,26 +40,6 @@ function downloadFile(url: string, dest: string): Promise<void> {
   });
 }
 
-function getWhisperBinaryUrl(): string | undefined {
-  const os = platform();
-  const cpuArch = arch();
-
-  // whisper.cpp releases provide pre-built binaries
-  const base = `https://github.com/ggerganov/whisper.cpp/releases/download/v${WHISPER_VERSION}`;
-
-  if (os === "darwin" && cpuArch === "arm64") {
-    return `${base}/whisper-cli-v${WHISPER_VERSION}-bin-apple-arm64.zip`;
-  }
-  if (os === "darwin" && cpuArch === "x64") {
-    return `${base}/whisper-cli-v${WHISPER_VERSION}-bin-apple-x86_64.zip`;
-  }
-  if (os === "linux" && cpuArch === "x64") {
-    return `${base}/whisper-cli-v${WHISPER_VERSION}-bin-linux-x86_64.zip`;
-  }
-
-  return undefined;
-}
-
 function getModelUrl(model: string): string {
   return `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-${model}.bin`;
 }
@@ -81,98 +54,91 @@ function findFromEnv(): WhisperResult | undefined {
   return undefined;
 }
 
-function findFromCache(): WhisperResult | undefined {
-  const binaryName = platform() === "win32" ? "whisper-cli.exe" : "whisper-cli";
-  const cached = join(BIN_DIR, binaryName);
-  if (existsSync(cached)) {
-    return { executablePath: cached, source: "cache" };
+function whichBinary(name: string): string | undefined {
+  try {
+    const result = execSync(`which ${name}`, {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+      timeout: 5000,
+    }).trim();
+    return result || undefined;
+  } catch {
+    return undefined;
   }
-  return undefined;
 }
 
 function findFromSystem(): WhisperResult | undefined {
-  try {
-    const result = execSync("which whisper-cli", {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-      timeout: 5000,
-    }).trim();
-    if (result) return { executablePath: result, source: "system" };
-  } catch {
-    // not found
-  }
+  // whisper-cli is the name from brew install whisper-cpp
+  const whisperCli = whichBinary("whisper-cli");
+  if (whisperCli) return { executablePath: whisperCli, source: "system" };
 
-  // Also check for whisper (older name)
-  try {
-    const result = execSync("which whisper", {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-      timeout: 5000,
-    }).trim();
-    if (result) return { executablePath: result, source: "system" };
-  } catch {
-    // not found
+  // Older versions or manual builds
+  const whisper = whichBinary("whisper");
+  if (whisper) return { executablePath: whisper, source: "system" };
+
+  // Also check brew prefix directly on macOS
+  if (platform() === "darwin") {
+    const brewPath = "/opt/homebrew/bin/whisper-cli";
+    if (existsSync(brewPath)) return { executablePath: brewPath, source: "system" };
+    const intelBrewPath = "/usr/local/bin/whisper-cli";
+    if (existsSync(intelBrewPath)) return { executablePath: intelBrewPath, source: "system" };
   }
 
   return undefined;
+}
+
+function hasBrew(): boolean {
+  return whichBinary("brew") !== undefined;
 }
 
 // --- Public API -------------------------------------------------------------
 
 export function findWhisper(): WhisperResult | undefined {
-  return findFromEnv() ?? findFromCache() ?? findFromSystem();
+  return findFromEnv() ?? findFromSystem();
 }
 
-export async function ensureWhisper(options?: EnsureWhisperOptions): Promise<WhisperResult> {
+export async function ensureWhisper(options?: {
+  onProgress?: (message: string) => void;
+}): Promise<WhisperResult> {
   const existing = findWhisper();
   if (existing) return existing;
 
-  const url = getWhisperBinaryUrl();
-  if (!url) {
-    throw new Error(`No pre-built whisper binary for ${platform()} ${arch()}`);
+  // Try to install via brew on macOS
+  if (platform() === "darwin" && hasBrew()) {
+    options?.onProgress?.("Installing whisper.cpp via Homebrew...");
+    try {
+      execSync("brew install whisper-cpp", { stdio: "ignore", timeout: 300_000 });
+      const installed = findFromSystem();
+      if (installed) return { ...installed, source: "brew" };
+    } catch {
+      // brew install failed
+    }
   }
 
-  mkdirSync(BIN_DIR, { recursive: true });
-
-  const zipPath = join(CACHE_DIR, "whisper-cli.zip");
-  options?.onProgress?.("Downloading whisper.cpp...");
-  await downloadFile(url, zipPath);
-
-  // Extract zip
-  options?.onProgress?.("Extracting...");
-  execFileSync("unzip", ["-o", "-j", zipPath, "-d", BIN_DIR], { stdio: "ignore" });
-
-  // Make executable
-  const binaryName = platform() === "win32" ? "whisper-cli.exe" : "whisper-cli";
-  const binaryPath = join(BIN_DIR, binaryName);
-  if (existsSync(binaryPath)) {
-    chmodSync(binaryPath, 0o755);
+  // On Linux, suggest apt/package manager
+  if (platform() === "linux") {
+    throw new Error(
+      "whisper-cpp not found. Install: sudo apt install whisper.cpp (or build from source)",
+    );
   }
 
-  // Clean up zip
-  try {
-    execSync(`rm ${zipPath}`, { stdio: "ignore" });
-  } catch {
-    // ignore
-  }
-
-  if (!existsSync(binaryPath)) {
-    throw new Error("whisper binary not found after extraction");
-  }
-
-  return { executablePath: binaryPath, source: "download" };
+  throw new Error(
+    platform() === "darwin"
+      ? "whisper-cpp not found. Install: brew install whisper-cpp"
+      : "whisper-cpp not found. See: https://github.com/ggml-org/whisper.cpp",
+  );
 }
 
 export async function ensureModel(
   model: string = DEFAULT_MODEL,
-  options?: EnsureWhisperOptions,
+  options?: { onProgress?: (message: string) => void },
 ): Promise<string> {
   const modelPath = join(MODELS_DIR, `ggml-${model}.bin`);
   if (existsSync(modelPath)) return modelPath;
 
   mkdirSync(MODELS_DIR, { recursive: true });
 
-  options?.onProgress?.(`Downloading model ${model}...`);
+  options?.onProgress?.(`Downloading model ${model} (~148MB)...`);
   await downloadFile(getModelUrl(model), modelPath);
 
   if (!existsSync(modelPath)) {
@@ -191,4 +157,4 @@ export function hasFFmpeg(): boolean {
   }
 }
 
-export { CACHE_DIR, MODELS_DIR, BIN_DIR, DEFAULT_MODEL, WHISPER_VERSION };
+export { MODELS_DIR, DEFAULT_MODEL };
