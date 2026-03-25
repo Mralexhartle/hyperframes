@@ -124,17 +124,6 @@ function installGsapSkills(): InstalledSkill[] {
 }
 
 // ---------------------------------------------------------------------------
-// List logic
-// ---------------------------------------------------------------------------
-
-function listInstalledSkills(): string[] {
-  if (!existsSync(SKILLS_DIR)) return [];
-  return readdirSync(SKILLS_DIR, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && existsSync(join(SKILLS_DIR, e.name, "SKILL.md")))
-    .map((e) => e.name);
-}
-
-// ---------------------------------------------------------------------------
 // Command
 // ---------------------------------------------------------------------------
 
@@ -143,10 +132,13 @@ async function runInstall(): Promise<void> {
 
   mkdirSync(SKILLS_DIR, { recursive: true });
 
+  const allInstalled: InstalledSkill[] = [];
+
   // 1. Install HyperFrames skills
   const hfSpinner = clack.spinner();
   hfSpinner.start("Installing HyperFrames skills...");
   const hfSkills = installHyperframesSkills();
+  allInstalled.push(...hfSkills);
   if (hfSkills.length > 0) {
     hfSpinner.stop(c.success(`${hfSkills.length} HyperFrames skills installed`));
   } else {
@@ -161,6 +153,7 @@ async function runInstall(): Promise<void> {
     gsapSpinner.start("Fetching GSAP skills from GitHub...");
     try {
       const gsapSkills = installGsapSkills();
+      allInstalled.push(...gsapSkills);
       gsapSpinner.stop(c.success(`${gsapSkills.length} GSAP skills installed`));
     } catch (err) {
       gsapSpinner.stop(
@@ -169,14 +162,24 @@ async function runInstall(): Promise<void> {
     }
   }
 
-  // 3. Summary
-  const all = listInstalledSkills();
+  // 3. Summary — only show skills managed by this command
   console.log();
   console.log(`   ${c.dim("Location:")} ${c.bold(SKILLS_DIR)}`);
-  console.log(`   ${c.dim("Skills:")}   ${all.map((s) => c.accent(s)).join(", ")}`);
+  if (allInstalled.length > 0) {
+    const hfNames = allInstalled.filter((s) => s.source === "hyperframes").map((s) => s.name);
+    const gsapNames = allInstalled.filter((s) => s.source === "gsap").map((s) => s.name);
+    if (hfNames.length > 0) {
+      console.log(`   ${c.dim("HyperFrames:")} ${hfNames.map((s) => c.accent(s)).join(", ")}`);
+    }
+    if (gsapNames.length > 0) {
+      console.log(`   ${c.dim("GSAP:")}        ${gsapNames.map((s) => c.accent(s)).join(", ")}`);
+    }
+  }
   console.log();
 
-  clack.outro(c.success("Skills ready. They'll be available in all Claude Code sessions."));
+  clack.outro(
+    c.success(`${allInstalled.length} skills ready. Available in all Claude Code sessions.`),
+  );
 }
 
 export default defineCommand({
