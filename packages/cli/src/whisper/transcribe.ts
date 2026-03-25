@@ -102,16 +102,7 @@ export async function transcribe(
 
   execFileSync(
     whisper.executablePath,
-    [
-      "--model",
-      modelPath,
-      "--output-json-full",
-      "--output-file",
-      outputBase,
-      "--dtw",
-      model,
-      wavPath,
-    ],
+    ["--model", modelPath, "--output-json", "--output-file", outputBase, "--dtw", model, wavPath],
     { stdio: "ignore", timeout: 300_000 },
   );
 
@@ -129,7 +120,7 @@ export async function transcribe(
   for (const seg of segments) {
     for (const token of seg.tokens ?? []) {
       const text = (token.text ?? "").trim();
-      if (text) wordCount++;
+      if (text && !text.startsWith("[_") && !text.startsWith("[BLANK")) wordCount++;
       if (token.offsets?.to > maxEnd) maxEnd = token.offsets.to;
     }
   }

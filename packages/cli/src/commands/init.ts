@@ -236,7 +236,7 @@ function patchTranscript(dir: string, transcriptPath: string): void {
   for (const seg of raw.transcription ?? []) {
     for (const token of seg.tokens ?? []) {
       const text = (token.text ?? "").trim();
-      if (!text) continue;
+      if (!text || text.startsWith("[_") || text.startsWith("[BLANK")) continue;
       words.push({
         text,
         start: Math.round((token.offsets.from / 1000) * 1000) / 1000,
