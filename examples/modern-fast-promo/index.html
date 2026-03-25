@@ -79,16 +79,30 @@
 
       <script>
         window.__timelines = window.__timelines || {};
-        var tl = gsap.timeline({ paused: true });
+        var __rootTl = gsap.timeline({ paused: true });
         /* Scene transitions — fade between scenes at overlap points */
-        tl.to("#scene01-host", { opacity: 0, duration: 0.3 }, 6.27);
-        tl.to("#scene02-host", { opacity: 0, duration: 0.3 }, 8.71);
-        tl.to("#scene03-host", { opacity: 0, duration: 0.3 }, 12.47);
-        tl.to("#scene04-host", { opacity: 0, duration: 0.3 }, 20.5);
-        window.__timelines["render"] = tl;
-        /* Expose root timeline as __timeline so the studio player uses it
-           (studio picks the last key of __timelines which would be a sub-comp) */
-        window.__timeline = tl;
+        __rootTl.to("#scene01-host", { opacity: 0, duration: 0.3 }, 6.27);
+        __rootTl.to("#scene02-host", { opacity: 0, duration: 0.3 }, 8.71);
+        __rootTl.to("#scene03-host", { opacity: 0, duration: 0.3 }, 12.47);
+        __rootTl.to("#scene04-host", { opacity: 0, duration: 0.3 }, 20.5);
+        window.__timelines["render"] = __rootTl;
+        window.__timeline = __rootTl;
+
+        /* Nest scene timelines into root after all scripts have run */
+        requestAnimationFrame(function() {
+          var scenes = [
+            { id: "scene-01", start: 0 },
+            { id: "scene-02", start: 5.87 },
+            { id: "scene-03", start: 8.64 },
+            { id: "scene-04", start: 15.45 }
+          ];
+          for (var i = 0; i < scenes.length; i++) {
+            var sceneTl = window.__timelines[scenes[i].id];
+            if (sceneTl) {
+              __rootTl.add(sceneTl, scenes[i].start);
+            }
+          }
+        });
       </script>
     </div>
   </body>
