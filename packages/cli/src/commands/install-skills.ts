@@ -17,8 +17,8 @@ const GSAP_CACHE = join(homedir(), ".cache", "hyperframes", "gsap-skills");
 
 function getBundledSkillsDir(): string {
   const dir = dirname(fileURLToPath(import.meta.url));
-  // In dev: cli/src/commands/ → ../../.claude/skills = repo root .claude/skills/
-  const devPath = resolve(dir, "..", "..", "..", ".claude", "skills");
+  // In dev: cli/src/commands/ → ../../../../.claude/skills = repo root .claude/skills/
+  const devPath = resolve(dir, "..", "..", "..", "..", ".claude", "skills");
   // In built: cli/dist/ → skills = cli/dist/skills/
   const builtPath = resolve(dir, "skills");
   return existsSync(devPath) ? devPath : builtPath;
