@@ -47,7 +47,25 @@ Run the parser script to extract structured JSON from the `.aepx` XML:
 python3 .claude/skills/decomposing-ae/scripts/parse-aepx.py <path-to-aepx> > /tmp/ae-project.json
 ```
 
-Read the output JSON. Check the `warnings` array for any unrecognized features before proceeding.
+Read the output JSON. Check the `warnings` array for any unrecognized features.
+
+**Then split into per-composition chunks.** The full JSON can be very large (100KB+). Extract each composition into its own file so you can process one at a time without exceeding context:
+
+```python
+import json, os
+data = json.load(open('/tmp/ae-project.json'))
+os.makedirs('/tmp/ae-comps', exist_ok=True)
+comp_names = set(data['compositions'].keys())
+for cid, comp in data['compositions'].items():
+    if not comp['layers']: continue
+    sub_comps = [l['name'] for l in comp['layers'] if l['type'] == 'precomp' and l['name'] in comp_names]
+    chunk = {'name': comp['name'], 'width': comp['width'], 'height': comp['height'],
+             'duration': comp['duration'], 'subComps': sub_comps, 'layers': comp['layers']}
+    safe = comp['name'].lower().replace('/', '-').replace(' ', '-')
+    json.dump(chunk, open(f'/tmp/ae-comps/{safe}.json', 'w'), indent=2)
+```
+
+This gives you one JSON file per composition, each small enough to read and generate from independently.
 
 ### Step 2: Analyze
 
@@ -69,7 +87,9 @@ Read the output JSON. Check the `warnings` array for any unrecognized features b
 
 ### Step 4: Generate Compositions (leaves to root)
 
-Process compositions in dependency order — leaf comps first, root comp last. For each composition, create `compositions/<comp-name>.html`.
+Process compositions in dependency order — leaf comps first, root comp last. **Read one per-composition JSON chunk at a time** from `/tmp/ae-comps/<name>.json`, generate its HTML, write it, then move to the next. This keeps context small and focused.
+
+For each composition, create `compositions/<comp-name>.html`.
 
 Each composition file has four parts:
 
