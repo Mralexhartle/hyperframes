@@ -273,8 +273,12 @@ async function runInstall({ args }: { args: Record<string, unknown> }): Promise<
   console.log();
 
   if (allInstalled.length > 0 && skippedSources.length > 0) {
+    const readySources = fetched.map((f) => f.source.name).join(", ");
+    const skippedNames = skippedSources.map((s) => s.name).join(", ");
     clack.outro(
-      c.warn(`${allInstalled.length} GSAP skills ready. HyperFrames skills unavailable.`),
+      c.warn(
+        `${allInstalled.length} skills ready (${readySources}). Unavailable: ${skippedNames}.`,
+      ),
     );
   } else if (allInstalled.length > 0) {
     clack.outro(c.success(`${allInstalled.length} skills ready.`));
