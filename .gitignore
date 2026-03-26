@@ -48,3 +48,9 @@ packages/producer/src/services/fontData.generated.ts
 # Test artifacts
 my-video/
 packages/studio/data/
+
+# QA artifacts
+qa-*.webm
+scorecard.png
+.worktrees/
+.desloppify/
