@@ -10,11 +10,12 @@ import {
 } from "node:fs";
 import { resolve, basename, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync, execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import * as clack from "@clack/prompts";
 import { c } from "../ui/colors.js";
 import { TEMPLATES, type TemplateId } from "../templates/generators.js";
 import { trackInitTemplate } from "../telemetry/events.js";
+import { hasFFmpeg } from "../whisper/manager.js";
 
 // ---------------------------------------------------------------------------
 // Install skills silently after scaffolding
@@ -161,14 +162,7 @@ function isWebCompatible(codec: string): boolean {
   return WEB_CODECS.has(codec.toLowerCase());
 }
 
-function hasFFmpeg(): boolean {
-  try {
-    execSync("ffmpeg -version", { stdio: "ignore", timeout: 5000 });
-    return true;
-  } catch {
-    return false;
-  }
-}
+// hasFFmpeg is imported from whisper/manager.ts to avoid duplication
 
 function transcodeToMp4(inputPath: string, outputPath: string): Promise<boolean> {
   return new Promise((resolvePromise) => {

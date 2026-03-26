@@ -41,3 +41,7 @@ npm-debug.log*
 # Temporary
 tmp/
 .tmp/
+
+# Test artifacts
+my-video/
+packages/studio/data/

@@ -105,6 +105,7 @@ function buildFromSource(onProgress?: (msg: string) => void): WhisperResult {
     execSync(`git clone --depth 1 ${WHISPER_REPO} ${BUILD_DIR}`, {
       stdio: "ignore",
       timeout: 60_000,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
     });
   }
 

@@ -1,5 +1,5 @@
-import { execFileSync, execSync } from "node:child_process";
-import { existsSync, readFileSync, mkdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, mkdirSync, unlinkSync } from "node:fs";
 import { join, extname } from "node:path";
 import { tmpdir } from "node:os";
 import { ensureWhisper, ensureModel, hasFFmpeg, DEFAULT_MODEL } from "./manager.js";
@@ -138,7 +138,7 @@ export async function transcribe(
   // Clean up temp WAV if we created one
   if (wavPath !== inputPath) {
     try {
-      execSync(`rm ${wavPath}`, { stdio: "ignore" });
+      unlinkSync(wavPath);
     } catch {
       // ignore
     }
