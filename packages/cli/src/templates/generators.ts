@@ -1,4 +1,4 @@
-export type TemplateId = "warm-grain" | "play-mode" | "swiss-grid" | "vignelli";
+export type TemplateId = "blank" | "warm-grain" | "play-mode" | "swiss-grid" | "vignelli";
 
 export interface TemplateOption {
   id: TemplateId;
@@ -7,6 +7,7 @@ export interface TemplateOption {
 }
 
 export const TEMPLATES: TemplateOption[] = [
+  { id: "blank", label: "Blank", hint: "Empty composition — just the scaffolding" },
   { id: "warm-grain", label: "Warm Grain", hint: "Cream aesthetic with grain texture" },
   { id: "play-mode", label: "Play Mode", hint: "Playful elastic animations" },
   { id: "swiss-grid", label: "Swiss Grid", hint: "Structured grid layout" },

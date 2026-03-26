@@ -559,6 +559,7 @@ export default defineCommand({
     let localVideoName: string | undefined;
     let sourceFilePath: string | undefined;
     let videoDuration: number | undefined;
+    let isAudioOnly = false;
 
     if (videoFlag) {
       const videoPath = resolve(videoFlag);
@@ -612,8 +613,8 @@ export default defineCommand({
           localVideoName = result.localVideoName;
           videoDuration = result.meta.durationSeconds;
         } else {
-          // Audio file — copy to assets/
-
+          // Audio file — copy to project root
+          isAudioOnly = true;
           copyFileSync(filePath, resolve(destDir, basename(filePath)));
           clack.log.info(`Audio copied to ${c.accent(basename(filePath))}`);
         }
@@ -662,7 +663,8 @@ export default defineCommand({
       }
     }
 
-    // 3. Pick template — single list for all templates
+    // 3. Pick template — default depends on media type
+    const defaultTemplate = isAudioOnly ? "warm-grain" : "blank";
     const templateResult = await clack.select({
       message: "Pick a template",
       options: TEMPLATES.map((t) => ({
@@ -670,7 +672,7 @@ export default defineCommand({
         label: t.label,
         hint: t.hint,
       })),
-      initialValue: TEMPLATES[0]?.id,
+      initialValue: defaultTemplate as TemplateId,
     });
     if (clack.isCancel(templateResult)) {
       clack.cancel("Setup cancelled.");
