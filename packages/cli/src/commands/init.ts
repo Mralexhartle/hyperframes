@@ -247,6 +247,15 @@ function patchTranscript(dir: string, transcriptPath: string): void {
     for (const token of seg.tokens ?? []) {
       const text = (token.text ?? "").trim();
       if (!text || text.startsWith("[_") || text.startsWith("[BLANK")) continue;
+
+      // Merge punctuation with the previous word
+      const isPunctuation = /^[.,!?;:'")\]}>…–—-]+$/.test(text);
+      if (isPunctuation && words.length > 0) {
+        words[words.length - 1].text += text;
+        words[words.length - 1].end = Math.round((token.offsets.to / 1000) * 1000) / 1000;
+        continue;
+      }
+
       words.push({
         text,
         start: Math.round((token.offsets.from / 1000) * 1000) / 1000,
