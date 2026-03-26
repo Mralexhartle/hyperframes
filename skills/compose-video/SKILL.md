@@ -7,6 +7,17 @@ description: Create HyperFrames HTML video compositions. Use when asked to creat
 
 HTML is the source of truth for video. A composition is an HTML file with `data-*` attributes for timing, a GSAP timeline for animation, and CSS for appearance. The framework handles clip visibility, media playback, and timeline sync.
 
+## Approach
+
+Before writing HTML, think at a high level:
+
+1. **What** — what should the viewer experience? Identify the narrative arc, key moments, and emotional beats.
+2. **Structure** — how many compositions, which are sub-compositions vs inline, what tracks carry what (video, audio, overlays, captions).
+3. **Timing** — which clips drive the duration, where do transitions land, what's the pacing.
+4. **Execute** — then implement using the rules below.
+
+For small edits (fix a color, adjust timing, add one element), skip straight to the rules.
+
 ## Data Attributes
 
 ### All Clips
