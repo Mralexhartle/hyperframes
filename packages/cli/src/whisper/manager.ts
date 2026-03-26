@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, createWriteStream, rmSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { join } from "node:path";
@@ -48,7 +48,7 @@ function getModelUrl(model: string): string {
 
 function whichBinary(name: string): string | undefined {
   try {
-    const result = execSync(`which ${name}`, {
+    const result = execFileSync("which", [name], {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
       timeout: 5000,
@@ -106,8 +106,10 @@ function buildFromSource(onProgress?: (msg: string) => void): WhisperResult {
 
   if (!existsSync(BUILD_DIR)) {
     onProgress?.("Downloading whisper.cpp...");
-    mkdirSync(join(homedir(), ".cache", "hyperframes", "whisper"), { recursive: true });
-    execSync(`git clone --depth 1 ${WHISPER_REPO} ${BUILD_DIR}`, {
+    mkdirSync(join(homedir(), ".cache", "hyperframes", "whisper"), {
+      recursive: true,
+    });
+    execFileSync("git", ["clone", "--depth", "1", WHISPER_REPO, BUILD_DIR], {
       stdio: "ignore",
       timeout: 60_000,
       env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
@@ -116,15 +118,27 @@ function buildFromSource(onProgress?: (msg: string) => void): WhisperResult {
 
   onProgress?.("Building whisper.cpp (this may take a minute)...");
   try {
-    execSync("cmake -B build && cmake --build build --config Release -j", {
+    execFileSync("cmake", ["-B", "build"], {
       cwd: BUILD_DIR,
-      stdio: "ignore",
+      stdio: ["pipe", "pipe", "pipe"],
+      timeout: 120_000,
+    });
+    execFileSync("cmake", ["--build", "build", "--config", "Release", "-j"], {
+      cwd: BUILD_DIR,
+      stdio: ["pipe", "pipe", "pipe"],
       timeout: 300_000,
     });
-  } catch {
-    // Build failed — clean up so next attempt starts fresh
+  } catch (err: unknown) {
+    // Build failed — capture diagnostics, then clean up so next attempt starts fresh
+    let detail = "";
+    if (err && typeof err === "object" && "stderr" in err) {
+      const stderr = String(err.stderr).trim();
+      if (stderr) detail = `\n${stderr.slice(-500)}`;
+    }
     rmSync(BUILD_DIR, { recursive: true, force: true });
-    throw new Error("whisper-cpp build failed. Ensure cmake and a C compiler are installed.");
+    throw new Error(
+      `whisper-cpp build failed. Ensure cmake and a C compiler are installed.${detail}`,
+    );
   }
 
   const result = findBuiltBinary();
@@ -168,7 +182,10 @@ export async function ensureWhisper(options?: {
   if (platform() === "darwin" && hasBrew()) {
     options?.onProgress?.("Installing whisper-cpp via Homebrew...");
     try {
-      execSync("brew install whisper-cpp", { stdio: "ignore", timeout: 300_000 });
+      execFileSync("brew", ["install", "whisper-cpp"], {
+        stdio: "ignore",
+        timeout: 300_000,
+      });
       const installed = findFromSystem();
       if (installed) return { ...installed, source: "brew" };
     } catch {
@@ -210,7 +227,7 @@ export async function ensureModel(
 
 export function hasFFmpeg(): boolean {
   try {
-    execSync("ffmpeg -version", { stdio: "ignore", timeout: 5000 });
+    execFileSync("ffmpeg", ["-version"], { stdio: "ignore", timeout: 5000 });
     return true;
   } catch {
     return false;

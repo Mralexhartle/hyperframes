@@ -40,11 +40,34 @@ function extractAudio(videoPath: string): string {
 }
 
 /**
+ * Check if a WAV file is already 16kHz mono via ffprobe.
+ */
+function isWav16kMono(filePath: string): boolean {
+  try {
+    const raw = execFileSync(
+      "ffprobe",
+      ["-v", "quiet", "-print_format", "json", "-show_streams", filePath],
+      { encoding: "utf-8", timeout: 10_000 },
+    );
+    const parsed: {
+      streams?: {
+        codec_type?: string;
+        sample_rate?: string;
+        channels?: number;
+      }[];
+    } = JSON.parse(raw);
+    const audio = parsed.streams?.find((s) => s.codec_type === "audio");
+    return audio?.sample_rate === "16000" && audio?.channels === 1;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Convert audio file to 16kHz mono WAV if not already in that format.
  */
 function prepareAudio(audioPath: string): string {
-  if (extname(audioPath).toLowerCase() === ".wav") {
-    // Check if it's already 16kHz mono — just use it
+  if (extname(audioPath).toLowerCase() === ".wav" && isWav16kMono(audioPath)) {
     return audioPath;
   }
 
@@ -74,7 +97,9 @@ export async function transcribe(
 
   // 2. Ensure model
   options?.onProgress?.("Checking model...");
-  const modelPath = await ensureModel(model, { onProgress: options?.onProgress });
+  const modelPath = await ensureModel(model, {
+    onProgress: options?.onProgress,
+  });
 
   // 3. Prepare audio
   let wavPath: string;
