@@ -162,21 +162,6 @@ function isWebCompatible(codec: string): boolean {
   return WEB_CODECS.has(codec.toLowerCase());
 }
 
-function probeAudioDuration(filePath: string): number | undefined {
-  try {
-    const raw = execFileSync(
-      "ffprobe",
-      ["-v", "quiet", "-print_format", "json", "-show_format", filePath],
-      { encoding: "utf-8", timeout: 15_000 },
-    );
-    const parsed: { format?: { duration?: string } } = JSON.parse(raw);
-    const duration = parseFloat(parsed.format?.duration ?? "");
-    return Number.isNaN(duration) ? undefined : duration;
-  } catch {
-    return undefined;
-  }
-}
-
 // hasFFmpeg is imported from whisper/manager.ts to avoid duplication
 
 function transcodeToMp4(inputPath: string, outputPath: string): Promise<boolean> {
@@ -241,8 +226,8 @@ function patchVideoSrc(
       content = content.replace(/<audio[^>]*src="__VIDEO_SRC__"[^>]*>[\s\S]*?<\/audio>/g, "");
       content = content.replace(/<audio[^>]*src="__VIDEO_SRC__"[^>]*>/g, "");
     }
-    // Patch duration — use probed duration or default (matches DEFAULT_META)
-    const dur = durationSeconds ? String(Math.round(durationSeconds * 100) / 100) : "5";
+    // Patch duration — use probed duration or default
+    const dur = durationSeconds ? String(Math.round(durationSeconds * 100) / 100) : "10";
     content = content.replaceAll("__VIDEO_DURATION__", dur);
     writeFileSync(file, content, "utf-8");
   }
@@ -276,7 +261,9 @@ function patchTranscript(dir: string, transcriptPath: string): void {
 
   if (words.length === 0) return;
 
-  const wordsJson = JSON.stringify(words, null, 2);
+  const wordsJson = JSON.stringify(words, null, 10)
+    .replace(/^\[/, "[")
+    .replace(/\n {10}/g, "\n          ");
 
   // Find captions HTML files and replace the hardcoded script array
   const htmlFiles = readdirSync(dir, { withFileTypes: true, recursive: true })
@@ -349,16 +336,8 @@ async function handleVideoFile(
         const transcode = await clack.select({
           message: "Transcode to H.264 MP4 for browser playback?",
           options: [
-            {
-              value: "yes",
-              label: "Yes, transcode",
-              hint: "converts to H.264 MP4",
-            },
-            {
-              value: "no",
-              label: "No, keep original",
-              hint: "video won't play in browser",
-            },
+            { value: "yes", label: "Yes, transcode", hint: "converts to H.264 MP4" },
+            { value: "no", label: "No, keep original", hint: "video won't play in browser" },
           ],
         });
         if (clack.isCancel(transcode)) {
@@ -434,37 +413,6 @@ function scaffoldProject(
 }
 
 // ---------------------------------------------------------------------------
-// finalizeProject — shared scaffold + patch + skills logic
-// ---------------------------------------------------------------------------
-
-async function finalizeProject(opts: {
-  destDir: string;
-  name: string;
-  templateId: TemplateId;
-  localVideoName?: string;
-  durationSeconds?: number;
-  skipSkills: boolean;
-  interactive: boolean;
-}): Promise<void> {
-  scaffoldProject(
-    opts.destDir,
-    opts.name,
-    opts.templateId,
-    opts.localVideoName,
-    opts.durationSeconds,
-  );
-
-  const transcriptFile = resolve(opts.destDir, "transcript.json");
-  if (existsSync(transcriptFile)) {
-    patchTranscript(opts.destDir, transcriptFile);
-  }
-
-  if (!opts.skipSkills) {
-    await installSkills(opts.interactive);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // nextStepLoop — "What do you want to do?" loop after scaffolding
 // ---------------------------------------------------------------------------
 
@@ -473,11 +421,7 @@ async function nextStepLoop(destDir: string): Promise<void> {
     const next = await clack.select({
       message: "What do you want to do?",
       options: [
-        {
-          value: "dev",
-          label: "Open in studio",
-          hint: "full editor with timeline",
-        },
+        { value: "dev", label: "Open in studio", hint: "full editor with timeline" },
         { value: "render", label: "Render to MP4", hint: "export video now" },
         { value: "done", label: "Done for now" },
       ],
@@ -513,36 +457,28 @@ async function nextStepLoop(destDir: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export default defineCommand({
-  meta: { name: "init", description: "Scaffold a new composition project" },
+  meta: {
+    name: "init",
+    description: `Scaffold a new composition project
+
+Examples:
+  hyperframes init my-video --template blank --video video.mp4
+  hyperframes init podcast --template warm-grain --audio episode.mp3
+  hyperframes init my-video --template blank --skip-skills --skip-transcribe
+  hyperframes init --human-friendly                    # interactive mode`,
+  },
   args: {
-    name: {
-      type: "positional",
-      description: "Project name (default: my-video)",
-      required: false,
-    },
+    name: { type: "positional", description: "Project name", required: false },
     template: {
       type: "string",
-      description: `Template: ${ALL_TEMPLATE_IDS.join(", ")}. Required for non-interactive mode.`,
+      description: `Template (${ALL_TEMPLATE_IDS.join(", ")})`,
       alias: "t",
     },
-    video: {
-      type: "string",
-      description: "Path to a source video file (auto-transcodes if needed)",
-      alias: "V",
-    },
-    audio: {
-      type: "string",
-      description: "Path to a source audio file (cannot combine with --video)",
-      alias: "A",
-    },
-    "skip-skills": {
-      type: "boolean",
-      description: "Skip AI skills installation",
-    },
-    "skip-transcribe": {
-      type: "boolean",
-      description: "Skip whisper transcription (default: transcribes when video/audio provided)",
-    },
+    video: { type: "string", description: "Path to a video file (MP4, WebM, MOV)", alias: "V" },
+    audio: { type: "string", description: "Path to an audio file (MP3, WAV, M4A)", alias: "a" },
+    "skip-skills": { type: "boolean", description: "Skip AI coding skills installation" },
+    "skip-transcribe": { type: "boolean", description: "Skip whisper transcription" },
+    "human-friendly": { type: "boolean", description: "Enable interactive terminal UI" },
   },
   async run({ args }) {
     const templateFlag = args.template;
@@ -550,11 +486,18 @@ export default defineCommand({
     const audioFlag = args.audio;
     const skipSkills = args["skip-skills"] === true;
     const skipTranscribe = args["skip-transcribe"] === true;
+    const humanFriendly = args["human-friendly"] === true;
 
     // -----------------------------------------------------------------------
-    // Non-interactive mode: flags provided
+    // Non-interactive mode (default) — all inputs from flags
     // -----------------------------------------------------------------------
-    if (templateFlag) {
+    if (!humanFriendly) {
+      if (!templateFlag) {
+        console.error(c.error("Missing required flag: --template"));
+        console.error(`Available: ${ALL_TEMPLATE_IDS.join(", ")}`);
+        console.error(`\nExample: hyperframes init my-video --template blank --video video.mp4`);
+        process.exit(1);
+      }
       if (!ALL_TEMPLATE_IDS.includes(templateFlag as TemplateId)) {
         console.error(c.error(`Unknown template: ${templateFlag}`));
         console.error(`Available: ${ALL_TEMPLATE_IDS.join(", ")}`);
@@ -575,11 +518,7 @@ export default defineCommand({
       let videoDuration: number | undefined;
       let sourceFilePath: string | undefined;
 
-      if (videoFlag && audioFlag) {
-        console.error(c.error("Cannot specify both --video and --audio"));
-        process.exit(1);
-      }
-
+      // Handle video
       if (videoFlag) {
         const videoPath = resolve(videoFlag);
         if (!existsSync(videoPath)) {
@@ -590,7 +529,13 @@ export default defineCommand({
         const result = await handleVideoFile(videoPath, destDir, false);
         localVideoName = result.localVideoName;
         videoDuration = result.meta.durationSeconds;
-      } else if (audioFlag) {
+        console.log(
+          `Video: ${result.meta.width}x${result.meta.height}, ${result.meta.durationSeconds.toFixed(1)}s`,
+        );
+      }
+
+      // Handle audio
+      if (audioFlag) {
         const audioPath = resolve(audioFlag);
         if (!existsSync(audioPath)) {
           console.error(c.error(`Audio file not found: ${audioFlag}`));
@@ -598,44 +543,41 @@ export default defineCommand({
         }
         sourceFilePath = audioPath;
         copyFileSync(audioPath, resolve(destDir, basename(audioPath)));
-        videoDuration = probeAudioDuration(audioPath);
+        console.log(`Audio: ${basename(audioPath)}`);
       }
 
-      // Transcribe if we have a source file and transcription isn't skipped
+      // Transcribe
       if (sourceFilePath && !skipTranscribe) {
         try {
           const { ensureWhisper, ensureModel } = await import("../whisper/manager.js");
-          await ensureWhisper({
-            onProgress: (msg) => console.log(c.dim(`  ${msg}`)),
-          });
-          await ensureModel(undefined, {
-            onProgress: (msg) => console.log(c.dim(`  ${msg}`)),
-          });
+          await ensureWhisper();
+          await ensureModel();
+          console.log("Transcribing...");
           const { transcribe: runTranscribe } = await import("../whisper/transcribe.js");
-          const result = await runTranscribe(sourceFilePath, destDir, {
-            onProgress: (msg) => console.log(c.dim(`  ${msg}`)),
-          });
+          const result = await runTranscribe(sourceFilePath, destDir);
           console.log(
-            c.success(
-              `Transcribed ${result.wordCount} words (${result.durationSeconds.toFixed(1)}s)`,
-            ),
+            `Transcribed: ${result.wordCount} words (${result.durationSeconds.toFixed(1)}s)`,
           );
+          if (!videoDuration) videoDuration = result.durationSeconds;
         } catch (err) {
-          console.log(c.dim(`Transcription skipped: ${err instanceof Error ? err.message : err}`));
+          console.log(`Transcription skipped: ${err instanceof Error ? err.message : err}`);
         }
       }
 
-      await finalizeProject({
-        destDir,
-        name: basename(destDir),
-        templateId,
-        localVideoName,
-        durationSeconds: videoDuration,
-        skipSkills,
-        interactive: false,
-      });
+      // Scaffold
+      scaffoldProject(destDir, basename(destDir), templateId, localVideoName, videoDuration);
+      trackInitTemplate(templateId);
+      const transcriptFile = resolve(destDir, "transcript.json");
+      if (existsSync(transcriptFile)) {
+        patchTranscript(destDir, transcriptFile);
+      }
 
-      console.log(c.success(`\nCreated ${c.accent(name + "/")}`));
+      // Skills
+      if (!skipSkills) {
+        await installSkills(false);
+      }
+
+      console.log(c.success(`Created ${c.accent(name + "/")}`));
       for (const f of readdirSync(destDir)) {
         console.log(`  ${c.accent(f)}`);
       }
@@ -702,11 +644,7 @@ export default defineCommand({
         options: [
           { value: "video", label: "Video", hint: "MP4, WebM, MOV" },
           { value: "audio", label: "Audio only", hint: "MP3, WAV, M4A" },
-          {
-            value: "no",
-            label: "No",
-            hint: "Start with motion graphics or text",
-          },
+          { value: "no", label: "No", hint: "Start with motion graphics or text" },
         ],
         initialValue: "no" as "video" | "audio" | "no",
       });
@@ -740,17 +678,16 @@ export default defineCommand({
           localVideoName = result.localVideoName;
           videoDuration = result.meta.durationSeconds;
         } else {
-          // Audio file — copy to project root and probe duration
+          // Audio file — copy to project root
           isAudioOnly = true;
           copyFileSync(filePath, resolve(destDir, basename(filePath)));
-          videoDuration = probeAudioDuration(filePath);
           clack.log.info(`Audio copied to ${c.accent(basename(filePath))}`);
         }
       }
     }
 
     // 2b. Transcribe if we have a source file with audio
-    if (sourceFilePath && !skipTranscribe) {
+    if (sourceFilePath) {
       const transcribeChoice = await clack.confirm({
         message: "Generate captions from audio?",
         initialValue: true,
@@ -773,9 +710,7 @@ export default defineCommand({
           await ensureWhisper({
             onProgress: (msg) => spin.message(msg),
           });
-          await ensureModel(undefined, {
-            onProgress: (msg) => spin.message(msg),
-          });
+          await ensureModel(undefined, { onProgress: (msg) => spin.message(msg) });
 
           spin.message("Transcribing audio...");
           const { transcribe: runTranscribe } = await import("../whisper/transcribe.js");
@@ -811,17 +746,20 @@ export default defineCommand({
 
     const templateId: TemplateId = templateResult;
 
-    // 4. Copy template, patch, and install skills
-    await finalizeProject({
-      destDir,
-      name,
-      templateId,
-      localVideoName,
-      durationSeconds: videoDuration,
-      skipSkills,
-      interactive: true,
-    });
+    // 4. Copy template and patch
+    scaffoldProject(destDir, name, templateId, localVideoName, videoDuration);
     trackInitTemplate(templateId);
+
+    // 4b. Patch captions with transcript if available
+    const transcriptFile = resolve(destDir, "transcript.json");
+    if (existsSync(transcriptFile)) {
+      patchTranscript(destDir, transcriptFile);
+    }
+
+    // 5. Install AI coding skills
+    if (!skipSkills) {
+      await installSkills(true);
+    }
 
     const files = readdirSync(destDir);
     clack.note(files.map((f) => c.accent(f)).join("\n"), c.success(`Created ${name}/`));
