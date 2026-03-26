@@ -46,14 +46,10 @@ function main() {
     if (listWorkspaceRefs(sourcePackageJson).length === 0) continue;
 
     const packDir = mkdtempSync(join(tmpdir(), "hyperframes-pack-"));
-    const packOutput = execFileSync(
-      "pnpm",
-      ["pack", "--json", "--pack-destination", packDir],
-      {
-        cwd: join(ROOT, workspace),
-        encoding: "utf8",
-      },
-    );
+    const packOutput = execFileSync("pnpm", ["pack", "--json", "--pack-destination", packDir], {
+      cwd: join(ROOT, workspace),
+      encoding: "utf8",
+    });
     const [{ filename }] = parsePackJson(packOutput, workspace);
 
     try {
