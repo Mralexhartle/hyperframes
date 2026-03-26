@@ -5,8 +5,7 @@ import { FileTree } from "./components/editor/FileTree";
 import { CompositionThumbnail } from "./player/components/CompositionThumbnail";
 import { TimelineToolbar } from "./components/timeline/TimelineToolbar";
 import { usePlayerStore } from "./player/store/playerStore";
-import { splitElement, deleteElement } from "./utils/htmlEditor";
-import { captureTreeStyles } from "./utils/styleCapture";
+import { EditModal } from "./components/timeline/EditModal";
 import { VideoThumbnail } from "./player/components/VideoThumbnail";
 import type { TimelineElement } from "./player/store/playerStore";
 import {
@@ -271,6 +270,7 @@ export function StudioApp() {
     [compIdToSrc],
   );
   const [lintModal, setLintModal] = useState<LintFinding[] | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [linting, setLinting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [renderState, setRenderState] = useState<"idle" | "rendering" | "complete" | "error">(
@@ -532,74 +532,7 @@ export function StudioApp() {
           onIframeRef={(iframe) => {
             previewIframeRef.current = iframe;
           }}
-          timelineToolbar={
-            <TimelineToolbar
-              onSplit={async () => {
-                const store = usePlayerStore.getState();
-                const selectedId = store.selectedElementId;
-                const pid = projectIdRef.current;
-                if (!selectedId || !pid) return;
-                const el = store.elements.find((e) => e.id === selectedId);
-                if (!el) return;
-                const currentTime = store.currentTime;
-                if (currentTime <= el.start || currentTime >= el.start + el.duration) return;
-
-                try {
-                  const res = await fetch(`/api/projects/${pid}/files/index.html`);
-                  const data = await res.json();
-                  const html = data.content as string;
-
-                  // Capture computed styles from the live iframe at the current playhead position
-                  let capturedStyles = null;
-                  const iframe = previewIframeRef.current;
-                  if (iframe?.contentDocument) {
-                    capturedStyles = captureTreeStyles(
-                      iframe.contentDocument,
-                      selectedId,
-                      currentTime,
-                    );
-                  }
-
-                  const newHtml = splitElement(html, selectedId, currentTime, el, capturedStyles);
-                  if (newHtml === html) return; // no change
-
-                  await fetch(`/api/projects/${pid}/files/index.html`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "text/plain" },
-                    body: newHtml,
-                  });
-                  setRefreshKey((k) => k + 1);
-                } catch (err) {
-                  console.error("Split failed:", err);
-                }
-              }}
-              onDelete={async () => {
-                const store = usePlayerStore.getState();
-                const selectedId = store.selectedElementId;
-                const pid = projectIdRef.current;
-                if (!selectedId || !pid) return;
-
-                try {
-                  const res = await fetch(`/api/projects/${pid}/files/index.html`);
-                  const data = await res.json();
-                  const html = data.content as string;
-
-                  const newHtml = deleteElement(html, selectedId);
-                  if (newHtml === html) return; // no change
-
-                  await fetch(`/api/projects/${pid}/files/index.html`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "text/plain" },
-                    body: newHtml,
-                  });
-                  store.setSelectedElementId(null);
-                  setRefreshKey((k) => k + 1);
-                } catch (err) {
-                  console.error("Delete failed:", err);
-                }
-              }}
-            />
-          }
+          timelineToolbar={<TimelineToolbar onEdit={() => setEditModalOpen(true)} />}
         />
       </div>
 
@@ -694,6 +627,9 @@ export function StudioApp() {
 
       {/* Lint modal */}
       {lintModal !== null && <LintModal findings={lintModal} onClose={() => setLintModal(null)} />}
+
+      {/* Edit modal */}
+      {editModalOpen && <EditModal onClose={() => setEditModalOpen(false)} />}
     </div>
   );
 }

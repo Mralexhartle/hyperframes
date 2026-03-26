@@ -39,6 +39,4 @@ export type { PickedElement } from "./hooks/useElementPicker";
 // Utilities
 export { resolveSourceFile, applyPatch } from "./utils/sourcePatcher";
 export type { PatchOperation } from "./utils/sourcePatcher";
-export { splitElement, deleteElement } from "./utils/htmlEditor";
-export { captureTreeStyles } from "./utils/styleCapture";
-export type { CapturedStyles } from "./utils/styleCapture";
+export { parseStyleString, mergeStyleIntoTag, findElementBlock } from "./utils/htmlEditor";
