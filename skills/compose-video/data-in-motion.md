@@ -24,14 +24,20 @@ Choose the visual treatment based on what the data emotionally represents:
 | Accumulation            | Visual density increasing — marks appearing, a space filling, the frame getting denser                   | The process of reaching the number is more engaging than the number itself      |
 | Speed / performance     | Brief flash animation, quick horizontal sweep — the SPEED of the animation conveys the speed of the data | "150ms latency" shown as a near-instant flash communicates faster than a number |
 
-### Hero Number + Visual Context
+### Every Stat Needs Visual Context — But Vary the Layout
 
-Every data scene has two layers:
+A number alone on screen is sterile. A chart alone is confusing. Every data scene pairs a number with a visual treatment — but vary HOW you compose them. Don't use the same layout per scene.
 
-1. **The number** — large (200-300px), prominent, positioned consistently
-2. **The visual aid** — a proportional fill, color shift, spatial element, or motion that gives the number emotional context
+Ways to present a single data point (use different ones per scene, not the same one every time):
 
-Never show a number alone on a blank background. And never show a chart without a clear number. The two work together — the number is precise, the visual is emotional.
+- Hero number centered with a full-width fill behind it
+- Number tucked in a corner while the fill dominates the frame
+- Number counting up inside a growing shape
+- Number as a label attached to the top of a rising bar
+- Split frame — number on one side, visual metaphor on the other
+- Number revealed AFTER the visual completes (fill finishes, then number snaps in)
+- Number embedded in a sentence ("We reached **2.5M** users" with the number scaled up and highlighted)
+- Number as a physical element (the digits themselves grow/shrink/move to represent the data)
 
 ### The Frame IS the Scale
 
@@ -56,73 +62,16 @@ Use color shifts to amplify what the data means:
 
 ## Techniques
 
-### Count-Up with Visual Fill
+These are descriptions, not templates. Implement them differently each time — the LLM knows GSAP well enough to build any of these from the description alone.
 
-The number counts from 0 to its final value while a proportional element fills simultaneously. Both reinforce each other.
-
-```js
-// Count up the number
-const counter = { val: 0 };
-tl.to(
-  counter,
-  {
-    val: 2500000,
-    duration: 1.5,
-    ease: "power2.out",
-    snap: { val: 1 },
-    onUpdate: () => {
-      el.textContent = counter.val.toLocaleString();
-    },
-  },
-  0.3,
-);
-
-// Simultaneously fill the background bar to represent scale
-tl.from("#fill-bar", { width: 0, duration: 1.5, ease: "power2.out" }, 0.3);
-```
-
-### Proportional Fill
-
-A bar or shape that fills to represent a value. The unfilled space communicates the remaining amount.
-
-```js
-// 99.9% uptime — bar fills almost the entire frame width
-tl.from("#bar", { width: 0, duration: 1, ease: "power3.out" }, 0.3);
-// The tiny gap at the right edge says more than the number
-```
-
-### Reduction
-
-Start with the full amount and carve away. Use for data where the smallness is the point.
-
-```js
-// "Only 3% accepted" — start full, reduce to a sliver
-gsap.set("#bar", { width: "100%" });
-tl.to("#bar", { width: "3%", duration: 1.2, ease: "power2.inOut" }, 0.5);
-// Background color shifts from confident to stark during reduction
-tl.to("#bg", { backgroundColor: "#1a0000", duration: 1.2, ease: "power1.inOut" }, 0.5);
-```
-
-### Threshold Hit
-
-Show a target marker, then animate the actual value toward it. The moment of hitting (or missing) the target is dramatic.
-
-```js
-// Target line at 80% of frame width
-gsap.set("#target-marker", { left: "80%" });
-// Actual value fills toward target
-tl.from("#actual-bar", { width: 0, duration: 1.5, ease: "power3.out" }, 0.3);
-// Flash the accent color when the bar crosses the target
-tl.to("#target-marker", { backgroundColor: "#accent", duration: 0.15, ease: "none" }, 1.2);
-```
-
-### Sequential Comparison
-
-Show the first value with a fill, let it register (1-2 seconds), then show the second value in the same space. The viewer compares to their memory of the first — more dramatic than simultaneous display.
-
-### Color Temperature Shift
-
-The background or accent elements shift color to reinforce the data's meaning as it's revealed. Growth warms up. Loss cools down. Hitting a target flashes.
+- **Count-up** — animate a number from 0 to its final value using GSAP's `onUpdate` callback with `snap`. Pair it with a visual that grows simultaneously.
+- **Proportional fill** — a shape fills to represent the value. The unfilled space is just as meaningful. Use width, height, clip-path, or scale — don't always use the same property.
+- **Reduction** — start full, shrink to the actual value. Powerful for small percentages or losses. The viewer watches something disappear.
+- **Threshold hit** — show where the target is, then animate the actual value toward it. The moment of reaching (or missing) the target is the drama.
+- **Sequential comparison** — show value A with a fill, hold, then show value B in the same space. The viewer compares to their memory. More dramatic than side-by-side.
+- **Color temperature shift** — background or accent elements shift color as data is revealed. Growth warms. Loss cools. Achievement flashes.
+- **Spatial stacking** — represent quantity by stacking visual marks (blocks, dots, lines) that accumulate to fill a space.
+- **Reveal through motion** — the animation speed itself conveys data. Fast sweep = fast performance. Slow fill = slow growth. The timing IS information.
 
 ## What NOT To Do
 
