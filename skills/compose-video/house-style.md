@@ -91,18 +91,19 @@ Beyond choosing a typeface:
 
 Things the LLM reaches for that look generic. Do the opposite.
 
-| Default                           | Instead                                                                                 |
-| --------------------------------- | --------------------------------------------------------------------------------------- |
-| Inter / Roboto / system font      | Pick a typeface with character — commit to it                                           |
-| `#f5f5f5` / `#333` / mid-gray     | Go high contrast. Near-black or near-white, not the middle                              |
-| Blue accent `#3b82f6`             | No blue unless the user asks for blue                                                   |
-| Everything centered, equal weight | One focal point per frame. Lead the eye somewhere                                       |
-| Uniform spacing                   | Tight clusters and open gaps. Vary deliberately                                         |
-| Same entrance on every element    | Never repeat an entrance pattern in a composition                                       |
-| 1s duration on everything         | 0.3–0.6s. Shorter than you think                                                        |
-| `power2.out` on everything        | Vary eases — no more than 2 independent tweens with the same ease (staggers are exempt) |
-| Always dark background            | Match the content: food, weddings, kids, wellness, education → light palette            |
-| Inventing colors per-element      | Declare palette up front. Every element references it                                   |
+| Default                           | Instead                                                                                                                                                                           |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inter / Roboto / system font      | Pick a typeface with character — commit to it                                                                                                                                     |
+| `#f5f5f5` / `#333` / mid-gray     | Go high contrast. Near-black or near-white, not the middle                                                                                                                        |
+| Blue accent `#3b82f6`             | No blue unless the user asks for blue                                                                                                                                             |
+| Everything centered, equal weight | One focal point per frame. Lead the eye somewhere                                                                                                                                 |
+| Uniform spacing                   | Tight clusters and open gaps. Vary deliberately                                                                                                                                   |
+| Same entrance on every element    | Never repeat an entrance pattern in a composition                                                                                                                                 |
+| 1s duration on everything         | 0.3–0.6s. Shorter than you think                                                                                                                                                  |
+| `power2.out` on everything        | Vary eases — no more than 2 independent tweens with the same ease (staggers are exempt)                                                                                           |
+| Always dark background            | Match the content: food, weddings, kids, wellness, education → light palette                                                                                                      |
+| Inventing colors per-element      | Declare palette up front. Every element references it                                                                                                                             |
+| Content in cards/containers       | Place content directly on the canvas — separate with space and alignment, not box boundaries. Cards are a web pattern. Exception: dashboards, lower thirds, captions over footage |
 
 ## Palettes
 
