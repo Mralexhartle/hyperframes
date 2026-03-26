@@ -84,10 +84,16 @@ function renderMarkdown(content: string): void {
   }
 }
 
+const TOPIC_NAMES = Object.keys(TOPICS).join(", ");
+
 export default defineCommand({
   meta: { name: "docs", description: "View inline documentation in the terminal" },
   args: {
-    topic: { type: "positional", description: "Topic to view", required: false },
+    topic: {
+      type: "positional",
+      description: `Topic: ${TOPIC_NAMES}. Omit to list all.`,
+      required: false,
+    },
   },
   async run({ args }) {
     const topic = args.topic;

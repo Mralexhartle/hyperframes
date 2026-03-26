@@ -90,7 +90,8 @@ export default defineCommand({
   args: {
     subcommand: {
       type: "positional",
-      description: "Subcommand: ensure, path, clear",
+      description:
+        "ensure = find or download Chrome, path = print executable path, clear = remove cached download",
       required: false,
     },
   },

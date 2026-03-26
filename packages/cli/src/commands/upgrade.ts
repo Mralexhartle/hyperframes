@@ -5,8 +5,13 @@ import { VERSION } from "../version.js";
 
 export default defineCommand({
   meta: { name: "upgrade", description: "Check for updates and show upgrade instructions" },
-  args: {},
-  async run() {
+  args: {
+    yes: { type: "boolean", alias: "y", description: "Show upgrade commands without prompting" },
+    check: { type: "boolean", description: "Check for updates and exit (no prompt)" },
+  },
+  async run({ args }) {
+    const autoYes = args.yes === true;
+    const checkOnly = args.check === true;
     clack.intro(c.bold("hyperframes upgrade"));
 
     const s = clack.spinner();
@@ -41,13 +46,20 @@ export default defineCommand({
     console.log(`   ${c.dim("Latest:")}   ${c.bold(c.accent("v" + latest))}`);
     console.log();
 
-    const shouldUpgrade = await clack.confirm({
-      message: "Upgrade now?",
-    });
-
-    if (clack.isCancel(shouldUpgrade) || !shouldUpgrade) {
-      clack.outro(c.dim("Skipped."));
+    if (checkOnly) {
+      clack.outro(c.accent("Update available: v" + latest));
       return;
+    }
+
+    if (!autoYes) {
+      const shouldUpgrade = await clack.confirm({
+        message: "Upgrade now?",
+      });
+
+      if (clack.isCancel(shouldUpgrade) || !shouldUpgrade) {
+        clack.outro(c.dim("Skipped."));
+        return;
+      }
     }
 
     console.log();

@@ -38,7 +38,7 @@ const DEFAULT_CONFIGS: BenchmarkConfig[] = [
 export default defineCommand({
   meta: {
     name: "benchmark",
-    description: "Run multiple render configurations and compare results",
+    description: "Render with preset fps/quality/worker configs and compare speed and file size",
   },
   args: {
     dir: { type: "positional", description: "Project directory", required: false },
