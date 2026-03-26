@@ -1,7 +1,14 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import { NLELayout } from "./components/nle/NLELayout";
 import { SourceEditor } from "./components/editor/SourceEditor";
 import { FileTree } from "./components/editor/FileTree";
+import { CompositionThumbnail } from "./player/components/CompositionThumbnail";
+import { TimelineToolbar } from "./components/timeline/TimelineToolbar";
+import { usePlayerStore } from "./player/store/playerStore";
+import { splitElement, deleteElement } from "./utils/htmlEditor";
+import { captureTreeStyles } from "./utils/styleCapture";
+import { VideoThumbnail } from "./player/components/VideoThumbnail";
+import type { TimelineElement } from "./player/store/playerStore";
 import {
   XIcon,
   CodeIcon,
@@ -98,8 +105,8 @@ function LintModal({ findings, onClose }: { findings: LintFinding[]; onClose: ()
                 <WarningIcon size={18} className="text-red-400" weight="fill" />
               </div>
             ) : (
-              <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
-                <CheckCircleIcon size={18} className="text-green-400" weight="fill" />
+              <div className="w-8 h-8 rounded-full bg-[#3CE6AC]/10 flex items-center justify-center">
+                <CheckCircleIcon size={18} className="text-[#3CE6AC]" weight="fill" />
               </div>
             )}
             <div>
@@ -139,8 +146,8 @@ function LintModal({ findings, onClose }: { findings: LintFinding[]; onClose: ()
                   {f.file && <p className="text-xs text-neutral-600 font-mono mt-0.5">{f.file}</p>}
                   {f.fixHint && (
                     <div className="flex items-start gap-1 mt-1.5">
-                      <CaretRightIcon size={10} className="text-blue-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-blue-400">{f.fixHint}</p>
+                      <CaretRightIcon size={10} className="text-[#3CE6AC] flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-[#3CE6AC]">{f.fixHint}</p>
                     </div>
                   )}
                 </div>
@@ -156,8 +163,8 @@ function LintModal({ findings, onClose }: { findings: LintFinding[]; onClose: ()
                   {f.file && <p className="text-xs text-neutral-600 font-mono mt-0.5">{f.file}</p>}
                   {f.fixHint && (
                     <div className="flex items-start gap-1 mt-1.5">
-                      <CaretRightIcon size={10} className="text-blue-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-blue-400">{f.fixHint}</p>
+                      <CaretRightIcon size={10} className="text-[#3CE6AC] flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-[#3CE6AC]">{f.fixHint}</p>
                     </div>
                   )}
                 </div>
@@ -202,6 +209,67 @@ export function StudioApp() {
   const [editingFile, setEditingFile] = useState<EditingFile | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [fileTree, setFileTree] = useState<string[]>([]);
+  const [compIdToSrc, setCompIdToSrc] = useState<Map<string, string>>(new Map());
+
+  const renderClipContent = useCallback(
+    (el: TimelineElement, style: { clip: string; label: string }): ReactNode => {
+      const pid = projectIdRef.current;
+      if (!pid) return null;
+
+      // Resolve composition source path using the compIdToSrc map
+      let compSrc = el.compositionSrc;
+      if (compSrc && compIdToSrc.size > 0) {
+        const resolved =
+          compIdToSrc.get(el.id) ||
+          compIdToSrc.get(compSrc.replace(/^compositions\//, "").replace(/\.html$/, ""));
+        if (resolved) compSrc = resolved;
+      }
+
+      if (compSrc) {
+        const previewUrl = `/api/projects/${pid}/preview/comp/${compSrc}`;
+        return (
+          <CompositionThumbnail
+            previewUrl={previewUrl}
+            label={el.id || el.tag}
+            labelColor={style.label}
+            seekTime={el.start}
+            duration={el.duration}
+          />
+        );
+      }
+
+      if ((el.tag === "video" || el.tag === "img") && el.src) {
+        const mediaSrc = el.src.startsWith("http")
+          ? el.src
+          : `/api/projects/${pid}/preview/${el.src}`;
+        return (
+          <VideoThumbnail
+            videoSrc={mediaSrc}
+            label={el.id || el.tag}
+            labelColor={style.label}
+            duration={el.duration}
+          />
+        );
+      }
+
+      // HTML scene divs — render from index.html at the scene's time
+      if (el.tag === "div" && el.duration > 0) {
+        const previewUrl = `/api/projects/${pid}/preview`;
+        return (
+          <CompositionThumbnail
+            previewUrl={previewUrl}
+            label={el.id || el.tag}
+            labelColor={style.label}
+            seekTime={el.start}
+            duration={el.duration}
+          />
+        );
+      }
+
+      return null;
+    },
+    [compIdToSrc],
+  );
   const [lintModal, setLintModal] = useState<LintFinding[] | null>(null);
   const [linting, setLinting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -212,6 +280,7 @@ export function StudioApp() {
   const [_renderError, setRenderError] = useState<string | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectIdRef = useRef(projectId);
+  const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // Listen for external file changes (user editing HTML outside the editor)
   useEffect(() => {
@@ -458,6 +527,79 @@ export function StudioApp() {
           activeCompositionPath={
             editingFile?.path?.startsWith("compositions/") ? editingFile.path : null
           }
+          renderClipContent={renderClipContent}
+          onCompIdToSrcChange={setCompIdToSrc}
+          onIframeRef={(iframe) => {
+            previewIframeRef.current = iframe;
+          }}
+          timelineToolbar={
+            <TimelineToolbar
+              onSplit={async () => {
+                const store = usePlayerStore.getState();
+                const selectedId = store.selectedElementId;
+                const pid = projectIdRef.current;
+                if (!selectedId || !pid) return;
+                const el = store.elements.find((e) => e.id === selectedId);
+                if (!el) return;
+                const currentTime = store.currentTime;
+                if (currentTime <= el.start || currentTime >= el.start + el.duration) return;
+
+                try {
+                  const res = await fetch(`/api/projects/${pid}/files/index.html`);
+                  const data = await res.json();
+                  const html = data.content as string;
+
+                  // Capture computed styles from the live iframe at the current playhead position
+                  let capturedStyles = null;
+                  const iframe = previewIframeRef.current;
+                  if (iframe?.contentDocument) {
+                    capturedStyles = captureTreeStyles(
+                      iframe.contentDocument,
+                      selectedId,
+                      currentTime,
+                    );
+                  }
+
+                  const newHtml = splitElement(html, selectedId, currentTime, el, capturedStyles);
+                  if (newHtml === html) return; // no change
+
+                  await fetch(`/api/projects/${pid}/files/index.html`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "text/plain" },
+                    body: newHtml,
+                  });
+                  setRefreshKey((k) => k + 1);
+                } catch (err) {
+                  console.error("Split failed:", err);
+                }
+              }}
+              onDelete={async () => {
+                const store = usePlayerStore.getState();
+                const selectedId = store.selectedElementId;
+                const pid = projectIdRef.current;
+                if (!selectedId || !pid) return;
+
+                try {
+                  const res = await fetch(`/api/projects/${pid}/files/index.html`);
+                  const data = await res.json();
+                  const html = data.content as string;
+
+                  const newHtml = deleteElement(html, selectedId);
+                  if (newHtml === html) return; // no change
+
+                  await fetch(`/api/projects/${pid}/files/index.html`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "text/plain" },
+                    body: newHtml,
+                  });
+                  store.setSelectedElementId(null);
+                  setRefreshKey((k) => k + 1);
+                } catch (err) {
+                  console.error("Delete failed:", err);
+                }
+              }}
+            />
+          }
         />
       </div>
 
@@ -481,7 +623,7 @@ export function StudioApp() {
           <button
             onClick={handleRender}
             disabled={renderState === "rendering"}
-            className="h-8 px-3 rounded-lg bg-blue-600 border border-blue-500 text-xs font-semibold text-white hover:bg-blue-500 transition-colors disabled:opacity-60 tabular-nums"
+            className="h-8 px-3 rounded-lg text-xs font-semibold text-[#09090B] bg-gradient-to-br from-[#3CE6AC] to-[#2BBFA0] hover:brightness-110 active:scale-[0.97] transition-colors disabled:opacity-60 tabular-nums"
           >
             {renderState === "rendering"
               ? `${Math.round(renderProgress)}%`
@@ -510,7 +652,7 @@ export function StudioApp() {
               <button
                 onClick={handleRender}
                 disabled={renderState === "rendering"}
-                className="px-2 py-1 rounded text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-60 tabular-nums"
+                className="px-2 py-1 rounded text-[11px] font-semibold text-[#3CE6AC] hover:text-[#5EEFC0] transition-colors disabled:opacity-60 tabular-nums"
               >
                 {renderState === "rendering" ? `${Math.round(renderProgress)}%` : "Export MP4"}
               </button>

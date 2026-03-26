@@ -10,13 +10,14 @@ export {
   PlayerControls,
   Timeline,
   PreviewPanel,
-  AgentActivityTrack,
+  VideoThumbnail,
+  CompositionThumbnail,
   useTimelinePlayer,
   usePlayerStore,
   liveTime,
   formatTime,
 } from "./player";
-export type { AgentActivity, TimelineElement, ActiveEdits } from "./player";
+export type { TimelineElement } from "./player";
 
 // Editor
 export { SourceEditor } from "./components/editor/SourceEditor";
@@ -26,6 +27,18 @@ export { FileTree } from "./components/editor/FileTree";
 // App
 export { StudioApp } from "./App";
 
+// Timeline toolbar
+export { TimelineToolbar } from "./components/timeline/TimelineToolbar";
+
 // Hooks
 export { useCodeEditor } from "./hooks/useCodeEditor";
+export type { OpenFile, UseCodeEditorReturn } from "./hooks/useCodeEditor";
 export { useElementPicker } from "./hooks/useElementPicker";
+export type { PickedElement } from "./hooks/useElementPicker";
+
+// Utilities
+export { resolveSourceFile, applyPatch } from "./utils/sourcePatcher";
+export type { PatchOperation } from "./utils/sourcePatcher";
+export { splitElement, deleteElement } from "./utils/htmlEditor";
+export { captureTreeStyles } from "./utils/styleCapture";
+export type { CapturedStyles } from "./utils/styleCapture";
