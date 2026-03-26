@@ -238,8 +238,6 @@ async function handleVideoFile(
   destDir: string,
   interactive: boolean,
 ): Promise<{ meta: VideoMeta; localVideoName: string }> {
-  const assetsDir = resolve(destDir, "assets");
-  mkdirSync(assetsDir, { recursive: true });
   const probed = probeVideo(videoPath);
   let meta: VideoMeta = { ...DEFAULT_META };
   let localVideoName = basename(videoPath);
@@ -291,7 +289,7 @@ async function handleVideoFile(
 
       if (shouldTranscode) {
         const mp4Name = localVideoName.replace(/\.[^.]+$/, ".mp4");
-        const mp4Path = resolve(assetsDir, mp4Name);
+        const mp4Path = resolve(destDir, mp4Name);
         const spin = clack.spinner();
         spin.start("Transcoding to H.264 MP4...");
         const ok = await transcodeToMp4(videoPath, mp4Path);
@@ -300,10 +298,10 @@ async function handleVideoFile(
           localVideoName = mp4Name;
         } else {
           spin.stop(c.warn("Transcode failed — copying original file"));
-          copyFileSync(videoPath, resolve(assetsDir, localVideoName));
+          copyFileSync(videoPath, resolve(destDir, localVideoName));
         }
       } else {
-        copyFileSync(videoPath, resolve(assetsDir, localVideoName));
+        copyFileSync(videoPath, resolve(destDir, localVideoName));
       }
     } else {
       if (interactive) {
@@ -313,13 +311,13 @@ async function handleVideoFile(
         console.log(c.warn("ffmpeg not installed — cannot transcode. Copying original."));
         console.log(c.dim("Install: ") + c.accent("brew install ffmpeg"));
       }
-      copyFileSync(videoPath, resolve(assetsDir, localVideoName));
+      copyFileSync(videoPath, resolve(destDir, localVideoName));
     }
   } else {
-    copyFileSync(videoPath, resolve(assetsDir, localVideoName));
+    copyFileSync(videoPath, resolve(destDir, localVideoName));
   }
 
-  return { meta, localVideoName: `assets/${localVideoName}` };
+  return { meta, localVideoName };
 }
 
 // ---------------------------------------------------------------------------
@@ -337,10 +335,6 @@ function scaffoldProject(
   const templateDir = getStaticTemplateDir(templateId);
   cpSync(templateDir, destDir, { recursive: true });
   patchVideoSrc(destDir, localVideoName);
-
-  // Create asset directories for user-provided content
-  mkdirSync(resolve(destDir, "assets"), { recursive: true });
-  mkdirSync(resolve(destDir, "fonts"), { recursive: true });
 
   writeFileSync(
     resolve(destDir, "meta.json"),
