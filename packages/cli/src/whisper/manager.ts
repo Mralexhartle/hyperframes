@@ -99,6 +99,11 @@ function findBuiltBinary(): WhisperResult | undefined {
 }
 
 function buildFromSource(onProgress?: (msg: string) => void): WhisperResult {
+  // Clean stale builds — if BUILD_DIR exists but has no binary, nuke and re-clone
+  if (existsSync(BUILD_DIR) && !findBuiltBinary()) {
+    rmSync(BUILD_DIR, { recursive: true, force: true });
+  }
+
   if (!existsSync(BUILD_DIR)) {
     onProgress?.("Downloading whisper.cpp...");
     mkdirSync(join(homedir(), ".cache", "hyperframes", "whisper"), { recursive: true });
@@ -110,11 +115,17 @@ function buildFromSource(onProgress?: (msg: string) => void): WhisperResult {
   }
 
   onProgress?.("Building whisper.cpp (this may take a minute)...");
-  execSync("cmake -B build && cmake --build build --config Release -j", {
-    cwd: BUILD_DIR,
-    stdio: "ignore",
-    timeout: 300_000,
-  });
+  try {
+    execSync("cmake -B build && cmake --build build --config Release -j", {
+      cwd: BUILD_DIR,
+      stdio: "ignore",
+      timeout: 300_000,
+    });
+  } catch {
+    // Build failed — clean up so next attempt starts fresh
+    rmSync(BUILD_DIR, { recursive: true, force: true });
+    throw new Error("whisper-cpp build failed. Ensure cmake and a C compiler are installed.");
+  }
 
   const result = findBuiltBinary();
   if (!result) throw new Error("Build completed but whisper-cli not found");
@@ -187,7 +198,7 @@ export async function ensureModel(
 
   mkdirSync(MODELS_DIR, { recursive: true });
 
-  options?.onProgress?.(`Downloading model ${model} (~148MB)...`);
+  options?.onProgress?.(`Downloading model ${model}...`);
   await downloadFile(getModelUrl(model), modelPath);
 
   if (!existsSync(modelPath)) {

@@ -272,9 +272,14 @@ function patchTranscript(dir: string, transcriptPath: string): void {
 
   for (const file of htmlFiles) {
     let content = readFileSync(file, "utf-8");
-    // Match: const script = [...] or const TRANSCRIPT = [...] (hardcoded word arrays in captions)
-    const scriptMatch = content.match(/const script = \[[\s\S]*?\];/);
-    const transcriptMatch = content.match(/const TRANSCRIPT = \[[\s\S]*?\];/);
+    // Match within <script> blocks only to avoid crossing block boundaries
+    const scriptBlocks = content.match(/<script>[\s\S]*?<\/script>/g) ?? [];
+    let scriptMatch: RegExpMatchArray | null = null;
+    let transcriptMatch: RegExpMatchArray | null = null;
+    for (const block of scriptBlocks) {
+      scriptMatch = scriptMatch ?? block.match(/const script = \[[\s\S]*?\];/);
+      transcriptMatch = transcriptMatch ?? block.match(/const TRANSCRIPT = \[[\s\S]*?\];/);
+    }
     const match = scriptMatch ?? transcriptMatch;
     if (match) {
       const varName = scriptMatch ? "script" : "TRANSCRIPT";
