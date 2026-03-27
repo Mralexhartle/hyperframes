@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, type ReactNode } from "react"
 import { NLELayout } from "./components/nle/NLELayout";
 import { SourceEditor } from "./components/editor/SourceEditor";
 import { FileTree } from "./components/editor/FileTree";
+import { LeftSidebar } from "./components/sidebar/LeftSidebar";
 import { CompositionThumbnail } from "./player/components/CompositionThumbnail";
 import { VideoThumbnail } from "./player/components/VideoThumbnail";
 import type { TimelineElement } from "./player/store/playerStore";
@@ -15,7 +16,7 @@ import {
 
 interface EditingFile {
   path: string;
-  content: string;
+  content: string | null;
 }
 
 interface ProjectEntry {
@@ -543,8 +544,28 @@ export function StudioApp() {
     return <ProjectPicker onSelect={handleSelectProject} />;
   }
 
+  const compositions = fileTree.filter((f) => f === "index.html" || f.startsWith("compositions/"));
+  const assets = fileTree.filter(
+    (f) => !f.endsWith(".html") && !f.endsWith(".md") && !f.endsWith(".json"),
+  );
+
   return (
     <div className="flex h-screen w-screen bg-neutral-950">
+      {/* Left sidebar: Compositions + Assets */}
+      <LeftSidebar
+        projectId={projectId}
+        compositions={compositions}
+        assets={assets}
+        activeComposition={editingFile?.path ?? null}
+        onSelectComposition={(comp) => {
+          setEditingFile({ path: comp, content: null });
+          fetch(`/api/projects/${projectId}/files/${comp}`)
+            .then((r) => r.json())
+            .then((data) => setEditingFile({ path: comp, content: data.content }))
+            .catch(() => {});
+        }}
+      />
+
       {/* NLE: Preview + Timeline */}
       <div className="flex-1 relative min-w-0">
         <NLELayout
@@ -634,7 +655,7 @@ export function StudioApp() {
           <div className="flex-1 overflow-hidden">
             {editingFile ? (
               <SourceEditor
-                content={editingFile.content}
+                content={editingFile.content ?? ""}
                 filePath={editingFile.path}
                 onChange={handleContentChange}
               />
