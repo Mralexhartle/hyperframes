@@ -290,57 +290,6 @@ function normalizeCompositionSrcPath(srcPath: string): string {
 /**
  * Main render pipeline
  */
-/**
- * Wraps a <template>-based sub-composition into a standalone HTML document
- * that can be rendered independently by the producer.
- */
-function wrapSubCompositionAsStandalone(
-  templateHtml: string,
-  compositionId: string,
-  _srcPath: string,
-): string {
-  // Extract the inner content from the <template> wrapper
-  const templateMatch = templateHtml.match(/<template[^>]*>([\s\S]*)<\/template>/i);
-  const inner = templateMatch?.[1]?.trim() ?? templateHtml;
-
-  // Extract <script> blocks from the inner content
-  const scripts: string[] = [];
-  const withoutScripts = inner.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gi, (match) => {
-    scripts.push(match);
-    return "";
-  });
-
-  // Find data-width and data-height from the composition root
-  const widthMatch = inner.match(/data-width="(\d+)"/);
-  const heightMatch = inner.match(/data-height="(\d+)"/);
-  const width = widthMatch ? widthMatch[1] : "1920";
-  const height = heightMatch ? heightMatch[1] : "1080";
-
-  // Try to extract TARGET_DURATION from the script for accurate duration
-  const durationMatch = inner.match(/TARGET_DURATION\s*=\s*(\d+(?:\.\d+)?)/);
-  const dataDuration = durationMatch ? ` data-duration="${durationMatch[1]}"` : "";
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #000; overflow: hidden; width: ${width}px; height: ${height}px; }
-</style>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js"></script>
-</head>
-<body>
-<div id="main-comp" data-composition-id="${compositionId}" data-start="0"${dataDuration} data-width="${width}" data-height="${height}" style="position:relative;width:${width}px;height:${height}px;overflow:hidden;">
-${withoutScripts}
-<script>
-window.__timelines = window.__timelines || {};
-${scripts.map((s) => s.replace(/<\/?script[^>]*>/gi, "")).join("\n")}
-</script>
-</div>
-</body>
-</html>`;
-}
 
 export function extractStandaloneEntryFromIndex(
   indexHtml: string,
@@ -433,32 +382,32 @@ export async function executeRenderJob(
     }
     assertNotAborted();
 
-    // If entryFile is a sub-composition (<template> wrapper), create a
-    // standalone index.html that embeds it so it can render independently.
+    // If entryFile is a sub-composition (<template> wrapper), reuse the real
+    // index.html shell and isolate the matching host instead of fabricating
+    // a new standalone document.
     const rawEntry = readFileSync(htmlPath, "utf-8");
     if (entryFile !== "index.html" && rawEntry.trimStart().startsWith("<template")) {
       const wrapperPath = join(workDir, "standalone-entry.html");
-      const compositionId = entryFile.replace(/^compositions\//, "").replace(/\.html$/, "");
       const projectIndexPath = join(projectDir, "index.html");
-      const extractedHtml = existsSync(projectIndexPath)
-        ? extractStandaloneEntryFromIndex(readFileSync(projectIndexPath, "utf-8"), entryFile)
-        : null;
-      const standaloneHtml =
-        extractedHtml ?? wrapSubCompositionAsStandalone(rawEntry, compositionId, entryFile);
+      if (!existsSync(projectIndexPath)) {
+        throw new Error(
+          `Template entry file "${entryFile}" requires a project index.html to extract its render shell.`,
+        );
+      }
+      const standaloneHtml = extractStandaloneEntryFromIndex(
+        readFileSync(projectIndexPath, "utf-8"),
+        entryFile,
+      );
+      if (!standaloneHtml) {
+        throw new Error(
+          `Entry file "${entryFile}" is not mounted from index.html via data-composition-src, so it cannot be rendered independently.`,
+        );
+      }
       writeFileSync(wrapperPath, standaloneHtml, "utf-8");
       htmlPath = wrapperPath;
-      if (extractedHtml) {
-        log.info("Extracted standalone entry from index.html host context", {
-          entryFile,
-          compositionId,
-        });
-      } else {
-        log.info("Wrapped sub-composition as standalone document", {
-          entryFile,
-          compositionId,
-          fallback: true,
-        });
-      }
+      log.info("Extracted standalone entry from index.html host context", {
+        entryFile,
+      });
     }
 
     // ── Stage 1: Compile ─────────────────────────────────────────────────

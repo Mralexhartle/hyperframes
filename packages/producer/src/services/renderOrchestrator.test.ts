@@ -43,4 +43,19 @@ describe("extractStandaloneEntryFromIndex", () => {
     expect(extracted).toContain('data-start="0"');
     expect(extracted).toContain('data-composition-src="./compositions/intro.html"');
   });
+
+  it("returns null when index.html does not mount the requested entry file", () => {
+    const indexHtml = `<!DOCTYPE html>
+<html>
+<body>
+  <div data-composition-id="root" data-width="1920" data-height="1080">
+    <div id="intro" data-composition-id="intro" data-composition-src="compositions/intro.html"></div>
+  </div>
+</body>
+</html>`;
+
+    const extracted = extractStandaloneEntryFromIndex(indexHtml, "compositions/outro.html");
+
+    expect(extracted).toBeNull();
+  });
 });
