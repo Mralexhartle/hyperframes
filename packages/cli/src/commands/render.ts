@@ -209,6 +209,12 @@ Examples:
         browserPath,
       });
     }
+
+    // Force exit — Node keeps the process alive due to lingering HTTP
+    // connections (fetch keep-alive pool from update checks / telemetry).
+    // The 'exit' event handler in cli.ts fires flushSync() which spawns a
+    // detached child process so telemetry data is not lost.
+    process.exit(0);
   },
 });
 
