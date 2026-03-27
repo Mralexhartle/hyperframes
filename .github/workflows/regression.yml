@@ -20,7 +20,9 @@ jobs:
         with:
           filters: |
             code:
-              - "packages/**"
+              - "packages/core/**"
+              - "packages/producer/**"
+              - "packages/engine/**"
               - "scripts/**"
               - "Dockerfile*"
 
