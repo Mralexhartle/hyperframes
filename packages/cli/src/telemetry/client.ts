@@ -105,7 +105,7 @@ export async function flush(): Promise<void> {
   try {
     await fetch(`${POSTHOG_HOST}/batch/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Connection: "close" },
       body: JSON.stringify({ api_key: POSTHOG_API_KEY, batch }),
       signal: controller.signal,
     });
