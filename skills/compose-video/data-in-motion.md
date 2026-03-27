@@ -2,9 +2,13 @@
 
 How to present data, stats, and infographics in video compositions. This is NOT a web dashboard — video data visualization has different rules because the viewer can't hover, scroll, or study at their own pace.
 
-## Core Principle
+## Core Principles
 
-**One idea per beat.** The viewer has 2-3 seconds per data point before the next arrives. Every stat gets its own moment, its own scene, its own visual treatment. Never show 6 stats simultaneously.
+**One idea per beat.** The viewer has 2-3 seconds per data point before the next arrives. Every stat gets its own moment.
+
+**Visual continuity for related data.** When successive stats belong to the same concept (Q1 → Q2 → Q3 → Q4, or three metrics for the same product), keep them in the same visual space with the same aesthetic. The number stays in the same position. The fill uses the same bar or shape. Only the VALUE changes — the viewer watches progression, not chaos. An aesthetic change (new layout, new position, new color scheme) should signal a NEW concept, not just a new number.
+
+**Calm confidence over flashiness.** Professional data presentations are restrained. Not every number needs to explode onto screen. Sometimes metrics sit cleanly side-by-side. Sometimes a number simply appears with a quiet fill. Reserve dramatic motion for genuinely dramatic data (a record being broken, a sudden change, a threshold crossed). Default to composed and measured.
 
 ## The Frame IS the Visualization
 
@@ -24,20 +28,9 @@ Choose the visual treatment based on what the data emotionally represents:
 | Accumulation            | Visual density increasing — marks appearing, a space filling, the frame getting denser                   | The process of reaching the number is more engaging than the number itself      |
 | Speed / performance     | Brief flash animation, quick horizontal sweep — the SPEED of the animation conveys the speed of the data | "150ms latency" shown as a near-instant flash communicates faster than a number |
 
-### Every Stat Needs Visual Context — But Vary the Layout
+### Every Stat Needs Visual Context
 
-A number alone on screen is sterile. A chart alone is confusing. Every data scene pairs a number with a visual treatment — but vary HOW you compose them. Don't use the same layout per scene.
-
-Ways to present a single data point (use different ones per scene, not the same one every time):
-
-- Hero number centered with a full-width fill behind it
-- Number tucked in a corner while the fill dominates the frame
-- Number counting up inside a growing shape
-- Number as a label attached to the top of a rising bar
-- Split frame — number on one side, visual metaphor on the other
-- Number revealed AFTER the visual completes (fill finishes, then number snaps in)
-- Number embedded in a sentence ("We reached **2.5M** users" with the number scaled up and highlighted)
-- Number as a physical element (the digits themselves grow/shrink/move to represent the data)
+A number alone on screen is sterile. Pair data with a visual treatment — a fill, a color shift, a shape, a spatial relationship. But don't mistake variety for quality. Related metrics should share the same visual language. Change the layout when the CONCEPT changes, not when the number changes.
 
 ### The Frame IS the Scale
 
@@ -50,10 +43,6 @@ Instead of a line chart showing months, reveal each month's value sequentially �
 ### Position Encodes Meaning
 
 Higher values physically higher on screen. Growth on the right, decline on the left. The viewer reads spatial position without any legend.
-
-### Vary Number Placement
-
-Don't put the hero number in the same position every scene. Options: centered dominant, top-right with fill below, bottom-left with visual above, right-aligned with context left, embedded in a sentence, revealed at the END of the visual (fill completes first, then number snaps in). Alternate positions across scenes.
 
 ### Color Reinforces Emotion
 
@@ -82,18 +71,26 @@ These are descriptions, not templates. Implement them differently each time — 
 
 - **No pie charts** — segments are hard to compare and look like PowerPoint. Use a single-value donut ring for one percentage, or sequential hero numbers for multiple values.
 - **No multi-axis charts** — the viewer can't study intersections in a 3-second window.
-- **No dashboards** — multiple charts side by side is a web pattern. One stat per scene.
+- **No 6-panel dashboards** — showing 6+ charts simultaneously is a web pattern. 2-3 related metrics side-by-side is fine when they're peers.
 - **No gridlines or tick marks** — visual noise that adds nothing in motion.
 - **No legends** — if you need a legend to explain your visualization, the visualization isn't working. Use color + direct labels.
 - **No chart library output** — D3, Chart.js, etc. produce static chart patterns. Build with GSAP + SVG/CSS for video-native animation.
 
 ## Structure for Multi-Stat Compositions
 
-When showing multiple data points (e.g., 3 metrics):
+When showing multiple data points, choose the approach that fits:
 
-1. **Scene per stat** — each metric gets its own 3-5 second scene with a full-frame reveal
-2. **Build rhythm** — first stat enters at the composition's pace, each subsequent stat enters slightly faster (accelerating reveal creates momentum)
-3. **Callback/summary** — after all stats are revealed individually, optionally show them together briefly as a final frame (this is the only time multiple stats share the screen)
-4. **Consistent position** — keep the hero number in the same screen position across scenes so the viewer's eye doesn't hunt
+**Sequential scenes** — each metric gets its own beat. Best for stats that tell a story in order (Q1→Q2→Q3→Q4, or a narrative arc). Keep the number and fill in the SAME position across scenes — only the value changes. The viewer watches progression.
+
+**Side-by-side** — 2-3 related metrics visible at once. Best for comparison data (our product vs theirs) or a set of peer metrics (users, uptime, latency). This is calmer and more professional than flashing stats one at a time. Use when the relationship between metrics matters more than the individual values.
+
+**Grouped reveal** — a hybrid. Show the layout with placeholders, then fill in values one by one with stagger. The viewer sees the structure first, then watches it come alive. Good for report-style compositions.
+
+**Match structure to data relationship:**
+
+- Independent metrics (users, uptime, latency) → side-by-side or grouped reveal
+- Sequential/time-series (Q1, Q2, Q3, Q4) → sequential scenes, same visual space
+- Comparative (us vs them, before vs after) → side-by-side with fills that race or contrast
+- Narrative (problem → solution → result) → sequential scenes with aesthetic shift at each concept change
 
 See [house-style.md](./house-style.md) for motion defaults, palette selection, and scene pacing.
