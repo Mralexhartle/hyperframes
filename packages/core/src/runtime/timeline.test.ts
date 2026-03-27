@@ -294,4 +294,171 @@ describe("collectRuntimeTimelinePayload", () => {
     expect(sceneClip).toBeDefined();
     expect(sceneClip?.duration).toBe(8);
   });
+
+  it("discovers GSAP-animated scene elements via timeline introspection", () => {
+    const root = document.createElement("div");
+    root.setAttribute("data-composition-id", "main");
+    root.setAttribute("data-duration", "12");
+    root.setAttribute("data-width", "1920");
+    root.setAttribute("data-height", "1080");
+    document.body.appendChild(root);
+
+    const scene1 = document.createElement("div");
+    scene1.id = "scene1";
+    root.appendChild(scene1);
+
+    const scene2 = document.createElement("div");
+    scene2.id = "scene2";
+    root.appendChild(scene2);
+
+    // Mock GSAP timeline with getChildren that returns tweens targeting scene children
+    const mockTweens = [
+      {
+        targets: () => [scene1],
+        startTime: () => 0,
+        duration: () => 3,
+        parent: null,
+      },
+      {
+        targets: () => [scene2],
+        startTime: () => 3,
+        duration: () => 3,
+        parent: null,
+      },
+    ];
+
+    (window as any).__timelines = {
+      main: {
+        duration: () => 12,
+        time: () => 0,
+        play: () => {},
+        pause: () => {},
+        seek: () => {},
+        add: () => {},
+        paused: () => {},
+        set: () => {},
+        getChildren: () => mockTweens,
+      },
+    };
+
+    const result = collectRuntimeTimelinePayload(defaultParams);
+    const s1 = result.clips.find((c) => c.id === "scene1");
+    const s2 = result.clips.find((c) => c.id === "scene2");
+    expect(s1).toBeDefined();
+    expect(s1?.start).toBe(0);
+    expect(s1?.duration).toBe(3);
+    expect(s2).toBeDefined();
+    expect(s2?.start).toBe(3);
+    expect(s2?.duration).toBe(3);
+  });
+
+  it("bubbles child tween ranges up to scene-level ancestors", () => {
+    const root = document.createElement("div");
+    root.setAttribute("data-composition-id", "main");
+    root.setAttribute("data-duration", "10");
+    document.body.appendChild(root);
+
+    const scene = document.createElement("div");
+    scene.id = "my-scene";
+    root.appendChild(scene);
+
+    const child = document.createElement("div");
+    child.id = "child-elem";
+    scene.appendChild(child);
+
+    const mockTweens = [
+      {
+        targets: () => [child],
+        startTime: () => 1,
+        duration: () => 2,
+        parent: null,
+      },
+      {
+        targets: () => [scene],
+        startTime: () => 4,
+        duration: () => 0.5,
+        parent: null,
+      },
+    ];
+
+    (window as any).__timelines = {
+      main: {
+        duration: () => 10,
+        time: () => 0,
+        play: () => {},
+        pause: () => {},
+        seek: () => {},
+        add: () => {},
+        paused: () => {},
+        set: () => {},
+        getChildren: () => mockTweens,
+      },
+    };
+
+    const result = collectRuntimeTimelinePayload(defaultParams);
+    const clip = result.clips.find((c) => c.id === "my-scene");
+    expect(clip).toBeDefined();
+    // Range should span from child tween (1) to scene tween end (4.5)
+    expect(clip?.start).toBe(1);
+    expect(clip?.duration).toBeCloseTo(3.5);
+  });
+
+  it("includes persistent overlays as full-duration clips", () => {
+    const root = document.createElement("div");
+    root.setAttribute("data-composition-id", "main");
+    root.setAttribute("data-duration", "12");
+    document.body.appendChild(root);
+
+    const overlay = document.createElement("div");
+    overlay.id = "grid-overlay";
+    root.appendChild(overlay);
+
+    (window as any).__timelines = {
+      main: {
+        duration: () => 12,
+        time: () => 0,
+        play: () => {},
+        pause: () => {},
+        seek: () => {},
+        add: () => {},
+        paused: () => {},
+        set: () => {},
+        getChildren: () => [],
+      },
+    };
+
+    const result = collectRuntimeTimelinePayload(defaultParams);
+    const clip = result.clips.find((c) => c.id === "grid-overlay");
+    expect(clip).toBeDefined();
+    expect(clip?.start).toBe(0);
+    expect(clip?.duration).toBe(12);
+  });
+
+  it("does not include script/style elements as persistent overlays", () => {
+    const root = document.createElement("div");
+    root.setAttribute("data-composition-id", "main");
+    root.setAttribute("data-duration", "10");
+    document.body.appendChild(root);
+
+    const script = document.createElement("script");
+    script.id = "my-script";
+    root.appendChild(script);
+
+    (window as any).__timelines = {
+      main: {
+        duration: () => 10,
+        time: () => 0,
+        play: () => {},
+        pause: () => {},
+        seek: () => {},
+        add: () => {},
+        paused: () => {},
+        set: () => {},
+        getChildren: () => [],
+      },
+    };
+
+    const result = collectRuntimeTimelinePayload(defaultParams);
+    expect(result.clips.find((c) => c.id === "my-script")).toBeUndefined();
+  });
 });

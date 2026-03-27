@@ -245,7 +245,19 @@ export function collectRuntimeTimelinePayload(params: {
   const compositionNodes = Array.from(document.querySelectorAll("[data-composition-id]"));
   const clips: RuntimeTimelineClip[] = [];
   const scenes: RuntimeTimelineScene[] = [];
-  const nodes = Array.from(document.querySelectorAll("*"));
+  // Only collect elements that are explicitly part of the timeline:
+  // - Elements with data-start or data-track-index (timed clips)
+  // - Elements with data-composition-id (sub-compositions)
+  // - Media elements (video, audio, img)
+  // Elements without data-start (e.g. GSAP-animated scenes) are not included
+  // as clips — they have no declared timing so the timeline can't show their
+  // actual visibility window. They can still appear as scenes via the separate
+  // scene collection below.
+  const nodes = Array.from(
+    document.querySelectorAll(
+      "[data-start], [data-track-index], [data-composition-id], video, audio, img",
+    ),
+  );
   let maxEnd = 0;
   for (let i = 0; i < nodes.length; i += 1) {
     const node = nodes[i];
@@ -330,6 +342,173 @@ export function collectRuntimeTimelinePayload(params: {
       timelinePriority: parseNum(node.getAttribute("data-timeline-priority")),
     });
   }
+  // ── GSAP introspection ──────────────────────────────────────────────────
+  // Discover elements animated by GSAP that weren't picked up by the DOM query
+  // (e.g. scene divs controlled purely via opacity/display tweens).
+  // Introspect the master timeline's tweens to find their targets and time ranges.
+  // ── GSAP introspection ──────────────────────────────────────────────────
+  // Discover scene-level elements animated by GSAP that weren't picked up by
+  // the DOM query. Introspect the master timeline's tweens, resolve absolute
+  // time ranges, and bubble child tween ranges up to their nearest scene-level
+  // ancestor (direct child of root with an id).
+  const gsapClipIds = new Set(clips.map((c) => c.id));
+  const rootCompositionIdForGsap = root?.getAttribute("data-composition-id") ?? null;
+  const masterTimeline = rootCompositionIdForGsap
+    ? (timelineRegistry[rootCompositionIdForGsap] ?? null)
+    : null;
+  if (masterTimeline && root) {
+    type GsapTween = {
+      targets?: () => Element[];
+      startTime?: () => number;
+      duration?: () => number;
+      parent?: { startTime?: () => number };
+    };
+    const tlWithChildren = masterTimeline as typeof masterTimeline & {
+      getChildren?: (nested: boolean, tweens: boolean, timelines: boolean) => GsapTween[];
+    };
+    if (typeof tlWithChildren.getChildren === "function") {
+      try {
+        const tweens = tlWithChildren.getChildren(true, true, false) ?? [];
+        // Build a set of direct children of root that have an id — these are
+        // scene-level containers. Tween ranges on their descendants get bubbled
+        // up to expand the scene's time range.
+        const sceneElements = new Map<Element, { id: string; start: number; end: number }>();
+        for (const child of root.children) {
+          const childEl = child as HTMLElement;
+          if (!childEl.id) continue;
+          const tag = childEl.tagName.toLowerCase();
+          if (tag === "script" || tag === "style" || tag === "link") continue;
+          sceneElements.set(childEl, { id: childEl.id, start: Infinity, end: -Infinity });
+        }
+        // Find the scene-level ancestor for a given element
+        const findSceneAncestor = (el: Element): Element | null => {
+          let cursor: Element | null = el;
+          while (cursor) {
+            if (sceneElements.has(cursor)) return cursor;
+            if (cursor === root) return null;
+            cursor = cursor.parentElement;
+          }
+          return null;
+        };
+        // Walk all tweens and accumulate time ranges per scene element
+        for (const tween of tweens) {
+          if (typeof tween.targets !== "function") continue;
+          if (typeof tween.startTime !== "function" || typeof tween.duration !== "function")
+            continue;
+          let tweenStart = tween.startTime();
+          let parent = tween.parent;
+          while (parent && typeof parent.startTime === "function") {
+            tweenStart += parent.startTime();
+            parent = (parent as GsapTween).parent;
+          }
+          const tweenEnd = tweenStart + tween.duration();
+          if (!Number.isFinite(tweenStart) || !Number.isFinite(tweenEnd)) continue;
+          for (const target of tween.targets()) {
+            if (!(target instanceof Element)) continue;
+            // Bubble up to the scene-level ancestor
+            const scene = findSceneAncestor(target);
+            if (!scene) continue;
+            const range = sceneElements.get(scene);
+            if (!range) continue;
+            range.start = Math.min(range.start, tweenStart);
+            range.end = Math.max(range.end, tweenEnd);
+          }
+        }
+        // Create clips for scene elements that have tween ranges
+        const gsapTrack = clips.length > 0 ? Math.max(...clips.map((c) => c.track)) + 1 : 0;
+        for (const [element, range] of sceneElements) {
+          if (range.start === Infinity || range.end === -Infinity) continue;
+          const el = element as HTMLElement;
+          if (gsapClipIds.has(el.id)) continue;
+          const duration = Math.max(0, range.end - range.start);
+          if (duration <= 0) continue;
+          const clampedDuration = clampDurationToRootWindow(range.start, duration);
+          if (clampedDuration <= 0) continue;
+          maxEnd = Math.max(maxEnd, range.start + clampedDuration);
+          clips.push({
+            id: el.id,
+            label:
+              el.getAttribute("data-timeline-label") ??
+              el.getAttribute("data-label") ??
+              el.getAttribute("aria-label") ??
+              el.id,
+            start: range.start,
+            duration: clampedDuration,
+            track:
+              Number.parseInt(
+                el.getAttribute("data-track-index") ?? el.getAttribute("data-track") ?? "",
+                10,
+              ) || gsapTrack,
+            kind: "element",
+            tagName: el.tagName.toLowerCase(),
+            compositionId: el.getAttribute("data-composition-id"),
+            compositionAncestors: rootCompositionIdForGsap ? [rootCompositionIdForGsap] : [],
+            parentCompositionId: rootCompositionIdForGsap,
+            nodePath: null,
+            compositionSrc: null,
+            assetUrl: null,
+            timelineRole: el.getAttribute("data-timeline-role"),
+            timelineLabel: el.getAttribute("data-timeline-label"),
+            timelineGroup: el.getAttribute("data-timeline-group"),
+            timelinePriority: parseNum(el.getAttribute("data-timeline-priority")),
+          });
+          gsapClipIds.add(el.id);
+        }
+      } catch {
+        // GSAP introspection is best-effort — don't break timeline if it fails
+      }
+    }
+  }
+
+  // ── Persistent overlays ─────────────────────────────────────────────────
+  // Direct children of root with an ID that weren't picked up by either the
+  // DOM query or GSAP introspection are persistent overlays (e.g. grid, border
+  // decorations). Show them as full-duration clips on their own track.
+  if (root && rootCompositionDuration != null && rootCompositionDuration > 0) {
+    const overlayTrack = clips.length > 0 ? Math.max(...clips.map((c) => c.track)) + 1 : 0;
+    for (const child of root.children) {
+      const el = child as HTMLElement;
+      if (!el.id) continue;
+      if (gsapClipIds.has(el.id)) continue;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "script" || tag === "style" || tag === "link" || tag === "meta") continue;
+      // Skip elements that are invisible (display:none in their CSS class)
+      const computed = window.getComputedStyle(el);
+      if (computed.display === "none") continue;
+      const clampedDuration = clampDurationToRootWindow(0, rootCompositionDuration);
+      if (clampedDuration <= 0) continue;
+      maxEnd = Math.max(maxEnd, clampedDuration);
+      clips.push({
+        id: el.id,
+        label:
+          el.getAttribute("data-timeline-label") ??
+          el.getAttribute("data-label") ??
+          el.getAttribute("aria-label") ??
+          el.id,
+        start: 0,
+        duration: clampedDuration,
+        track:
+          Number.parseInt(
+            el.getAttribute("data-track-index") ?? el.getAttribute("data-track") ?? "",
+            10,
+          ) || overlayTrack,
+        kind: "element",
+        tagName: tag,
+        compositionId: el.getAttribute("data-composition-id"),
+        compositionAncestors: rootCompositionIdForGsap ? [rootCompositionIdForGsap] : [],
+        parentCompositionId: rootCompositionIdForGsap,
+        nodePath: null,
+        compositionSrc: null,
+        assetUrl: null,
+        timelineRole: el.getAttribute("data-timeline-role"),
+        timelineLabel: el.getAttribute("data-timeline-label"),
+        timelineGroup: el.getAttribute("data-timeline-group"),
+        timelinePriority: parseNum(el.getAttribute("data-timeline-priority")),
+      });
+      gsapClipIds.add(el.id);
+    }
+  }
+
   // ── Track normalization ────────────────────────────────────────────────
   // When multiple content kinds (composition, audio, video, …) share the same
   // data-track-index value, split them onto separate tracks so the timeline UI
