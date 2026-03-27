@@ -1,4 +1,13 @@
-export type TemplateId = "blank" | "warm-grain" | "play-mode" | "swiss-grid" | "vignelli";
+export type TemplateId =
+  | "blank"
+  | "warm-grain"
+  | "play-mode"
+  | "swiss-grid"
+  | "vignelli"
+  | "decision-tree"
+  | "kinetic-type"
+  | "product-promo"
+  | "nyt-graph";
 
 export interface TemplateOption {
   id: TemplateId;
@@ -12,4 +21,12 @@ export const TEMPLATES: TemplateOption[] = [
   { id: "play-mode", label: "Play Mode", hint: "Playful elastic animations" },
   { id: "swiss-grid", label: "Swiss Grid", hint: "Structured grid layout" },
   { id: "vignelli", label: "Vignelli", hint: "Bold typography with red accents" },
+  { id: "decision-tree", label: "Decision Tree", hint: "Animated flowchart with branching paths" },
+  { id: "kinetic-type", label: "Kinetic Type", hint: "Bold kinetic typography promo" },
+  {
+    id: "product-promo",
+    label: "Product Promo",
+    hint: "Multi-scene product showcase with SVG assets",
+  },
+  { id: "nyt-graph", label: "NYT Graph", hint: "Animated data chart in print editorial style" },
 ];
