@@ -156,6 +156,90 @@ describe("lintHyperframeHtml", () => {
     expect(finding).toBeUndefined();
   });
 
+  it("reports error when GSAP targets a clip element by id", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="overlay" class="clip" data-start="0" data-duration="5" data-track-index="0">
+      <h1>Hello</h1>
+    </div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#overlay", { opacity: 0, duration: 0.5 }, 4.0);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "gsap_animates_clip_element");
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("error");
+    expect(finding?.selector).toBe("#overlay");
+    expect(finding?.message).toContain("inner wrapper");
+  });
+
+  it("reports error when GSAP targets a clip element by class", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="card" class="clip my-card" data-start="0" data-duration="5" data-track-index="0">
+      <p>Content</p>
+    </div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.from(".my-card", { y: 100, duration: 0.3 }, 0);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "gsap_animates_clip_element");
+    expect(finding).toBeDefined();
+    expect(finding?.selector).toBe(".my-card");
+  });
+
+  it("does NOT flag GSAP targeting a child of a clip element", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="overlay" class="clip" data-start="0" data-duration="5" data-track-index="0">
+      <h1 class="title">Hello</h1>
+    </div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to(".title", { opacity: 1, duration: 0.5 }, 0.5);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "gsap_animates_clip_element");
+    expect(finding).toBeUndefined();
+  });
+
+  it("does NOT flag GSAP targeting a nested selector like '#overlay .title'", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="overlay" class="clip" data-start="0" data-duration="5" data-track-index="0">
+      <h1 class="title">Hello</h1>
+    </div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#overlay .title", { opacity: 1, duration: 0.5 }, 0.5);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "gsap_animates_clip_element");
+    expect(finding).toBeUndefined();
+  });
+
   it("reports error for audio with data-start but no id", () => {
     const html = `
 <html><body>

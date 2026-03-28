@@ -267,6 +267,24 @@ export function lintHyperframeHtml(
     });
   }
 
+  // Build clip element selector map for gsap_animates_clip_element check.
+  // The runtime manages clip visibility — GSAP writing to the same element causes
+  // a runaway style recalculation loop that crashes the browser tab.
+  type ClipInfo = { tag: string; id: string; classes: string };
+  const clipIds = new Map<string, ClipInfo>();
+  const clipClasses = new Map<string, ClipInfo>();
+  for (const tag of tags) {
+    const classAttr = readAttr(tag.raw, "class") || "";
+    const classes = classAttr.split(/\s+/).filter(Boolean);
+    if (!classes.includes("clip")) continue;
+    const id = readAttr(tag.raw, "id");
+    const info: ClipInfo = { tag: tag.name, id: id || "", classes: classAttr };
+    if (id) clipIds.set(`#${id}`, info);
+    for (const cls of classes) {
+      if (cls !== "clip") clipClasses.set(`.${cls}`, info);
+    }
+  }
+
   const classUsage = countClassUsage(tags);
   for (const script of scripts) {
     const localTimelineCompId = readRegisteredTimelineCompositionId(script.content);
@@ -310,24 +328,41 @@ export function lintHyperframeHtml(
       }
     }
 
+    // Check if any GSAP selector targets a clip element
+    for (const win of gsapWindows) {
+      const sel = win.targetSelector;
+      const clipInfo = clipIds.get(sel) || clipClasses.get(sel);
+      if (!clipInfo) continue;
+      const elDesc = `<${clipInfo.tag}${clipInfo.id ? ` id="${clipInfo.id}"` : ""} class="${clipInfo.classes}">`;
+      pushFinding({
+        code: "gsap_animates_clip_element",
+        severity: "error",
+        message: `GSAP animation targets a clip element. Selector "${sel}" resolves to element ${elDesc}. The framework manages clip visibility — animate an inner wrapper instead.`,
+        selector: sel,
+        elementId: clipInfo.id || undefined,
+        fixHint: "Wrap content in a child <div> and target that with GSAP.",
+        snippet: truncateSnippet(win.raw),
+      });
+    }
+
     if (!localTimelineCompId || localTimelineCompId === rootCompositionId) {
       continue;
     }
-    for (const window of gsapWindows) {
-      if (!isSuspiciousGlobalSelector(window.targetSelector)) {
+    for (const win of gsapWindows) {
+      if (!isSuspiciousGlobalSelector(win.targetSelector)) {
         continue;
       }
-      const className = getSingleClassSelector(window.targetSelector);
+      const className = getSingleClassSelector(win.targetSelector);
       if (className && (classUsage.get(className) || 0) < 2) {
         continue;
       }
       pushFinding({
         code: "unscoped_gsap_selector",
         severity: "warning",
-        message: `Timeline "${localTimelineCompId}" uses unscoped selector "${window.targetSelector}" that will target elements in ALL compositions when bundled, causing data loss (opacity, transforms, etc.).`,
-        selector: window.targetSelector,
-        fixHint: `Scope the selector: \`[data-composition-id="${localTimelineCompId}"] ${window.targetSelector}\` or use a unique id.`,
-        snippet: truncateSnippet(window.raw),
+        message: `Timeline "${localTimelineCompId}" uses unscoped selector "${win.targetSelector}" that will target elements in ALL compositions when bundled, causing data loss (opacity, transforms, etc.).`,
+        selector: win.targetSelector,
+        fixHint: `Scope the selector: \`[data-composition-id="${localTimelineCompId}"] ${win.targetSelector}\` or use a unique id.`,
+        snippet: truncateSnippet(win.raw),
       });
     }
   }
