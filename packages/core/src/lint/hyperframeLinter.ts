@@ -379,8 +379,8 @@ export function lintHyperframeHtml(
         if (!parentClosePattern.test(between)) {
           pushFinding({
             code: "video_nested_in_timed_element",
-            severity: "warning",
-            message: `<video> with data-start appears to be nested inside <${parent.name}${parent.id ? ` id="${parent.id}"` : ""}> which also has data-start. This can break media sync.`,
+            severity: "error",
+            message: `<video> with data-start is nested inside <${parent.name}${parent.id ? ` id="${parent.id}"` : ""}> which also has data-start. The framework cannot manage playback of nested media — video will be FROZEN in renders.`,
             elementId: readAttr(tag.raw, "id") || undefined,
             fixHint:
               "Move the <video> to be a direct child of the stage, or remove data-start from the wrapper div (use it as a non-timed visual container).",
@@ -455,6 +455,46 @@ export function lintHyperframeHtml(
         fixHint:
           "Use a relative path (assets/music.mp3) or HTTPS URL for the audio/video src. Never embed media as base64.",
         snippet: truncateSnippet((b64Match[1] ?? "").slice(0, 80) + "..."),
+      });
+    }
+  }
+
+  // #3.8: Media element checks — missing id, missing src, preload="none"
+  // The runtime discovers media via querySelectorAll("video[data-start]") which
+  // works fine for preview. But the renderer uses querySelectorAll("video[id][src]")
+  // — without id, elements are silently skipped (no audio, frozen video).
+  for (const tag of tags) {
+    if (tag.name !== "video" && tag.name !== "audio") continue;
+    const hasDataStart = readAttr(tag.raw, "data-start");
+    const hasId = readAttr(tag.raw, "id");
+    const hasSrc = readAttr(tag.raw, "src");
+    if (hasDataStart && !hasId) {
+      pushFinding({
+        code: "media_missing_id",
+        severity: "error",
+        message: `<${tag.name}> has data-start but no id attribute. The renderer requires id to discover media elements — this ${tag.name === "audio" ? "audio will be SILENT" : "video will be FROZEN"} in renders.`,
+        fixHint: `Add a unique id attribute: <${tag.name} id="my-${tag.name}" ...>`,
+        snippet: truncateSnippet(tag.raw),
+      });
+    }
+    if (hasDataStart && hasId && !hasSrc) {
+      pushFinding({
+        code: "media_missing_src",
+        severity: "error",
+        message: `<${tag.name} id="${hasId}"> has data-start but no src attribute. The renderer cannot load this media.`,
+        elementId: hasId,
+        fixHint: `Add a src attribute to the <${tag.name}> element directly. If using <source> children, the renderer still requires src on the parent element.`,
+        snippet: truncateSnippet(tag.raw),
+      });
+    }
+    if (readAttr(tag.raw, "preload") === "none") {
+      pushFinding({
+        code: "media_preload_none",
+        severity: "warning",
+        message: `<${tag.name}${hasId ? ` id="${hasId}"` : ""}> has preload="none" which prevents the renderer from loading this media. The compiler strips it for renders, but preview may also have issues.`,
+        elementId: hasId || undefined,
+        fixHint: `Remove preload="none" or change to preload="auto". The framework manages media loading.`,
+        snippet: truncateSnippet(tag.raw),
       });
     }
   }

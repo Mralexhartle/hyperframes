@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, statSync } from "node:fs";
 import { cpus, freemem } from "node:os";
 import { resolve, dirname, join } from "node:path";
 import { resolveProject } from "../utils/project.js";
+import { lintProject, shouldBlockRender } from "../utils/lintProject.js";
+import { formatLintFindings } from "../utils/lintFormat.js";
 import { loadProducer } from "../utils/producer.js";
 import { c } from "../ui/colors.js";
 import { formatBytes, formatDuration, errorBox } from "../ui/format.js";
@@ -75,6 +77,16 @@ Examples:
       description: "Suppress verbose output",
       default: false,
     },
+    strict: {
+      type: "boolean",
+      description: "Fail render on lint errors",
+      default: false,
+    },
+    "strict-all": {
+      type: "boolean",
+      description: "Fail render on lint errors AND warnings",
+      default: false,
+    },
   },
   async run({ args }) {
     // ── Resolve project ────────────────────────────────────────────────────
@@ -131,6 +143,8 @@ Examples:
     const useDocker = args.docker ?? false;
     const useGpu = args.gpu ?? false;
     const quiet = args.quiet ?? false;
+    const strictAll = args["strict-all"] ?? false;
+    const strictErrors = (args.strict ?? false) || strictAll;
 
     // ── Print render plan ─────────────────────────────────────────────────
     const workerCount = workers ?? defaultWorkerCount();
@@ -190,6 +204,31 @@ Examples:
           "Run: npx hyperframes browser ensure",
         );
         process.exit(1);
+      }
+    }
+
+    // ── Pre-render lint ──────────────────────────────────────────────────
+    {
+      const lintResult = lintProject(project);
+      if (!quiet && (lintResult.totalErrors > 0 || lintResult.totalWarnings > 0)) {
+        console.log("");
+        for (const line of formatLintFindings(lintResult, { errorsFirst: true })) console.log(line);
+        if (
+          shouldBlockRender(
+            strictErrors,
+            strictAll,
+            lintResult.totalErrors,
+            lintResult.totalWarnings,
+          )
+        ) {
+          const mode = strictAll ? "--strict-all" : "--strict";
+          console.log("");
+          console.log(c.error(`  Aborting render due to lint issues (${mode} mode).`));
+          console.log("");
+          process.exit(1);
+        }
+        console.log(c.dim("  Continuing render despite lint issues. Use --strict to block."));
+        console.log("");
       }
     }
 

@@ -15,6 +15,7 @@
   ],
   "type": "module",
   "scripts": {
+    "test": "vitest run",
     "dev": "tsx src/cli.ts",
     "build": "bun run build:fonts && bun run build:studio && tsup && bun run build:runtime && bun run build:copy",
     "build:fonts": "cd ../producer && tsx scripts/generate-font-data.ts",
@@ -52,7 +53,8 @@
     "picocolors": "^1.1.1",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=22"
