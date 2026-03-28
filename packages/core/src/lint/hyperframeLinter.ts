@@ -21,6 +21,7 @@ type GsapWindow = {
   end: number;
   properties: string[];
   overwriteAuto: boolean;
+  method: string;
   raw: string;
 };
 
@@ -522,6 +523,104 @@ export function lintHyperframeHtml(
     }
   }
 
+  // ── Rule: gsap_css_transform_conflict ─────────────────────────────────────
+  // Detects elements whose CSS <style> block sets `transform: translate*` or
+  // `transform: scale*` that are also targeted by a GSAP tl.to/tl.from tween
+  // animating x, y, xPercent, yPercent, or scale. GSAP's transform properties
+  // overwrite the *entire* CSS transform, silently discarding translateX(-50%)
+  // centering and similar positioning tricks.
+  //
+  // tl.fromTo is exempt: when the author provides explicit from/to states they
+  // own both ends of the transform, so overwriting CSS is intentional.
+  //
+  // Known limitations:
+  //   - Only scans <style> blocks. Inline style="transform:..." on elements is
+  //     not detected. This is common in AI-generated compositions and may cause
+  //     false negatives. A follow-up could scan tag `style` attributes.
+  //   - CSS selector regex matches bare #id and .class only. Compound selectors
+  //     (#root .title), grouped selectors (#a, #b), and attribute selectors are
+  //     not matched. Compositions typically use flat IDs so risk is low, but
+  //     future maintainers should not assume full CSS parsing.
+  {
+    // selector → transform value  (bare #id / .class only — see limitation above)
+    const cssTranslateSelectors = new Map<string, string>();
+    const cssScaleSelectors = new Map<string, string>();
+
+    for (const style of styles) {
+      for (const [, selector, body] of style.content.matchAll(
+        /([#.][a-zA-Z0-9_-]+)\s*\{([^}]+)\}/g,
+      )) {
+        const tMatch = body?.match(/transform\s*:\s*([^;]+)/);
+        if (!tMatch || !tMatch[1]) continue;
+        const transformVal = tMatch[1].trim();
+        if (/translate/i.test(transformVal)) {
+          cssTranslateSelectors.set((selector ?? "").trim(), transformVal);
+        }
+        if (/scale/i.test(transformVal)) {
+          cssScaleSelectors.set((selector ?? "").trim(), transformVal);
+        }
+      }
+    }
+
+    if (cssTranslateSelectors.size > 0 || cssScaleSelectors.size > 0) {
+      for (const script of scripts) {
+        if (!/gsap\.timeline/.test(script.content)) continue;
+        const windows = extractGsapWindows(script.content);
+
+        // Collect all conflicting properties per selector before emitting, so
+        // a combined transform (translateX(-50%) scale(0.8)) with a tween that
+        // animates both x and scale produces one finding, not two.
+        type Conflict = { cssTransform: string; props: Set<string>; raw: string };
+        const conflicts = new Map<string, Conflict>();
+
+        for (const win of windows) {
+          // fromTo: author explicitly sets both ends — overwriting CSS is intentional
+          if (win.method === "fromTo") continue;
+
+          const sel = win.targetSelector;
+          const cssKey = sel.startsWith("#") || sel.startsWith(".") ? sel : `#${sel}`;
+
+          const translateProps = win.properties.filter((p) =>
+            ["x", "y", "xPercent", "yPercent"].includes(p),
+          );
+          const scaleProps = win.properties.filter((p) => p === "scale");
+
+          const cssFromTranslate =
+            translateProps.length > 0 ? cssTranslateSelectors.get(cssKey) : undefined;
+          const cssFromScale = scaleProps.length > 0 ? cssScaleSelectors.get(cssKey) : undefined;
+
+          if (!cssFromTranslate && !cssFromScale) continue;
+
+          const existing = conflicts.get(sel) ?? {
+            cssTransform: [cssFromTranslate, cssFromScale].filter(Boolean).join(" "),
+            props: new Set<string>(),
+            raw: win.raw,
+          };
+          for (const p of [...translateProps, ...scaleProps]) existing.props.add(p);
+          conflicts.set(sel, existing);
+        }
+
+        for (const [sel, { cssTransform, props, raw }] of conflicts) {
+          const propList = [...props].join("/");
+          pushFinding({
+            code: "gsap_css_transform_conflict",
+            severity: "warning",
+            message:
+              `"${sel}" has CSS \`transform: ${cssTransform}\` and a GSAP tween animates ` +
+              `${propList}. GSAP will overwrite the full CSS transform, discarding any ` +
+              `translateX(-50%) centering or CSS scale value.`,
+            selector: sel,
+            fixHint:
+              `Remove the transform from CSS and use tl.fromTo('${sel}', ` +
+              `{ xPercent: -50, x: -1000 }, { xPercent: -50, x: 0 }) so GSAP owns ` +
+              `the full transform state. tl.fromTo is exempt from this rule.`,
+            snippet: truncateSnippet(raw),
+          });
+        }
+      }
+    }
+  }
+
   const errorCount = findings.filter((finding) => finding.severity === "error").length;
   const warningCount = findings.length - errorCount;
 
@@ -681,6 +780,7 @@ function extractGsapWindows(script: string): GsapWindow[] {
       end: animation.position + meta.effectiveDuration,
       properties: meta.properties.length > 0 ? meta.properties : Object.keys(animation.properties),
       overwriteAuto: meta.overwriteAuto,
+      method: match[1] ?? "to",
       raw,
     });
   }
