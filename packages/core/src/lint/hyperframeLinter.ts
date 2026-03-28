@@ -502,6 +502,26 @@ export function lintHyperframeHtml(
     }
   }
 
+  // ── Template literal variables in querySelector (breaks cheerio bundler) ──
+  for (const script of scripts) {
+    const templateLiteralSelectorPattern =
+      /(?:querySelector|querySelectorAll)\s*\(\s*`[^`]*\$\{[^}]+\}[^`]*`\s*\)/g;
+    let tlMatch: RegExpExecArray | null;
+    while ((tlMatch = templateLiteralSelectorPattern.exec(script.content)) !== null) {
+      pushFinding({
+        code: "template_literal_selector",
+        severity: "error",
+        message:
+          "querySelector uses a template literal variable (e.g. `${compId}`). " +
+          "The HTML bundler's CSS parser crashes on these. Use a hardcoded string instead.",
+        file: filePath,
+        fixHint:
+          "Replace the template literal variable with a hardcoded string. The bundler's CSS parser cannot handle interpolated variables in script content.",
+        snippet: truncateSnippet(tlMatch[0]),
+      });
+    }
+  }
+
   const errorCount = findings.filter((finding) => finding.severity === "error").length;
   const warningCount = findings.length - errorCount;
 

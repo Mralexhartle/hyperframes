@@ -218,3 +218,60 @@ describe("lintScriptUrls", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("template_literal_selector rule", () => {
+  it("reports error when querySelector uses template literal variable", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080">
+    <div class="chart"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const compId = "main";
+    const el = document.querySelector(\`[data-composition-id="\${compId}"] .chart\`);
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["main"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "template_literal_selector");
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("error");
+  });
+
+  it("reports error for querySelectorAll with template literal variable", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080"></div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const id = "main";
+    document.querySelectorAll(\`[data-composition-id="\${id}"] .item\`);
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["main"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "template_literal_selector");
+    expect(finding).toBeDefined();
+  });
+
+  it("does not report error for hardcoded querySelector strings", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080">
+    <div class="chart"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const el = document.querySelector('[data-composition-id="main"] .chart');
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["main"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "template_literal_selector");
+    expect(finding).toBeUndefined();
+  });
+});
