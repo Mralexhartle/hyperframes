@@ -12,6 +12,7 @@ export {
   PreviewPanel,
   VideoThumbnail,
   CompositionThumbnail,
+  AudioWaveform,
   useTimelinePlayer,
   usePlayerStore,
   liveTime,
@@ -28,6 +29,7 @@ export { FileTree } from "./components/editor/FileTree";
 export { StudioApp } from "./App";
 
 // Hooks
+export { useMountEffect } from "./hooks/useMountEffect";
 export { useCodeEditor } from "./hooks/useCodeEditor";
 export type { OpenFile, UseCodeEditorReturn } from "./hooks/useCodeEditor";
 export { useElementPicker } from "./hooks/useElementPicker";

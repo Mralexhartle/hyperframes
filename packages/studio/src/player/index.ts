@@ -5,6 +5,7 @@ export { Timeline } from "./components/Timeline";
 export { PreviewPanel } from "./components/PreviewPanel";
 export { VideoThumbnail } from "./components/VideoThumbnail";
 export { CompositionThumbnail } from "./components/CompositionThumbnail";
+export { AudioWaveform } from "./components/AudioWaveform";
 
 // Hooks
 export { useTimelinePlayer } from "./hooks/useTimelinePlayer";
