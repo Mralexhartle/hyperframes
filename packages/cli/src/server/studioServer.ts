@@ -154,17 +154,23 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
     },
 
     async generateThumbnail(opts): Promise<Buffer | null> {
-      let instance: import("puppeteer-core").Browser | null = null;
+      let acquired: { browser: import("puppeteer-core").Browser } | null = null;
       try {
         const { ensureBrowser } = await import("../browser/manager.js");
-        const browser = await ensureBrowser();
-        const puppeteer = await import("puppeteer-core");
-        instance = await puppeteer.launch({
-          executablePath: browser.executablePath,
-          headless: true,
-          args: ["--no-sandbox", "--disable-setuid-sandbox"],
-        });
-        const page = await instance.newPage();
+        const { acquireBrowser, buildChromeArgs } = await import("@hyperframes/producer");
+
+        // Wire the CLI-managed headless shell into the producer's browser resolver.
+        try {
+          const b = await ensureBrowser();
+          if (b.executablePath && !process.env.PRODUCER_HEADLESS_SHELL_PATH) {
+            process.env.PRODUCER_HEADLESS_SHELL_PATH = b.executablePath;
+          }
+        } catch {
+          /* continue — acquireBrowser will try its own resolution */
+        }
+
+        acquired = await acquireBrowser(buildChromeArgs({}), { enableBrowserPool: false });
+        const page = await acquired.browser.newPage();
         await page.setViewport({ width: opts.width || 1920, height: opts.height || 1080 });
         await page.goto(opts.previewUrl, { waitUntil: "networkidle2", timeout: 15000 });
         await page
@@ -182,14 +188,18 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
         }, opts.seekTime);
         await new Promise((r) => setTimeout(r, 300));
         const screenshot = (await page.screenshot({ type: "jpeg", quality: 85 })) as Buffer;
+        await page.close();
         return screenshot;
       } catch {
         return null;
       } finally {
         try {
-          await instance?.close();
+          if (acquired) {
+            const { releaseBrowser } = await import("@hyperframes/producer");
+            await releaseBrowser(acquired.browser);
+          }
         } catch {
-          /* ignore close errors */
+          /* ignore */
         }
       }
     },
