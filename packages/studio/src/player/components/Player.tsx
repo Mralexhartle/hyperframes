@@ -117,7 +117,6 @@ export const Player = forwardRef<HTMLIFrameElement, PlayerProps>(
             width: dims.w,
             height: dims.h,
             border: "none",
-            outline: "1px solid black",
             transform: `scale(${scale})`,
             transformOrigin: "center center",
             flexShrink: 0,
