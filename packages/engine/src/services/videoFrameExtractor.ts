@@ -52,7 +52,14 @@ export function parseVideoElements(html: string): VideoElement[] {
   const videos: VideoElement[] = [];
   const { document } = parseHTML(html);
 
-  const videoEls = Array.from(document.querySelectorAll("video[src][data-start]"));
+  // Union: original "video[id][src]" (backward compat) + "video[src][data-start]"
+  // (sub-composition videos that have timing but no explicit id).
+  const videoEls = Array.from(
+    new Set([
+      ...Array.from(document.querySelectorAll("video[id][src]")),
+      ...Array.from(document.querySelectorAll("video[src][data-start]")),
+    ]),
+  );
   videoEls.forEach((el, i) => {
     if (!el.id) el.id = `hf-video-${i}`;
   });
