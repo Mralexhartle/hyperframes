@@ -102,7 +102,7 @@ export const LeftSidebar = memo(function LeftSidebar({
         <button
           type="button"
           onClick={() => selectTab("code")}
-          className={`ml-auto px-3 py-2 text-[11px] font-medium transition-colors ${
+          className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
             tab === "code"
               ? "text-neutral-200 border-b-2 border-[#3CE6AC]"
               : "text-neutral-500 hover:text-neutral-400"

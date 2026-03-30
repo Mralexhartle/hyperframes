@@ -431,6 +431,8 @@ export function StudioApp() {
   const handleFileSelect = useCallback((path: string) => {
     const pid = projectIdRef.current;
     if (!pid) return;
+    // Expand left panel to 50vw when opening a file in Code tab
+    setLeftWidth((prev) => Math.max(prev, Math.floor(window.innerWidth * 0.5)));
     // Skip fetching binary content for media files — just set the path for preview
     if (isMediaFile(path)) {
       setEditingFile({ path, content: null });
@@ -509,9 +511,13 @@ export function StudioApp() {
     const drag = panelDragRef.current;
     if (!drag) return;
     const delta = e.clientX - drag.startX;
+    const maxLeft = Math.floor(window.innerWidth * 0.5);
     const newW = Math.max(
       160,
-      Math.min(600, drag.startW + (drag.side === "left" ? delta : -delta)),
+      Math.min(
+        drag.side === "left" ? maxLeft : 600,
+        drag.startW + (drag.side === "left" ? delta : -delta),
+      ),
     );
     if (drag.side === "left") setLeftWidth(newW);
     else setRightWidth(newW);
@@ -684,12 +690,6 @@ export function StudioApp() {
               className="flex flex-col border-l border-neutral-800 bg-neutral-900 flex-shrink-0"
               style={{ width: rightWidth }}
             >
-              <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-800 flex-shrink-0">
-                <span className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">
-                  Renders
-                  {renderQueue.jobs.length > 0 ? ` (${renderQueue.jobs.length})` : ""}
-                </span>
-              </div>
               <RenderQueue
                 jobs={renderQueue.jobs}
                 onDelete={renderQueue.deleteRender}
