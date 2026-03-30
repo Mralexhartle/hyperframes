@@ -152,6 +152,47 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
 
       return state;
     },
+
+    async generateThumbnail(opts): Promise<Buffer | null> {
+      let instance: import("puppeteer-core").Browser | null = null;
+      try {
+        const { ensureBrowser } = await import("../browser/manager.js");
+        const browser = await ensureBrowser();
+        const puppeteer = await import("puppeteer-core");
+        instance = await puppeteer.launch({
+          executablePath: browser.executablePath,
+          headless: true,
+          args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        });
+        const page = await instance.newPage();
+        await page.setViewport({ width: opts.width || 1920, height: opts.height || 1080 });
+        await page.goto(opts.previewUrl, { waitUntil: "networkidle2", timeout: 15000 });
+        await page
+          .waitForFunction(() => (window as any).__playerReady || (window as any).__timelines, {
+            timeout: 8000,
+          })
+          .catch(() => {});
+        await page.evaluate((t: number) => {
+          const win = window as any;
+          if (win.__player?.seek) win.__player.seek(t);
+          else if (win.__timeline?.seek) {
+            win.__timeline.pause();
+            win.__timeline.seek(t);
+          }
+        }, opts.seekTime);
+        await page.waitForTimeout(300);
+        const screenshot = (await page.screenshot({ type: "jpeg", quality: 85 })) as Buffer;
+        return screenshot;
+      } catch {
+        return null;
+      } finally {
+        try {
+          await instance?.close();
+        } catch {
+          /* ignore close errors */
+        }
+      }
+    },
   };
 
   // ── Build the Hono app ─────────────────────────────────────────────────
