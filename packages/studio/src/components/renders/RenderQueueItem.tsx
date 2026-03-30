@@ -25,18 +25,34 @@ export const RenderQueueItem = memo(function RenderQueueItem({
 }: RenderQueueItemProps) {
   const [hovered, setHovered] = useState(false);
 
-  const handleDownload = useCallback(() => {
-    const a = document.createElement("a");
-    a.href = `/api/render/${job.id}/download`;
-    a.download = job.filename;
-    a.click();
-  }, [job.id, job.filename]);
+  const handleOpen = useCallback(() => {
+    window.open(`/api/render/${job.id}/view`, "_blank");
+  }, [job.id]);
+
+  const handleDownload = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const a = document.createElement("a");
+      a.href = `/api/render/${job.id}/download`;
+      a.download = job.filename;
+      a.click();
+    },
+    [job.id, job.filename],
+  );
+
+  const isClickable = job.status === "complete";
 
   return (
     <div
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
-      className="px-3 py-2.5 border-b border-neutral-800/30 last:border-0"
+      onClick={isClickable ? handleOpen : undefined}
+      className={[
+        "px-3 py-2.5 border-b border-neutral-800/30 last:border-0 transition-colors duration-150",
+        isClickable ? "cursor-pointer hover:bg-neutral-800/30" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <div className="flex items-center gap-2">
         {/* Status indicator */}
@@ -113,7 +129,10 @@ export const RenderQueueItem = memo(function RenderQueueItem({
               </button>
             )}
             <button
-              onClick={onDelete}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
               className="p-1 rounded text-neutral-500 hover:text-red-400 transition-colors"
               title="Remove"
             >

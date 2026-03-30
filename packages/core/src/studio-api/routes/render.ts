@@ -126,6 +126,27 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
     });
   });
 
+  // Serve render inline (for in-browser playback — opens in a new tab)
+  api.get("/render/:jobId/view", (c) => {
+    const { jobId } = c.req.param();
+    const job = renderJobs.get(jobId);
+    if (!job?.outputPath || !existsSync(job.outputPath)) {
+      return c.json({ error: "not found" }, 404);
+    }
+    const isWebm = job.outputPath.endsWith(".webm");
+    const contentType = isWebm ? "video/webm" : "video/mp4";
+    const filename = job.outputPath.split("/").pop() ?? `render.mp4`;
+    const content = readFileSync(job.outputPath);
+    return new Response(content, {
+      headers: {
+        "Content-Type": contentType,
+        "Content-Disposition": `inline; filename="${filename}"`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": String(content.length),
+      },
+    });
+  });
+
   // Download render
   api.get("/render/:jobId/download", (c) => {
     const { jobId } = c.req.param();
