@@ -60,16 +60,17 @@ Git hooks (via [lefthook](https://github.com/evilmartians/lefthook)) run automat
 All packages use **fixed versioning** — every release bumps all packages to the same version.
 
 ```bash
-bun run set-version 0.2.0
-git checkout -b release/v0.2.0
-git add packages/*/package.json
-git commit -m "chore: release v0.2.0"
-git push origin release/v0.2.0
-gh pr create --title "chore: release v0.2.0" --base main
-# After merge, tag + npm publish + GitHub Release happen automatically
+bun run set-version 0.2.0            # bumps all packages, commits, and creates git tag
+git push origin main --tags           # triggers the publish workflow
 ```
 
-You can also publish manually by pushing a tag: `git tag v0.2.0 && git push origin v0.2.0`
+The `set-version` script automatically creates a `chore: release v<version>` commit and a `v<version>` git tag. Pushing the tag triggers CI to publish all packages to npm and create a GitHub Release.
+
+If you need to bump versions without committing (e.g., for a release PR), pass `--no-tag`:
+
+```bash
+bun run set-version 0.2.0 --no-tag   # updates package.json files only
+```
 
 ## Reporting Issues
 

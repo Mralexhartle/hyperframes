@@ -1,10 +1,11 @@
 #!/usr/bin/env tsx
 /**
- * Set the version across all publishable packages in the monorepo.
+ * Set the version across all publishable packages in the monorepo,
+ * then create a git commit and tag.
  *
  * Usage:
- *   bun run set-version 0.1.1
- *   bun run set-version 0.1.1 --tag   # also creates a git commit and tag
+ *   bun run set-version 0.1.1          # bump, commit, and tag
+ *   bun run set-version 0.1.1 --no-tag # bump only (no commit or tag)
  *
  * All packages share a single version number (fixed versioning).
  */
@@ -26,11 +27,11 @@ const ROOT = join(import.meta.dirname, "..");
 function main() {
   const args = process.argv.slice(2);
   const version = args.find((a) => !a.startsWith("--"));
-  const shouldTag = args.includes("--tag");
+  const skipTag = args.includes("--no-tag");
 
   if (!version) {
-    console.error("Usage: bun run set-version <version> [--tag]");
-    console.error("Example: bun run set-version 0.1.1 --tag");
+    console.error("Usage: bun run set-version <version> [--no-tag]");
+    console.error("Example: bun run set-version 0.1.1");
     process.exit(1);
   }
 
@@ -51,31 +52,34 @@ function main() {
 
   console.log(`\nSet ${PACKAGES.length} packages to v${version}`);
 
-  if (shouldTag) {
-    // Verify working tree is clean (aside from the version bumps we just made)
-    const status = execSync("git status --porcelain", {
-      cwd: ROOT,
-      encoding: "utf-8",
-    }).trim();
-    const unexpected = status
-      .split("\n")
-      .filter((line) => line && !PACKAGES.some((pkg) => line.includes(pkg)));
-    if (unexpected.length > 0) {
-      console.error("\nUnexpected uncommitted changes:");
-      unexpected.forEach((line) => console.error(`  ${line}`));
-      console.error("Commit or stash these before tagging.");
-      process.exit(1);
-    }
-
-    execSync(`git add ${PACKAGES.map((p) => join(p, "package.json")).join(" ")}`, {
-      cwd: ROOT,
-      stdio: "inherit",
-    });
-    execSync(`git commit -m "chore: release v${version}"`, { cwd: ROOT, stdio: "inherit" });
-    execSync(`git tag v${version}`, { cwd: ROOT, stdio: "inherit" });
-    console.log(`\nCreated commit and tag v${version}`);
-    console.log(`Run 'git push origin main --tags' to trigger the publish workflow.`);
+  if (skipTag) {
+    console.log(`\nSkipped commit and tag (--no-tag). Remember to commit and tag manually.`);
+    return;
   }
+
+  // Verify working tree is clean (aside from the version bumps we just made)
+  const status = execSync("git status --porcelain", {
+    cwd: ROOT,
+    encoding: "utf-8",
+  }).trim();
+  const unexpected = status
+    .split("\n")
+    .filter((line) => line && !PACKAGES.some((pkg) => line.includes(pkg)));
+  if (unexpected.length > 0) {
+    console.error("\nUnexpected uncommitted changes:");
+    unexpected.forEach((line) => console.error(`  ${line}`));
+    console.error("Commit or stash these before releasing.");
+    process.exit(1);
+  }
+
+  execSync(`git add ${PACKAGES.map((p) => join(p, "package.json")).join(" ")}`, {
+    cwd: ROOT,
+    stdio: "inherit",
+  });
+  execSync(`git commit -m "chore: release v${version}"`, { cwd: ROOT, stdio: "inherit" });
+  execSync(`git tag v${version}`, { cwd: ROOT, stdio: "inherit" });
+  console.log(`\nCreated commit and tag v${version}`);
+  console.log(`Run 'git push origin main --tags' to trigger the publish workflow.`);
 }
 
 main();
