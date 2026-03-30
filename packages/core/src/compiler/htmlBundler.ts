@@ -390,6 +390,7 @@ export async function bundleToSingleHtml(
   // Inline sub-compositions
   const compStyleChunks: string[] = [];
   const compScriptChunks: string[] = [];
+  const compExternalScriptSrcs: string[] = [];
   $("[data-composition-src]").each((_, hostEl) => {
     const src = $(hostEl).attr("data-composition-src");
     if (!src || !isRelativeUrl(src)) return;
@@ -416,9 +417,18 @@ export async function bundleToSingleHtml(
       $content(s).remove();
     });
     $content("script").each((_, s) => {
-      compScriptChunks.push(
-        `(function(){ try { ${$content(s).html() || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
-      );
+      const externalSrc = ($content(s).attr("src") || "").trim();
+      if (externalSrc) {
+        // External CDN/remote script — collect for deduped injection into the document.
+        // Do NOT try to inline the content (external scripts have no innerHTML).
+        if (!compExternalScriptSrcs.includes(externalSrc)) {
+          compExternalScriptSrcs.push(externalSrc);
+        }
+      } else {
+        compScriptChunks.push(
+          `(function(){ try { ${$content(s).html() || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
+        );
+      }
       $content(s).remove();
     });
 
@@ -438,6 +448,14 @@ export async function bundleToSingleHtml(
     }
     $(hostEl).removeAttr("data-composition-src");
   });
+
+  // Inject external scripts from sub-compositions (e.g., Lottie CDN)
+  // that aren't already present in the main document.
+  for (const extSrc of compExternalScriptSrcs) {
+    if (!$(`script[src="${extSrc}"]`).length) {
+      $("body").append(`<script src="${extSrc}"></script>`);
+    }
+  }
 
   if (compStyleChunks.length) $("head").append(`<style>${compStyleChunks.join("\n\n")}</style>`);
   if (compScriptChunks.length)
