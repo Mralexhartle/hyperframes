@@ -216,9 +216,6 @@ export const FileTree = memo(function FileTree({ files, activeFile, onSelectFile
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="px-2.5 py-1.5 border-b border-neutral-800 flex-shrink-0">
-        <span className="text-2xs font-medium text-neutral-500 uppercase tracking-caps">Files</span>
-      </div>
       <div className="flex-1 overflow-y-auto py-1">
         {children.map((child) =>
           child.isFile && child.children.size === 0 ? (

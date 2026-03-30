@@ -555,7 +555,7 @@ export function StudioApp() {
           <button
             onClick={() => setLeftCollapsed((v) => !v)}
             className={`h-7 w-7 flex items-center justify-center rounded-md border transition-colors ${
-              leftCollapsed
+              !leftCollapsed
                 ? "bg-neutral-800 border-neutral-700 text-neutral-300"
                 : "bg-transparent border-transparent text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800"
             }`}
