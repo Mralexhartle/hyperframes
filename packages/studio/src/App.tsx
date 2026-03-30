@@ -521,13 +521,15 @@ export function StudioApp() {
     panelDragRef.current = null;
   }, []);
 
-  if (resolving) {
+  if (resolving || !projectId) {
     return (
       <div className="h-screen w-screen bg-neutral-950 flex items-center justify-center">
         <div className="w-4 h-4 rounded-full bg-[#3CE6AC] animate-pulse" />
       </div>
     );
   }
+
+  // At this point projectId is guaranteed non-null (narrowed by the guard above)
 
   const compositions = fileTree.filter((f) => f === "index.html" || f.startsWith("compositions/"));
   const assets = fileTree.filter(
