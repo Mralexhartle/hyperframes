@@ -1,5 +1,7 @@
 import { memo, useState, useCallback, useRef } from "react";
 import { ExpandOnHover } from "../ui/ExpandOnHover";
+import { ExpandedVideoPreview } from "../ui/ExpandedVideoPreview";
+import { VideoFrameThumbnail } from "../ui/VideoFrameThumbnail";
 
 interface AssetsTabProps {
   projectId: string;
@@ -32,28 +34,13 @@ function AssetThumbnail({
           src={serveUrl}
           alt={name}
           loading="lazy"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           onError={(e) => {
             (e.target as HTMLImageElement).style.display = "none";
           }}
         />
       )}
-      {isVideo && (
-        <>
-          <video
-            src={serveUrl}
-            muted
-            playsInline
-            preload="metadata"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="white" className="opacity-80">
-              <polygon points="6,3 20,12 6,21" />
-            </svg>
-          </div>
-        </>
-      )}
+      {isVideo && <VideoFrameThumbnail src={serveUrl} />}
       {isAudio && (
         <div className="w-full h-full flex items-center justify-center bg-neutral-900">
           <svg
@@ -112,21 +99,32 @@ function ExpandedAssetPreview({
   isAudio: boolean;
   onCopy: () => void;
 }) {
+  if (isVideo) {
+    return (
+      <ExpandedVideoPreview
+        src={serveUrl}
+        name={name}
+        subtitle={asset}
+        action={
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopy();
+            }}
+            className="px-4 py-1.5 text-xs font-semibold text-[#09090B] bg-[#3CE6AC] rounded-lg hover:brightness-110 transition-colors flex-shrink-0"
+          >
+            Copy Path
+          </button>
+        }
+      />
+    );
+  }
+
   return (
     <div className="w-full h-full bg-neutral-950 rounded-[16px] overflow-hidden flex flex-col">
       <div className="flex-1 min-h-0 flex items-center justify-center bg-black p-4">
         {isImage && (
           <img src={serveUrl} alt={name} className="max-w-full max-h-full object-contain rounded" />
-        )}
-        {isVideo && (
-          <video
-            src={serveUrl}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="max-w-full max-h-full object-contain rounded"
-          />
         )}
         {isAudio && (
           <div className="flex flex-col items-center gap-4">

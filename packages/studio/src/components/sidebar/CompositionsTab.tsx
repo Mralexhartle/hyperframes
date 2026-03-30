@@ -146,7 +146,7 @@ function CompCard({
   onSelect: () => void;
 }) {
   const name = comp.replace(/^compositions\//, "").replace(/\.html$/, "");
-  const thumbnailUrl = `/api/projects/${projectId}/thumbnail/${comp}?t=0.5`;
+  const thumbnailUrl = `/api/projects/${projectId}/thumbnail/${comp}?t=2`;
   const previewUrl = `/api/projects/${projectId}/preview/comp/${comp}`;
 
   const card = (
@@ -162,7 +162,7 @@ function CompCard({
           src={thumbnailUrl}
           alt={name}
           loading="lazy"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           onError={(e) => {
             (e.target as HTMLImageElement).style.display = "none";
           }}

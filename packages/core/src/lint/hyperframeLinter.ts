@@ -267,6 +267,24 @@ export function lintHyperframeHtml(
     });
   }
 
+  // Build clip element selector map for gsap_animates_clip_element check.
+  // The runtime manages clip visibility — GSAP writing to the same element causes
+  // a runaway style recalculation loop that crashes the browser tab.
+  type ClipInfo = { tag: string; id: string; classes: string };
+  const clipIds = new Map<string, ClipInfo>();
+  const clipClasses = new Map<string, ClipInfo>();
+  for (const tag of tags) {
+    const classAttr = readAttr(tag.raw, "class") || "";
+    const classes = classAttr.split(/\s+/).filter(Boolean);
+    if (!classes.includes("clip")) continue;
+    const id = readAttr(tag.raw, "id");
+    const info: ClipInfo = { tag: tag.name, id: id || "", classes: classAttr };
+    if (id) clipIds.set(`#${id}`, info);
+    for (const cls of classes) {
+      if (cls !== "clip") clipClasses.set(`.${cls}`, info);
+    }
+  }
+
   const classUsage = countClassUsage(tags);
   for (const script of scripts) {
     const localTimelineCompId = readRegisteredTimelineCompositionId(script.content);
@@ -310,24 +328,41 @@ export function lintHyperframeHtml(
       }
     }
 
+    // Check if any GSAP selector targets a clip element
+    for (const win of gsapWindows) {
+      const sel = win.targetSelector;
+      const clipInfo = clipIds.get(sel) || clipClasses.get(sel);
+      if (!clipInfo) continue;
+      const elDesc = `<${clipInfo.tag}${clipInfo.id ? ` id="${clipInfo.id}"` : ""} class="${clipInfo.classes}">`;
+      pushFinding({
+        code: "gsap_animates_clip_element",
+        severity: "error",
+        message: `GSAP animation targets a clip element. Selector "${sel}" resolves to element ${elDesc}. The framework manages clip visibility — animate an inner wrapper instead.`,
+        selector: sel,
+        elementId: clipInfo.id || undefined,
+        fixHint: "Wrap content in a child <div> and target that with GSAP.",
+        snippet: truncateSnippet(win.raw),
+      });
+    }
+
     if (!localTimelineCompId || localTimelineCompId === rootCompositionId) {
       continue;
     }
-    for (const window of gsapWindows) {
-      if (!isSuspiciousGlobalSelector(window.targetSelector)) {
+    for (const win of gsapWindows) {
+      if (!isSuspiciousGlobalSelector(win.targetSelector)) {
         continue;
       }
-      const className = getSingleClassSelector(window.targetSelector);
+      const className = getSingleClassSelector(win.targetSelector);
       if (className && (classUsage.get(className) || 0) < 2) {
         continue;
       }
       pushFinding({
         code: "unscoped_gsap_selector",
         severity: "warning",
-        message: `Timeline "${localTimelineCompId}" uses unscoped selector "${window.targetSelector}" that will target elements in ALL compositions when bundled, causing data loss (opacity, transforms, etc.).`,
-        selector: window.targetSelector,
-        fixHint: `Scope the selector: \`[data-composition-id="${localTimelineCompId}"] ${window.targetSelector}\` or use a unique id.`,
-        snippet: truncateSnippet(window.raw),
+        message: `Timeline "${localTimelineCompId}" uses unscoped selector "${win.targetSelector}" that will target elements in ALL compositions when bundled, causing data loss (opacity, transforms, etc.).`,
+        selector: win.targetSelector,
+        fixHint: `Scope the selector: \`[data-composition-id="${localTimelineCompId}"] ${win.targetSelector}\` or use a unique id.`,
+        snippet: truncateSnippet(win.raw),
       });
     }
   }
@@ -379,8 +414,8 @@ export function lintHyperframeHtml(
         if (!parentClosePattern.test(between)) {
           pushFinding({
             code: "video_nested_in_timed_element",
-            severity: "warning",
-            message: `<video> with data-start appears to be nested inside <${parent.name}${parent.id ? ` id="${parent.id}"` : ""}> which also has data-start. This can break media sync.`,
+            severity: "error",
+            message: `<video> with data-start is nested inside <${parent.name}${parent.id ? ` id="${parent.id}"` : ""}> which also has data-start. The framework cannot manage playback of nested media — video will be FROZEN in renders.`,
             elementId: readAttr(tag.raw, "id") || undefined,
             fixHint:
               "Move the <video> to be a direct child of the stage, or remove data-start from the wrapper div (use it as a non-timed visual container).",
@@ -455,6 +490,46 @@ export function lintHyperframeHtml(
         fixHint:
           "Use a relative path (assets/music.mp3) or HTTPS URL for the audio/video src. Never embed media as base64.",
         snippet: truncateSnippet((b64Match[1] ?? "").slice(0, 80) + "..."),
+      });
+    }
+  }
+
+  // #3.8: Media element checks — missing id, missing src, preload="none"
+  // The runtime discovers media via querySelectorAll("video[data-start]") which
+  // works fine for preview. But the renderer uses querySelectorAll("video[id][src]")
+  // — without id, elements are silently skipped (no audio, frozen video).
+  for (const tag of tags) {
+    if (tag.name !== "video" && tag.name !== "audio") continue;
+    const hasDataStart = readAttr(tag.raw, "data-start");
+    const hasId = readAttr(tag.raw, "id");
+    const hasSrc = readAttr(tag.raw, "src");
+    if (hasDataStart && !hasId) {
+      pushFinding({
+        code: "media_missing_id",
+        severity: "error",
+        message: `<${tag.name}> has data-start but no id attribute. The renderer requires id to discover media elements — this ${tag.name === "audio" ? "audio will be SILENT" : "video will be FROZEN"} in renders.`,
+        fixHint: `Add a unique id attribute: <${tag.name} id="my-${tag.name}" ...>`,
+        snippet: truncateSnippet(tag.raw),
+      });
+    }
+    if (hasDataStart && hasId && !hasSrc) {
+      pushFinding({
+        code: "media_missing_src",
+        severity: "error",
+        message: `<${tag.name} id="${hasId}"> has data-start but no src attribute. The renderer cannot load this media.`,
+        elementId: hasId,
+        fixHint: `Add a src attribute to the <${tag.name}> element directly. If using <source> children, the renderer still requires src on the parent element.`,
+        snippet: truncateSnippet(tag.raw),
+      });
+    }
+    if (readAttr(tag.raw, "preload") === "none") {
+      pushFinding({
+        code: "media_preload_none",
+        severity: "warning",
+        message: `<${tag.name}${hasId ? ` id="${hasId}"` : ""}> has preload="none" which prevents the renderer from loading this media. The compiler strips it for renders, but preview may also have issues.`,
+        elementId: hasId || undefined,
+        fixHint: `Remove preload="none" or change to preload="auto". The framework manages media loading.`,
+        snippet: truncateSnippet(tag.raw),
       });
     }
   }
@@ -632,6 +707,32 @@ export function lintHyperframeHtml(
           });
         }
       }
+    }
+  }
+
+  // ── External CDN script dependency check ────────────────────────────────
+  // Compositions that load CDN libraries via <script src="https://..."> work
+  // correctly in bundled mode (bundleToSingleHtml auto-hoists them to the parent
+  // document) and in runtime mode (loadExternalCompositions re-injects them).
+  // But when a composition is used in a custom pipeline that bypasses both, the
+  // scripts won't be available. Flag this as an info-level finding so developers
+  // know the dependency exists.
+  {
+    const externalScriptRe = /<script\b[^>]*\bsrc=["'](https?:\/\/[^"']+)["'][^>]*>/gi;
+    let match: RegExpExecArray | null;
+    const seen = new Set<string>();
+    while ((match = externalScriptRe.exec(source)) !== null) {
+      const src = match[1] ?? "";
+      if (seen.has(src)) continue;
+      seen.add(src);
+      pushFinding({
+        code: "external_script_dependency",
+        severity: "info",
+        message: `This composition loads an external script from \`${src}\`. The HyperFrames bundler automatically hoists CDN scripts from sub-compositions into the parent document. In unbundled runtime mode, \`loadExternalCompositions\` re-injects them. If you're using a custom pipeline that bypasses both, you'll need to include this script manually.`,
+        fixHint:
+          "No action needed when using `hyperframes dev` or `hyperframes render`. If using a custom pipeline, add this script tag to your root composition or HTML page.",
+        snippet: truncateSnippet(match[0] ?? ""),
+      });
     }
   }
 

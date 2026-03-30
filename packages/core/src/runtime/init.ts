@@ -32,6 +32,21 @@ export function initSandboxRuntimeModular(): void {
       // keep runtime resilient across reinits
     }
   }
+  // Normalize html/body so browser defaults (8px margin, white background) never
+  // bleed into renders as white bars. Runs in both preview and render contexts,
+  // eliminating the preview/render parity gap that existed when only the React
+  // component's normalizePreviewViewport call applied this normalization.
+  if (document.documentElement) {
+    document.documentElement.style.margin = "0";
+    document.documentElement.style.padding = "0";
+    document.documentElement.style.overflow = "hidden";
+  }
+  if (document.body) {
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+    document.body.style.overflow = "hidden";
+  }
+
   window.__timelines = window.__timelines || {};
   const registerRuntimeCleanup = (callback: () => void) => {
     runtimeCleanupCallbacks.push(callback);
@@ -707,6 +722,54 @@ export function initSandboxRuntimeModular(): void {
           };
         }
       }
+      // If the root composition declares an explicit data-duration that meaningfully
+      // exceeds the captured GSAP timeline, extend the timeline in-place by placing
+      // a zero-duration no-op tween at the declared end position. This makes
+      // timeline.duration() report the declared length without creating a composite
+      // (which would double-count the original duration).
+      const rootDeclaredDurAttr = rootCompositionNode?.getAttribute("data-duration");
+      if (rootDeclaredDurAttr) {
+        const rootDeclaredDur = parseFloat(rootDeclaredDurAttr);
+        if (
+          isUsableTimelineDuration(rootDeclaredDur) &&
+          isUsableTimelineDuration(rootDurationSeconds) &&
+          // Only pad when the gap is meaningful (>= 0.5s) to avoid floating-point
+          // false positives on compositions whose GSAP duration is already close
+          // to data-duration.
+          rootDeclaredDur >= rootDurationSeconds + 0.5
+        ) {
+          const tlWithTo = rootTimeline as RuntimeTimelineLike & {
+            to?: (target: object, vars: { duration: number }, position: number) => unknown;
+          };
+          if (typeof tlWithTo.to === "function") {
+            try {
+              // Placing a zero-duration tween AT rootDeclaredDur extends
+              // timeline.duration() to exactly rootDeclaredDur.
+              tlWithTo.to({}, { duration: 0 }, rootDeclaredDur);
+            } catch {
+              // keep runtime resilient
+            }
+          }
+          const newDur = getTimelineDurationSeconds(rootTimeline);
+          if (isUsableTimelineDuration(newDur)) {
+            return {
+              timeline: rootTimeline,
+              selectedTimelineIds: [rootCompositionId],
+              selectedDurationSeconds: newDur,
+              mediaDurationFloorSeconds,
+              diagnostics: {
+                code: "root_timeline_padded_to_declared_duration",
+                details: {
+                  rootCompositionId,
+                  rootDurationSeconds,
+                  rootDeclaredDur,
+                  newDur,
+                },
+              },
+            };
+          }
+        }
+      }
       return {
         timeline: rootTimeline,
         selectedTimelineIds: [rootCompositionId],
@@ -1357,9 +1420,9 @@ export function initSandboxRuntimeModular(): void {
       resolveStartSeconds: (element) => resolveStartForElement(element, 0),
     }),
     createWaapiAdapter(),
-    createGsapAdapter({ getTimeline: () => state.capturedTimeline }),
-    createThreeAdapter(),
     createLottieAdapter(),
+    createThreeAdapter(),
+    createGsapAdapter({ getTimeline: () => state.capturedTimeline }),
   ] as RuntimeDeterministicAdapter[];
   installRuntimeErrorDiagnostics();
   runAdapters("discover");

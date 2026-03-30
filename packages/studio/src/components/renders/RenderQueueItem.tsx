@@ -1,4 +1,5 @@
 import { memo, useCallback, useState } from "react";
+import { VideoFrameThumbnail } from "../ui/VideoFrameThumbnail";
 import type { RenderJob } from "./useRenderQueue";
 
 interface RenderQueueItemProps {
@@ -19,34 +20,84 @@ function formatTimeAgo(timestamp: number): string {
   return `${Math.floor(diff / 3600000)}h ago`;
 }
 
+/** Static frame extracted once via hidden video + canvas. */
+
 export const RenderQueueItem = memo(function RenderQueueItem({
   job,
   onDelete,
 }: RenderQueueItemProps) {
   const [hovered, setHovered] = useState(false);
 
-  const handleDownload = useCallback(() => {
-    const a = document.createElement("a");
-    a.href = `/api/render/${job.id}/download`;
-    a.download = job.filename;
-    a.click();
-  }, [job.id, job.filename]);
+  const handleOpen = useCallback(() => {
+    window.open(`/api/render/${job.id}/view`, "_blank");
+  }, [job.id]);
+
+  const handleDownload = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const a = document.createElement("a");
+      a.href = `/api/render/${job.id}/download`;
+      a.download = job.filename;
+      a.click();
+    },
+    [job.id, job.filename],
+  );
+
+  const viewSrc = `/api/render/${job.id}/view`;
+  const isComplete = job.status === "complete";
 
   return (
     <div
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
-      className="px-3 py-2.5 border-b border-neutral-800/30 last:border-0"
+      onClick={isComplete ? handleOpen : undefined}
+      className={[
+        "px-3 py-2.5 border-b border-neutral-800/30 last:border-0 transition-colors duration-150",
+        isComplete ? "cursor-pointer hover:bg-neutral-800/30" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
-      <div className="flex items-center gap-2">
-        {/* Status indicator */}
-        <div className="flex-shrink-0">
-          {job.status === "rendering" && (
-            <div className="w-2 h-2 rounded-full bg-[#3CE6AC] animate-pulse" />
+      <div className="flex items-center gap-2.5">
+        {/* Thumbnail — static frame; swaps to live video on hover */}
+        <div className="w-20 h-[45px] rounded overflow-hidden bg-neutral-900 flex-shrink-0 relative">
+          {isComplete && (
+            <>
+              {/* Live video — visible on hover */}
+              {hovered && (
+                <video
+                  src={viewSrc}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-contain"
+                />
+              )}
+              {/* Static frame — visible when not hovering */}
+              <div
+                className="absolute inset-0 transition-opacity duration-150"
+                style={{ opacity: hovered ? 0 : 1 }}
+              >
+                <VideoFrameThumbnail src={viewSrc} />
+              </div>
+            </>
           )}
-          {job.status === "complete" && <div className="w-2 h-2 rounded-full bg-green-400" />}
-          {job.status === "failed" && <div className="w-2 h-2 rounded-full bg-red-400" />}
-          {job.status === "cancelled" && <div className="w-2 h-2 rounded-full bg-neutral-600" />}
+          {job.status === "rendering" && (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-2 h-2 rounded-full bg-[#3CE6AC] animate-pulse" />
+            </div>
+          )}
+          {job.status === "failed" && (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-2 h-2 rounded-full bg-red-400" />
+            </div>
+          )}
+          {job.status === "cancelled" && (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-2 h-2 rounded-full bg-neutral-600" />
+            </div>
+          )}
         </div>
 
         {/* Info */}
@@ -62,7 +113,6 @@ export const RenderQueueItem = memo(function RenderQueueItem({
             )}
           </div>
 
-          {/* Progress bar + percentage */}
           {job.status === "rendering" && (
             <div className="mt-1">
               <div className="flex items-center justify-between mb-0.5">
@@ -90,7 +140,7 @@ export const RenderQueueItem = memo(function RenderQueueItem({
         {/* Actions */}
         {hovered && (
           <div className="flex items-center gap-1 flex-shrink-0">
-            {job.status === "complete" && (
+            {isComplete && (
               <button
                 onClick={handleDownload}
                 className="p-1 rounded text-neutral-500 hover:text-green-400 transition-colors"
@@ -113,7 +163,10 @@ export const RenderQueueItem = memo(function RenderQueueItem({
               </button>
             )}
             <button
-              onClick={onDelete}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
               className="p-1 rounded text-neutral-500 hover:text-red-400 transition-colors"
               title="Remove"
             >

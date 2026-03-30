@@ -82,8 +82,8 @@
             "pages": ["reference/html-schema"]
           },
           {
-            "group": "Community",
-            "pages": ["contributing"]
+            "group": "Contributing",
+            "pages": ["contributing", "contributing/testing-local-changes"]
           }
         ]
       }

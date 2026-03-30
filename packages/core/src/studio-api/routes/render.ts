@@ -73,7 +73,8 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
       quality,
       jobId,
     });
-    renderJobs.set(jobId, { ...jobState, createdAt: Date.now() });
+    (jobState as RenderJobState & { createdAt: number }).createdAt = Date.now();
+    renderJobs.set(jobId, jobState as RenderJobState & { createdAt: number });
 
     // Restart cleanup timer if needed
     if (!cleanupTimer && typeof process !== "undefined" && process.env.NODE_ENV !== "production") {
@@ -122,6 +123,27 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
         if (current.status === "complete" || current.status === "failed") break;
         await stream.sleep(500);
       }
+    });
+  });
+
+  // Serve render inline (for in-browser playback — opens in a new tab)
+  api.get("/render/:jobId/view", (c) => {
+    const { jobId } = c.req.param();
+    const job = renderJobs.get(jobId);
+    if (!job?.outputPath || !existsSync(job.outputPath)) {
+      return c.json({ error: "not found" }, 404);
+    }
+    const isWebm = job.outputPath.endsWith(".webm");
+    const contentType = isWebm ? "video/webm" : "video/mp4";
+    const filename = job.outputPath.split("/").pop() ?? `render.mp4`;
+    const content = readFileSync(job.outputPath);
+    return new Response(content, {
+      headers: {
+        "Content-Type": contentType,
+        "Content-Disposition": `inline; filename="${filename}"`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": String(content.length),
+      },
     });
   });
 
@@ -195,6 +217,19 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
         };
       })
       .sort((a, b) => b.createdAt - a.createdAt);
+    // Register on-disk renders that aren't in the current session's job map
+    // so they remain downloadable after a server restart.
+    for (const file of files) {
+      if (!renderJobs.has(file.id)) {
+        renderJobs.set(file.id, {
+          id: file.id,
+          status: file.status,
+          progress: 100,
+          outputPath: join(rendersDir, file.filename),
+          createdAt: file.createdAt,
+        } as RenderJobState & { createdAt: number });
+      }
+    }
     return c.json({ renders: files });
   });
 }

@@ -52,7 +52,17 @@ export function parseVideoElements(html: string): VideoElement[] {
   const videos: VideoElement[] = [];
   const { document } = parseHTML(html);
 
-  const videoEls = document.querySelectorAll("video[id][src]");
+  // Union: original "video[id][src]" (backward compat) + "video[src][data-start]"
+  // (sub-composition videos that have timing but no explicit id).
+  const videoEls = Array.from(
+    new Set([
+      ...Array.from(document.querySelectorAll("video[id][src]")),
+      ...Array.from(document.querySelectorAll("video[src][data-start]")),
+    ]),
+  );
+  videoEls.forEach((el, i) => {
+    if (!el.id) el.id = `hf-video-${i}`;
+  });
   for (const el of videoEls) {
     const id = el.getAttribute("id");
     const src = el.getAttribute("src");
@@ -60,14 +70,27 @@ export function parseVideoElements(html: string): VideoElement[] {
 
     const startAttr = el.getAttribute("data-start");
     const endAttr = el.getAttribute("data-end");
+    const durationAttr = el.getAttribute("data-duration");
     const mediaStartAttr = el.getAttribute("data-media-start");
     const hasAudioAttr = el.getAttribute("data-has-audio");
+
+    const start = startAttr ? parseFloat(startAttr) : 0;
+    // Derive end from data-end → data-start+data-duration → Infinity (natural duration).
+    // The caller (htmlCompiler) clamps Infinity to the composition's absoluteEnd.
+    let end = 0;
+    if (endAttr) {
+      end = parseFloat(endAttr);
+    } else if (durationAttr) {
+      end = start + parseFloat(durationAttr);
+    } else {
+      end = Infinity; // no explicit bounds — play for the full natural video duration
+    }
 
     videos.push({
       id,
       src,
-      start: startAttr ? parseFloat(startAttr) : 0,
-      end: endAttr ? parseFloat(endAttr) : 0,
+      start,
+      end,
       mediaStart: mediaStartAttr ? parseFloat(mediaStartAttr) : 0,
       hasAudio: hasAudioAttr === "true",
     });
@@ -212,8 +235,9 @@ export async function extractAllVideoFrames(
 
         let videoDuration = video.end - video.start;
 
-        // Fallback: if no data-duration/data-end was specified, probe the actual file
-        if (videoDuration <= 0) {
+        // Fallback: if no data-duration/data-end was specified (end is Infinity or 0),
+        // probe the actual video file to get its natural duration.
+        if (!Number.isFinite(videoDuration) || videoDuration <= 0) {
           const metadata = await extractVideoMetadata(videoPath);
           const sourceDuration = metadata.durationSeconds - video.mediaStart;
           videoDuration = sourceDuration > 0 ? sourceDuration : metadata.durationSeconds;

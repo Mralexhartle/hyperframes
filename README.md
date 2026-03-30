@@ -1,5 +1,7 @@
 # Hyperframes
 
+[![npm version](https://img.shields.io/npm/v/hyperframes.svg?style=flat)](https://www.npmjs.com/package/hyperframes)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org)
 
 **Write HTML. Render video. Built for agents.**
@@ -28,6 +30,10 @@ npx hyperframes render   # render to MP4
 ```
 
 **Requirements:** Node.js >= 22, FFmpeg
+
+## Documentation
+
+Full documentation at **[hyperframes.heygen.com](https://hyperframes.heygen.com)** — start with the [Quickstart](https://hyperframes.heygen.com/quickstart), then explore guides, concepts, API reference, and package docs.
 
 ## How It Works
 
@@ -101,10 +107,6 @@ npx skills add greensock/gsap-skills
 | **[GSAP](https://github.com/greensock/gsap-skills)** | `gsap-core`, `gsap-timeline`, `gsap-performance`, `gsap-plugins`, `gsap-scrolltrigger`, `gsap-utils`, `gsap-react`, `gsap-frameworks` | Core API, timeline sequencing, ScrollTrigger, plugin usage, performance best practices                              |
 
 In Claude Code, invoke with `/hyperframes-compose`, `/hyperframes-captions`, `/gsap-core`, etc.
-
-## Documentation
-
-Full docs at [hyperframes.heygen.com](https://hyperframes.heygen.com) — includes guides, concepts, API reference, and package documentation.
 
 ## Contributing
 

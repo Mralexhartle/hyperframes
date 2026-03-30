@@ -44,6 +44,50 @@ function resolveRuntimePath(): string {
   return builtPath;
 }
 
+// ── Shared thumbnail browser (singleton per process) ────────────────────────
+// One browser instance is reused across all composition thumbnail requests.
+// Spawning a new Puppeteer process per request adds 2-5s overhead and causes
+// contention when the sidebar requests multiple thumbnails simultaneously.
+
+let _thumbnailBrowser: import("puppeteer-core").Browser | null = null;
+let _thumbnailBrowserInitializing: Promise<import("puppeteer-core").Browser | null> | null = null;
+
+async function getThumbnailBrowser(): Promise<import("puppeteer-core").Browser | null> {
+  if (_thumbnailBrowser?.connected) return _thumbnailBrowser;
+  if (_thumbnailBrowserInitializing) return _thumbnailBrowserInitializing;
+
+  _thumbnailBrowserInitializing = (async () => {
+    try {
+      const { ensureBrowser } = await import("../browser/manager.js");
+      const { acquireBrowser, buildChromeArgs } = await import("@hyperframes/engine");
+
+      try {
+        const b = await ensureBrowser();
+        if (b.executablePath && !process.env.PRODUCER_HEADLESS_SHELL_PATH) {
+          process.env.PRODUCER_HEADLESS_SHELL_PATH = b.executablePath;
+        }
+      } catch {
+        /* continue — acquireBrowser will try its own resolution */
+      }
+
+      const acquired = await acquireBrowser(buildChromeArgs({ width: 1920, height: 1080 }), {
+        enableBrowserPool: false,
+      });
+      _thumbnailBrowser = acquired.browser;
+      _thumbnailBrowser.on("disconnected", () => {
+        _thumbnailBrowser = null;
+        _thumbnailBrowserInitializing = null;
+      });
+      return _thumbnailBrowser;
+    } catch {
+      _thumbnailBrowserInitializing = null;
+      return null;
+    }
+  })();
+
+  return _thumbnailBrowserInitializing;
+}
+
 // ── Server factory ──────────────────────────────────────────────────────────
 
 export interface StudioServerOptions {
@@ -151,6 +195,44 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
       })();
 
       return state;
+    },
+
+    async generateThumbnail(opts): Promise<Buffer | null> {
+      // Reuse a single browser across all thumbnail requests for this server
+      // instance — avoids paying the ~2s Puppeteer startup cost per composition.
+      // The browser is created lazily and kept alive until the process exits.
+      const browser = await getThumbnailBrowser();
+      if (!browser) return null;
+      let page: import("puppeteer-core").Page | null = null;
+      try {
+        page = await browser.newPage();
+        await page.setViewport({ width: opts.width || 1920, height: opts.height || 1080 });
+        // domcontentloaded instead of networkidle2 — CDN scripts (GSAP, Lottie,
+        // fonts) never reach "idle" and cause a 15s timeout per thumbnail.
+        await page.goto(opts.previewUrl, { waitUntil: "domcontentloaded", timeout: 10000 });
+        // Wait for the runtime to register timelines (up to 5s, non-fatal).
+        await page
+          .waitForFunction(() => !!(window as any).__timelines || !!(window as any).__playerReady, {
+            timeout: 5000,
+          })
+          .catch(() => {});
+        await page.evaluate((t: number) => {
+          const win = window as any;
+          if (win.__player?.seek) win.__player.seek(t);
+          else if (win.__timeline?.seek) {
+            win.__timeline.pause();
+            win.__timeline.seek(t);
+          }
+        }, opts.seekTime);
+        // Let the seek render settle.
+        await new Promise((r) => setTimeout(r, 200));
+        const screenshot = (await page.screenshot({ type: "jpeg", quality: 80 })) as Buffer;
+        return screenshot;
+      } catch {
+        return null;
+      } finally {
+        await page?.close().catch(() => {});
+      }
     },
   };
 

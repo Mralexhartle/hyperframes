@@ -28,7 +28,7 @@ export const CompositionThumbnail = memo(function CompositionThumbnail({
   previewUrl,
   label,
   labelColor,
-  seekTime = 0.4,
+  seekTime = 2,
   duration = 5,
   width = 1920,
   height = 1080,
@@ -112,7 +112,7 @@ export const CompositionThumbnail = memo(function CompositionThumbnail({
                 onLoad={(e) => {
                   (e.target as HTMLImageElement).style.opacity = "1";
                 }}
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-contain"
                 style={{ opacity: 0, transition: "opacity 200ms ease-out" }}
               />
             </div>

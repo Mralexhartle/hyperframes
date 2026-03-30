@@ -7,6 +7,8 @@ import { createRequire } from "node:module";
 import * as clack from "@clack/prompts";
 import { c } from "../ui/colors.js";
 import { isDevMode } from "../utils/env.js";
+import { lintProject } from "../utils/lintProject.js";
+import { formatLintFindings } from "../utils/lintFormat.js";
 
 /**
  * Try to start a server on the given port, auto-incrementing up to maxAttempts
@@ -70,6 +72,19 @@ export default defineCommand({
     // Compute display name: preserve symlink/CWD name when user runs "hyperframes dev ."
     const isImplicitCwd = !rawArg || rawArg === "." || rawArg === "./";
     const projectName = isImplicitCwd ? basename(process.env.PWD ?? dir) : basename(dir);
+
+    // Lint before starting — surface issues for the agent to fix.
+    // dev.ts doesn't use resolveProject() because it needs to proceed even without index.html.
+    const indexPath = join(dir, "index.html");
+    if (existsSync(indexPath)) {
+      const project = { dir, name: projectName, indexPath };
+      const lintResult = lintProject(project);
+      if (lintResult.totalErrors > 0 || lintResult.totalWarnings > 0) {
+        console.log();
+        for (const line of formatLintFindings(lintResult)) console.log(line);
+        console.log();
+      }
+    }
 
     if (isDevMode()) {
       return runDevMode(dir, projectName);
