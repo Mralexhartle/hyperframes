@@ -32,6 +32,21 @@ export function initSandboxRuntimeModular(): void {
       // keep runtime resilient across reinits
     }
   }
+  // Normalize html/body so browser defaults (8px margin, white background) never
+  // bleed into renders as white bars. Runs in both preview and render contexts,
+  // eliminating the preview/render parity gap that existed when only the React
+  // component's normalizePreviewViewport call applied this normalization.
+  if (document.documentElement) {
+    document.documentElement.style.margin = "0";
+    document.documentElement.style.padding = "0";
+    document.documentElement.style.overflow = "hidden";
+  }
+  if (document.body) {
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+    document.body.style.overflow = "hidden";
+  }
+
   window.__timelines = window.__timelines || {};
   const registerRuntimeCleanup = (callback: () => void) => {
     runtimeCleanupCallbacks.push(callback);
