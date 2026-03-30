@@ -317,17 +317,34 @@ export const NLELayout = memo(function NLELayout({
       onKeyDown={handleKeyDown}
       tabIndex={-1}
     >
-      {/* Preview — takes remaining space above timeline */}
-      <div className="flex-1 min-h-0 relative">
-        <NLEPreview
-          projectId={projectId}
-          iframeRef={iframeRef}
-          onIframeLoad={onIframeLoad}
-          portrait={portrait}
-          directUrl={directUrl}
-          refreshKey={refreshKey}
-        />
-        {previewOverlay}
+      {/* Preview + player controls — takes remaining space above timeline */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-0 relative">
+          <NLEPreview
+            projectId={projectId}
+            iframeRef={iframeRef}
+            onIframeLoad={onIframeLoad}
+            portrait={portrait}
+            directUrl={directUrl}
+            refreshKey={refreshKey}
+          />
+          {previewOverlay}
+        </div>
+        {/* Player controls always visible, regardless of timeline state */}
+        <div className="bg-neutral-950 border-t border-neutral-800/50 flex-shrink-0">
+          {compositionStack.length > 1 && (
+            <CompositionBreadcrumb
+              stack={compositionStack}
+              onNavigate={handleNavigateComposition}
+            />
+          )}
+          <PlayerControls
+            onTogglePlay={togglePlay}
+            onSeek={seek}
+            timelineVisible={timelineVisible ?? true}
+            onToggleTimeline={onToggleTimeline}
+          />
+        </div>
       </div>
 
       {(timelineVisible ?? true) && (
@@ -343,22 +360,6 @@ export const NLELayout = memo(function NLELayout({
 
           {/* Timeline section — fixed height, resizable */}
           <div className="flex flex-col flex-shrink-0" style={{ height: timelineH }}>
-            {/* Breadcrumb + Player controls */}
-            <div className="bg-neutral-950 border-t border-neutral-800/50 flex-shrink-0">
-              {compositionStack.length > 1 && (
-                <CompositionBreadcrumb
-                  stack={compositionStack}
-                  onNavigate={handleNavigateComposition}
-                />
-              )}
-              <PlayerControls
-                onTogglePlay={togglePlay}
-                onSeek={seek}
-                timelineVisible={timelineVisible ?? true}
-                onToggleTimeline={onToggleTimeline}
-              />
-            </div>
-
             {/* Timeline tracks */}
             <div
               className="flex-1 min-h-0 overflow-y-auto bg-neutral-950"
