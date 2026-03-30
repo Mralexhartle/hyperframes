@@ -128,6 +128,7 @@ export function useRenderQueue(projectId: string | null) {
                           ? "failed"
                           : j.status,
                     durationMs: data.status === "complete" ? Date.now() - startTime : undefined,
+                    error: data.error ?? j.error,
                   }
                 : j,
             ),
