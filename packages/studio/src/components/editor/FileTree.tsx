@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, useMemo } from "react";
 import {
   FileHtml,
   FileCss,
@@ -188,8 +188,8 @@ function isActiveInSubtree(node: TreeNode, activeFile: string | null): boolean {
 }
 
 export const FileTree = memo(function FileTree({ files, activeFile, onSelectFile }: FileTreeProps) {
-  const tree = buildTree(files);
-  const children = sortChildren(tree.children);
+  const tree = useMemo(() => buildTree(files), [files]);
+  const children = useMemo(() => sortChildren(tree.children), [tree]);
 
   return (
     <div className="flex flex-col h-full min-h-0">

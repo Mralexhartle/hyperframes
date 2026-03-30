@@ -1,16 +1,12 @@
 import { memo, useState, useCallback, useRef } from "react";
 import { VideoFrameThumbnail } from "../ui/VideoFrameThumbnail";
+import { MEDIA_EXT, IMAGE_EXT, VIDEO_EXT, AUDIO_EXT } from "../../utils/mediaTypes";
 
 interface AssetsTabProps {
   projectId: string;
   assets: string[];
   onImport?: (files: FileList) => void;
 }
-
-const MEDIA_EXT = /\.(mp4|webm|mov|mp3|wav|ogg|m4a|jpg|jpeg|png|gif|webp|svg)$/i;
-const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|svg)$/i;
-const VIDEO_EXT = /\.(mp4|webm|mov)$/i;
-const AUDIO_EXT = /\.(mp3|wav|ogg|m4a)$/i;
 
 /** Inline thumbnail content — rendered inside the container div in AssetCard. */
 function AssetThumbnail({

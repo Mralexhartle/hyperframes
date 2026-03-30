@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, type ReactNode } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, type ReactNode } from "react";
 import { useMountEffect } from "./hooks/useMountEffect";
 import { NLELayout } from "./components/nle/NLELayout";
 import { SourceEditor } from "./components/editor/SourceEditor";
@@ -8,243 +8,14 @@ import { useRenderQueue } from "./components/renders/useRenderQueue";
 import { CompositionThumbnail, VideoThumbnail } from "./player";
 import { AudioWaveform } from "./player/components/AudioWaveform";
 import type { TimelineElement } from "./player";
-import { XIcon, WarningIcon, CheckCircleIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { LintModal } from "./components/LintModal";
+import type { LintFinding } from "./components/LintModal";
+import { MediaPreview } from "./components/MediaPreview";
+import { isMediaFile } from "./utils/mediaTypes";
 
 interface EditingFile {
   path: string;
   content: string | null;
-}
-
-interface LintFinding {
-  severity: "error" | "warning";
-  message: string;
-  file?: string;
-  fixHint?: string;
-}
-
-// ── Media file detection and preview ──
-
-const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|svg|ico)$/i;
-const VIDEO_EXT = /\.(mp4|webm|mov)$/i;
-const AUDIO_EXT = /\.(mp3|wav|ogg|m4a|aac)$/i;
-const FONT_EXT = /\.(woff|woff2|ttf|otf|eot)$/i;
-
-function isMediaFile(path: string): boolean {
-  return (
-    IMAGE_EXT.test(path) || VIDEO_EXT.test(path) || AUDIO_EXT.test(path) || FONT_EXT.test(path)
-  );
-}
-
-function MediaPreview({ projectId, filePath }: { projectId: string; filePath: string }) {
-  const serveUrl = `/api/projects/${projectId}/preview/${filePath}`;
-  const name = filePath.split("/").pop() ?? filePath;
-
-  if (IMAGE_EXT.test(filePath)) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-4 bg-neutral-950">
-        <img
-          src={serveUrl}
-          alt={name}
-          className="max-w-full max-h-[70%] object-contain rounded border border-neutral-800"
-        />
-        <span className="mt-3 text-[11px] text-neutral-500 font-mono">{filePath}</span>
-      </div>
-    );
-  }
-
-  if (VIDEO_EXT.test(filePath)) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-4 bg-neutral-950">
-        <video
-          src={serveUrl}
-          controls
-          className="max-w-full max-h-[70%] rounded border border-neutral-800"
-        />
-        <span className="mt-3 text-[11px] text-neutral-500 font-mono">{filePath}</span>
-      </div>
-    );
-  }
-
-  if (AUDIO_EXT.test(filePath)) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-4 bg-neutral-950 gap-3">
-        <svg
-          width="48"
-          height="48"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          className="text-neutral-600"
-        >
-          <path d="M9 18V5l12-2v13" strokeLinecap="round" strokeLinejoin="round" />
-          <circle cx="6" cy="18" r="3" />
-          <circle cx="18" cy="16" r="3" />
-        </svg>
-        <audio src={serveUrl} controls className="w-full max-w-[280px]" />
-        <span className="text-[11px] text-neutral-500 font-mono">{filePath}</span>
-      </div>
-    );
-  }
-
-  // Fonts and other binary — show info instead of binary dump
-  return (
-    <div className="flex flex-col items-center justify-center h-full p-4 bg-neutral-950 gap-2">
-      <svg
-        width="40"
-        height="40"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        className="text-neutral-600"
-      >
-        <path
-          d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <span className="text-sm text-neutral-400 font-medium">{name}</span>
-      <span className="text-[11px] text-neutral-600 font-mono">{filePath}</span>
-      <span className="text-[10px] text-neutral-600">Binary file — preview not available</span>
-    </div>
-  );
-}
-
-// ── Lint Modal ──
-
-function LintModal({
-  findings,
-  projectId,
-  onClose,
-}: {
-  findings: LintFinding[];
-  projectId: string;
-  onClose: () => void;
-}) {
-  const errors = findings.filter((f) => f.severity === "error");
-  const warnings = findings.filter((f) => f.severity === "warning");
-  const hasIssues = findings.length > 0;
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyToAgent = async () => {
-    const lines = findings.map((f) => {
-      let line = `[${f.severity}] ${f.message}`;
-      if (f.file) line += `\n  File: ${f.file}`;
-      if (f.fixHint) line += `\n  Fix: ${f.fixHint}`;
-      return line;
-    });
-    const text = `Fix these HyperFrames lint issues for project "${projectId}":\n\nProject path: ${window.location.href}\n\n${lines.join("\n\n")}`;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // ignore
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl w-full max-w-xl max-h-[80vh] flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-800">
-          <div className="flex items-center gap-3">
-            {hasIssues ? (
-              <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center">
-                <WarningIcon size={18} className="text-red-400" weight="fill" />
-              </div>
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-[#3CE6AC]/10 flex items-center justify-center">
-                <CheckCircleIcon size={18} className="text-[#3CE6AC]" weight="fill" />
-              </div>
-            )}
-            <div>
-              <h2 className="text-sm font-semibold text-neutral-200">
-                {hasIssues
-                  ? `${errors.length} error${errors.length !== 1 ? "s" : ""}, ${warnings.length} warning${warnings.length !== 1 ? "s" : ""}`
-                  : "All checks passed"}
-              </h2>
-              <p className="text-xs text-neutral-500">HyperFrame Lint Results</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
-          >
-            <XIcon size={16} />
-          </button>
-        </div>
-
-        {/* Copy to agent + findings */}
-        {hasIssues && (
-          <div className="flex items-center justify-end px-5 py-2 border-b border-neutral-800/50">
-            <button
-              onClick={handleCopyToAgent}
-              className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
-                copied ? "bg-green-600 text-white" : "bg-[#3CE6AC] hover:bg-[#3CE6AC]/80 text-white"
-              }`}
-            >
-              {copied ? "Copied!" : "Copy to Agent"}
-            </button>
-          </div>
-        )}
-        <div className="flex-1 overflow-y-auto px-5 py-3">
-          {!hasIssues && (
-            <div className="py-8 text-center text-neutral-500 text-sm">
-              No errors or warnings found. Your composition looks good!
-            </div>
-          )}
-          {errors.map((f, i) => (
-            <div key={`e-${i}`} className="py-3 border-b border-neutral-800/50 last:border-0">
-              <div className="flex items-start gap-2">
-                <WarningIcon
-                  size={14}
-                  className="text-red-400 flex-shrink-0 mt-0.5"
-                  weight="fill"
-                />
-                <div className="min-w-0">
-                  <p className="text-sm text-neutral-200">{f.message}</p>
-                  {f.file && <p className="text-xs text-neutral-600 font-mono mt-0.5">{f.file}</p>}
-                  {f.fixHint && (
-                    <div className="flex items-start gap-1 mt-1.5">
-                      <CaretRightIcon size={10} className="text-[#3CE6AC] flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-[#3CE6AC]">{f.fixHint}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-          {warnings.map((f, i) => (
-            <div key={`w-${i}`} className="py-3 border-b border-neutral-800/50 last:border-0">
-              <div className="flex items-start gap-2">
-                <WarningIcon size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <p className="text-sm text-neutral-300">{f.message}</p>
-                  {f.file && <p className="text-xs text-neutral-600 font-mono mt-0.5">{f.file}</p>}
-                  {f.fixHint && (
-                    <div className="flex items-start gap-1 mt-1.5">
-                      <CaretRightIcon size={10} className="text-[#3CE6AC] flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-[#3CE6AC]">{f.fixHint}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ── Main App ──
@@ -389,6 +160,7 @@ export function StudioApp() {
   const [linting, setLinting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectIdRef = useRef(projectId);
   const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -454,20 +226,24 @@ export function StudioApp() {
 
   const handleContentChange = useCallback((content: string) => {
     const pid = projectIdRef.current;
+    if (!pid) return;
     const path = editingPathRef.current;
-    if (!pid || !path) return;
-    // Don't update editingFile state — the editor manages its own content.
-    // Only save to disk and refresh the preview.
-    fetch(`/api/projects/${pid}/files/${encodeURIComponent(path)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "text/plain" },
-      body: content,
-    })
-      .then(() => {
-        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = setTimeout(() => setRefreshKey((k) => k + 1), 600);
+    if (!path) return;
+
+    // Debounce the server write (600ms)
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      fetch(`/api/projects/${pid}/files/${encodeURIComponent(path)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "text/plain" },
+        body: content,
       })
-      .catch(() => {});
+        .then(() => {
+          if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+          refreshTimerRef.current = setTimeout(() => setRefreshKey((k) => k + 1), 600);
+        })
+        .catch(() => {});
+    }, 600);
   }, []);
 
   const handleLint = useCallback(async () => {
@@ -528,6 +304,16 @@ export function StudioApp() {
     panelDragRef.current = null;
   }, []);
 
+  const compositions = useMemo(
+    () => fileTree.filter((f) => f === "index.html" || f.startsWith("compositions/")),
+    [fileTree],
+  );
+  const assets = useMemo(
+    () =>
+      fileTree.filter((f) => !f.endsWith(".html") && !f.endsWith(".md") && !f.endsWith(".json")),
+    [fileTree],
+  );
+
   if (resolving || !projectId) {
     return (
       <div className="h-screen w-screen bg-neutral-950 flex items-center justify-center">
@@ -537,11 +323,6 @@ export function StudioApp() {
   }
 
   // At this point projectId is guaranteed non-null (narrowed by the guard above)
-
-  const compositions = fileTree.filter((f) => f === "index.html" || f.startsWith("compositions/"));
-  const assets = fileTree.filter(
-    (f) => !f.endsWith(".html") && !f.endsWith(".md") && !f.endsWith(".json"),
-  );
 
   return (
     <div className="flex flex-col h-screen w-screen bg-neutral-950">
@@ -655,7 +436,7 @@ export function StudioApp() {
             codeChildren={
               editingFile ? (
                 isMediaFile(editingFile.path) ? (
-                  <MediaPreview projectId={projectId} filePath={editingFile.path} />
+                  <MediaPreview projectId={projectId ?? ""} filePath={editingFile.path} />
                 ) : (
                   <SourceEditor
                     content={editingFile.content ?? ""}
@@ -729,7 +510,7 @@ export function StudioApp() {
       </div>
 
       {/* Lint modal */}
-      {lintModal !== null && (
+      {lintModal !== null && projectId && (
         <LintModal findings={lintModal} projectId={projectId} onClose={() => setLintModal(null)} />
       )}
     </div>
