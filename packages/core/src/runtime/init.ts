@@ -1389,9 +1389,9 @@ export function initSandboxRuntimeModular(): void {
       resolveStartSeconds: (element) => resolveStartForElement(element, 0),
     }),
     createWaapiAdapter(),
-    createGsapAdapter({ getTimeline: () => state.capturedTimeline }),
-    createThreeAdapter(),
     createLottieAdapter(),
+    createThreeAdapter(),
+    createGsapAdapter({ getTimeline: () => state.capturedTimeline }),
   ] as RuntimeDeterministicAdapter[];
   installRuntimeErrorDiagnostics();
   runAdapters("discover");
