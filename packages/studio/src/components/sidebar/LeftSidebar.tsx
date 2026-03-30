@@ -1,15 +1,18 @@
-import { memo, useState, useCallback } from "react";
+import { memo, useState, useCallback, type ReactNode } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { CompositionsTab } from "./CompositionsTab";
 import { AssetsTab } from "./AssetsTab";
+import { FileTree } from "../editor/FileTree";
 
-type SidebarTab = "compositions" | "assets";
+type SidebarTab = "compositions" | "assets" | "code";
 
 const STORAGE_KEY = "hf-studio-sidebar-tab";
 
 function getPersistedTab(): SidebarTab {
   const stored = localStorage.getItem(STORAGE_KEY);
-  return stored === "assets" ? "assets" : "compositions";
+  if (stored === "assets") return "assets";
+  if (stored === "code") return "code";
+  return "compositions";
 }
 
 interface LeftSidebarProps {
@@ -20,6 +23,12 @@ interface LeftSidebarProps {
   activeComposition: string | null;
   onSelectComposition: (comp: string) => void;
   onImportFiles?: (files: FileList) => void;
+  fileTree?: string[];
+  editingFile?: { path: string; content: string | null } | null;
+  onSelectFile?: (path: string) => void;
+  codeChildren?: ReactNode;
+  onLint?: () => void;
+  linting?: boolean;
 }
 
 export const LeftSidebar = memo(function LeftSidebar({
@@ -30,6 +39,12 @@ export const LeftSidebar = memo(function LeftSidebar({
   activeComposition,
   onSelectComposition,
   onImportFiles,
+  fileTree: fileProp,
+  editingFile,
+  onSelectFile,
+  codeChildren,
+  onLint,
+  linting,
 }: LeftSidebarProps) {
   const [tab, setTab] = useState<SidebarTab>(getPersistedTab);
 
@@ -84,18 +99,74 @@ export const LeftSidebar = memo(function LeftSidebar({
         >
           Assets
         </button>
+        <button
+          type="button"
+          onClick={() => selectTab("code")}
+          className={`ml-auto px-3 py-2 text-[11px] font-medium transition-colors ${
+            tab === "code"
+              ? "text-neutral-200 border-b-2 border-[#3CE6AC]"
+              : "text-neutral-500 hover:text-neutral-400"
+          }`}
+        >
+          Code
+        </button>
       </div>
 
       {/* Tab content */}
-      {tab === "compositions" ? (
+      {tab === "compositions" && (
         <CompositionsTab
           projectId={projectId}
           compositions={compositions}
           activeComposition={activeComposition}
           onSelect={onSelectComposition}
         />
-      ) : (
+      )}
+      {tab === "assets" && (
         <AssetsTab projectId={projectId} assets={assets} onImport={onImportFiles} />
+      )}
+      {tab === "code" && (
+        <div className="flex flex-1 min-h-0">
+          {(fileProp?.length ?? 0) > 0 && (
+            <div className="w-[140px] flex-shrink-0 border-r border-neutral-800 overflow-y-auto">
+              <FileTree
+                files={fileProp ?? []}
+                activeFile={editingFile?.path ?? null}
+                onSelectFile={onSelectFile ?? (() => {})}
+              />
+            </div>
+          )}
+          <div className="flex-1 overflow-hidden min-w-0">
+            {codeChildren ?? (
+              <div className="flex items-center justify-center h-full text-neutral-600 text-sm">
+                Select a file to edit
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Lint button pinned at the bottom */}
+      {onLint && (
+        <div className="border-t border-neutral-800 p-2 flex-shrink-0">
+          <button
+            onClick={onLint}
+            disabled={linting}
+            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] font-medium text-neutral-500 hover:text-amber-300 hover:bg-neutral-800 transition-colors disabled:opacity-40"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M9 11l3 3L22 4" />
+              <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+            </svg>
+            {linting ? "Linting…" : "Lint"}
+          </button>
+        </div>
       )}
     </div>
   );
