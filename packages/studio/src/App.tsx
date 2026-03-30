@@ -16,20 +16,12 @@ interface EditingFile {
   content: string | null;
 }
 
-interface ProjectEntry {
-  id: string;
-  title?: string;
-  sessionId?: string;
-}
-
 interface LintFinding {
   severity: "error" | "warning";
   message: string;
   file?: string;
   fixHint?: string;
 }
-
-import { ExpandOnHover } from "./components/ui/ExpandOnHover";
 
 // ── Media file detection and preview ──
 
@@ -118,246 +110,6 @@ function MediaPreview({ projectId, filePath }: { projectId: string; filePath: st
       <span className="text-sm text-neutral-400 font-medium">{name}</span>
       <span className="text-[11px] text-neutral-600 font-mono">{filePath}</span>
       <span className="text-[10px] text-neutral-600">Binary file — preview not available</span>
-    </div>
-  );
-}
-
-// ── Project Card with hover-to-preview ──
-
-function ExpandedPreviewIframe({ src }: { src: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [dims, setDims] = useState({ w: 1920, h: 1080 });
-  const [scale, setScale] = useState(1);
-
-  // Recalculate scale when container resizes or dims change.
-  // Note: useEffect with [dims] dep — syncs with ResizeObserver (external system).
-  // eslint-disable-next-line no-restricted-syntax
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const update = () => {
-      const cw = el.clientWidth;
-      const ch = el.clientHeight;
-      // Fit the composition inside the container (contain, not cover)
-      const s = Math.min(cw / dims.w, ch / dims.h);
-      setScale(s);
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [dims]);
-
-  // After iframe loads: detect composition dimensions, seek, and play
-  const handleLoad = useCallback(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-    let attempts = 0;
-    const interval = setInterval(() => {
-      try {
-        const doc = iframe.contentDocument;
-        if (doc) {
-          const comp = doc.querySelector("[data-composition-id]") as HTMLElement | null;
-          if (comp) {
-            const w = parseInt(comp.getAttribute("data-width") ?? "0", 10);
-            const h = parseInt(comp.getAttribute("data-height") ?? "0", 10);
-            if (w > 0 && h > 0) setDims({ w, h });
-          }
-        }
-        const win = iframe.contentWindow as Window & {
-          __player?: { seek: (t: number) => void; play: () => void };
-        };
-        if (win?.__player) {
-          win.__player.seek(2);
-          win.__player.play();
-          clearInterval(interval);
-        }
-      } catch {
-        /* cross-origin */
-      }
-      if (++attempts > 25) clearInterval(interval);
-    }, 200);
-  }, []);
-
-  // Center the scaled iframe
-  const offsetX = containerRef.current
-    ? (containerRef.current.clientWidth - dims.w * scale) / 2
-    : 0;
-  const offsetY = containerRef.current
-    ? (containerRef.current.clientHeight - dims.h * scale) / 2
-    : 0;
-
-  return (
-    <div ref={containerRef} className="w-full h-full relative overflow-hidden bg-black">
-      <iframe
-        ref={iframeRef}
-        src={src}
-        sandbox="allow-scripts allow-same-origin"
-        onLoad={handleLoad}
-        className="absolute border-none"
-        style={{
-          left: Math.max(0, offsetX),
-          top: Math.max(0, offsetY),
-          width: dims.w,
-          height: dims.h,
-          transformOrigin: "0 0",
-          transform: `scale(${scale})`,
-        }}
-      />
-    </div>
-  );
-}
-
-function ProjectCard({ project: p, onSelect }: { project: ProjectEntry; onSelect: () => void }) {
-  const thumbnailUrl = `/api/projects/${p.id}/thumbnail/index.html?t=0.5`;
-  const previewUrl = `/api/projects/${p.id}/preview`;
-
-  const card = (
-    <div className="rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800/60 hover:border-[#3CE6AC]/30 hover:shadow-lg hover:shadow-[#3CE6AC]/5 transition-all duration-200 cursor-pointer">
-      <div className="aspect-video bg-neutral-950 relative overflow-hidden flex items-center justify-center">
-        <img
-          src={thumbnailUrl}
-          alt={p.title ?? p.id}
-          loading="lazy"
-          className="max-w-full max-h-full object-contain"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = "none";
-          }}
-        />
-      </div>
-      <div className="px-3.5 py-3">
-        <div className="text-sm font-medium text-neutral-200 truncate">{p.title ?? p.id}</div>
-        <div className="text-[10px] text-neutral-600 font-mono truncate mt-0.5">{p.id}</div>
-      </div>
-    </div>
-  );
-
-  return (
-    <ExpandOnHover
-      expandedContent={(closeExpand) => (
-        <div className="w-full h-full bg-neutral-950 rounded-[16px] overflow-hidden flex flex-col">
-          <div className="flex-1 min-h-0">
-            <ExpandedPreviewIframe src={previewUrl} />
-          </div>
-          <div className="px-5 py-3 bg-neutral-900 border-t border-neutral-800/50 flex items-center justify-between flex-shrink-0">
-            <div>
-              <div className="text-sm font-medium text-neutral-200">{p.title ?? p.id}</div>
-              <div className="text-[10px] text-neutral-600 font-mono mt-0.5">{p.id}</div>
-            </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                closeExpand();
-                onSelect();
-              }}
-              className="px-4 py-1.5 text-xs font-semibold text-[#09090B] bg-[#3CE6AC] rounded-lg hover:brightness-110 transition-colors"
-            >
-              Open
-            </button>
-          </div>
-        </div>
-      )}
-      onClick={onSelect}
-      expandScale={0.6}
-      delay={400}
-    >
-      {card}
-    </ExpandOnHover>
-  );
-}
-
-// ── Project Picker ──
-
-function ProjectPicker({ onSelect }: { onSelect: (id: string) => void }) {
-  const [projects, setProjects] = useState<ProjectEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useMountEffect(() => {
-    fetch("/api/projects")
-      .then((r) => r.json())
-      .then((data: { projects?: ProjectEntry[] }) => {
-        setProjects(data.projects ?? []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  });
-
-  return (
-    <div className="h-screen w-screen bg-neutral-950 overflow-y-auto">
-      {/* Header */}
-      <div className="max-w-4xl mx-auto px-6 pt-16 pb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <svg width="32" height="32" viewBox="0 0 512 512" className="flex-shrink-0">
-            <rect width="512" height="512" rx="115" fill="#1A1913" />
-            <g strokeLinecap="round" strokeLinejoin="round">
-              <polyline
-                points="156,176 76,256 156,336"
-                fill="none"
-                stroke="#7B7568"
-                strokeWidth="32"
-              />
-              <line x1="206" y1="346" x2="286" y2="166" stroke="#D8D3C5" strokeWidth="32" />
-              <polygon
-                points="336,176 436,256 336,336"
-                fill="#3CE6AC"
-                stroke="#3CE6AC"
-                strokeWidth="32"
-              />
-            </g>
-          </svg>
-          <h1 className="text-2xl font-bold text-neutral-100 tracking-tight">HyperFrames Studio</h1>
-        </div>
-        <p className="text-sm text-neutral-500 ml-11">Your projects</p>
-      </div>
-
-      {/* Project grid */}
-      <div className="max-w-4xl mx-auto px-6 pb-16">
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="aspect-video rounded-xl bg-neutral-900 animate-pulse" />
-            ))}
-          </div>
-        ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <svg width="48" height="48" viewBox="0 0 512 512" className="opacity-20">
-              <rect width="512" height="512" rx="115" fill="#1A1913" />
-              <g strokeLinecap="round" strokeLinejoin="round">
-                <polyline
-                  points="156,176 76,256 156,336"
-                  fill="none"
-                  stroke="#7B7568"
-                  strokeWidth="32"
-                />
-                <line x1="206" y1="346" x2="286" y2="166" stroke="#D8D3C5" strokeWidth="32" />
-                <polygon
-                  points="336,176 436,256 336,336"
-                  fill="#3CE6AC"
-                  stroke="#3CE6AC"
-                  strokeWidth="32"
-                />
-              </g>
-            </svg>
-            <div className="text-center">
-              <p className="text-sm text-neutral-400 font-medium">No projects yet</p>
-              <p className="text-xs text-neutral-600 mt-1">
-                Run{" "}
-                <code className="px-1.5 py-0.5 rounded bg-neutral-800 text-[#3CE6AC] text-[11px]">
-                  hyperframes init
-                </code>{" "}
-                to create one
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {projects.map((p) => (
-              <ProjectCard key={p.id} project={p} onSelect={() => onSelect(p.id)} />
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -502,28 +254,27 @@ export function StudioApp() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [resolving, setResolving] = useState(true);
 
-  useMountEffect(() => {
-    const hash = window.location.hash;
-    const projectMatch = hash.match(/project\/([^/]+)/);
-    const sessionMatch = hash.match(/session\/([^/]+)/);
-    if (projectMatch) {
-      setProjectId(projectMatch[1]);
+  // eslint-disable-next-line no-restricted-syntax
+  useEffect(() => {
+    const hashMatch = window.location.hash.match(/^#project\/([^/]+)/);
+    if (hashMatch) {
+      setProjectId(hashMatch[1]);
       setResolving(false);
-    } else if (sessionMatch) {
-      fetch(`/api/resolve-session/${sessionMatch[1]}`)
-        .then((r) => r.json())
-        .then((data: { projectId?: string }) => {
-          if (data.projectId) {
-            window.location.hash = `#project/${data.projectId}`;
-            setProjectId(data.projectId);
-          }
-          setResolving(false);
-        })
-        .catch(() => setResolving(false));
-    } else {
-      setResolving(false);
+      return;
     }
-  });
+    // No hash — auto-select first available project
+    fetch("/api/projects")
+      .then((r) => r.json())
+      .then((data) => {
+        const first = (data.projects ?? [])[0];
+        if (first) {
+          setProjectId(first.id);
+          window.location.hash = `#project/${first.id}`;
+        }
+      })
+      .catch(() => {})
+      .finally(() => setResolving(false));
+  }, []);
 
   const [editingFile, setEditingFile] = useState<EditingFile | null>(null);
   const [rightTab, setRightTab] = useState<"code" | "renders">("code");
@@ -677,15 +428,6 @@ export function StudioApp() {
     };
   }, [projectId]);
 
-  const handleSelectProject = useCallback((id: string) => {
-    window.location.hash = `#project/${id}`;
-    setProjectId(id);
-    setActiveCompPath(null);
-    setEditingFile(null);
-    setCompIdToSrc(new Map());
-    setFileTree([]);
-  }, []);
-
   const handleFileSelect = useCallback((path: string) => {
     const pid = projectIdRef.current;
     if (!pid) return;
@@ -782,13 +524,9 @@ export function StudioApp() {
   if (resolving) {
     return (
       <div className="h-screen w-screen bg-neutral-950 flex items-center justify-center">
-        <div className="text-sm text-neutral-500">Loading...</div>
+        <div className="w-4 h-4 rounded-full bg-[#3CE6AC] animate-pulse" />
       </div>
     );
-  }
-
-  if (!projectId) {
-    return <ProjectPicker onSelect={handleSelectProject} />;
   }
 
   const compositions = fileTree.filter((f) => f === "index.html" || f.startsWith("compositions/"));
