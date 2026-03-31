@@ -412,10 +412,6 @@ function scaffoldProject(
 }
 
 // ---------------------------------------------------------------------------
-// nextStepLoop — "What do you want to do?" loop after scaffolding
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // Exported command
 // ---------------------------------------------------------------------------
 
@@ -505,6 +501,11 @@ Examples:
       let localVideoName: string | undefined;
       let videoDuration: number | undefined;
       let sourceFilePath: string | undefined;
+
+      if (videoFlag && audioFlag) {
+        console.error(c.error("Cannot use --video and --audio together"));
+        process.exit(1);
+      }
 
       // Handle video
       if (videoFlag) {

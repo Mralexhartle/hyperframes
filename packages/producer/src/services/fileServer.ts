@@ -328,28 +328,25 @@ export function createFileServer(options: FileServerOptions): Promise<FileServer
     // Without this, server.close() waits for keep-alive connections to
     // drain, holding the Node.js event loop open indefinitely.
     const connections = new Set<IncomingMessage["socket"]>();
+
+    // @hono/node-server serve() returns the http.Server directly.
+    // Register the connection tracker before the listen callback fires
+    // to avoid missing early connections.
     const server = serve({ fetch: app.fetch, port }, (info) => {
-      const actualPort = info.port;
-      const url = `http://localhost:${actualPort}`;
-
-      const httpServer = (server as unknown as { server?: { on: Function } }).server;
-      if (httpServer?.on) {
-        httpServer.on("connection", (socket: IncomingMessage["socket"]) => {
-          connections.add(socket);
-          socket.on("close", () => connections.delete(socket));
-        });
-      }
-
       resolve({
-        url,
-        port: actualPort,
+        url: `http://localhost:${info.port}`,
+        port: info.port,
         close: () => {
-          // Destroy all open connections, then close the server
           for (const socket of connections) socket.destroy();
           connections.clear();
           server.close();
         },
       });
+    });
+
+    server.on("connection", (socket: IncomingMessage["socket"]) => {
+      connections.add(socket);
+      socket.on("close", () => connections.delete(socket));
     });
   });
 }

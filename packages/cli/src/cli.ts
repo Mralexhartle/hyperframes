@@ -49,48 +49,46 @@ const main = defineCommand({
 });
 
 // ---------------------------------------------------------------------------
-// Telemetry — lazy-loaded, skipped for --help/--version
+// Telemetry — lazy-loaded, captured references for exit handlers
 // ---------------------------------------------------------------------------
 
 const commandArg = process.argv[2];
 const command = commandArg && commandArg in subCommands ? commandArg : "unknown";
+const hasJsonFlag = process.argv.includes("--json");
+
+// Captured references — populated when the lazy imports resolve.
+// Used in exit handlers where dynamic import() is unsafe (beforeExit loops,
+// exit handler is synchronous-only).
+let _flush: (() => Promise<void>) | undefined;
+let _flushSync: (() => void) | undefined;
+let _printUpdateNotice: (() => void) | undefined;
 
 if (!isHelp && command !== "telemetry" && command !== "unknown") {
-  // Defer telemetry import so --help doesn't pay for system metadata collection
-  import("./telemetry/index.js").then(
-    ({ showTelemetryNotice, trackCommand, shouldTrack, incrementCommandCount }) => {
-      showTelemetryNotice();
-      trackCommand(command);
-      if (shouldTrack()) incrementCommandCount();
-    },
-  );
-}
-
-// Fire background update check (non-blocking)
-const hasJsonFlag = process.argv.includes("--json");
-if (!isHelp && !hasJsonFlag && command !== "upgrade") {
-  import("./utils/updateCheck.js").then(({ checkForUpdate }) => {
-    checkForUpdate().catch(() => {});
+  import("./telemetry/index.js").then((mod) => {
+    _flush = mod.flush;
+    _flushSync = mod.flushSync;
+    mod.showTelemetryNotice();
+    mod.trackCommand(command);
+    if (mod.shouldTrack()) mod.incrementCommandCount();
   });
 }
 
-// Async flush for normal exit
+if (!isHelp && !hasJsonFlag && command !== "upgrade") {
+  import("./utils/updateCheck.js").then((mod) => {
+    _printUpdateNotice = mod.printUpdateNotice;
+    mod.checkForUpdate().catch(() => {});
+  });
+}
+
+// Async flush for normal exit (beforeExit fires when the event loop drains)
 process.on("beforeExit", () => {
-  import("./telemetry/index.js").then(({ flush }) => flush().catch(() => {}));
-  if (!hasJsonFlag) {
-    import("./utils/updateCheck.js").then(({ printUpdateNotice }) => printUpdateNotice());
-  }
+  _flush?.().catch(() => {});
+  if (!hasJsonFlag) _printUpdateNotice?.();
 });
 
-// Sync flush for process.exit() calls
+// Sync flush for process.exit() calls (exit event only allows synchronous code)
 process.on("exit", () => {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { flushSync } = require("./telemetry/index.js");
-    flushSync();
-  } catch {
-    // Telemetry not yet loaded — nothing to flush
-  }
+  _flushSync?.();
 });
 
 runMain(main);
