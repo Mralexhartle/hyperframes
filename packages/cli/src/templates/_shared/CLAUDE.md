@@ -21,7 +21,9 @@
 ```bash
 npx hyperframes dev          # preview in browser (studio editor)
 npx hyperframes render       # render to MP4
-npx hyperframes lint         # validate compositions
+npx hyperframes lint         # validate compositions (errors + warnings)
+npx hyperframes lint --verbose  # include info-level findings
+npx hyperframes lint --json     # machine-readable output for CI
 npx hyperframes docs <topic> # reference docs in terminal
 ```
 

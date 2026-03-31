@@ -51,8 +51,12 @@ npx hyperframes render ./my-composition.html -o output.mp4
 Validate your Hyperframes HTML:
 
 ```bash
-npx hyperframes lint ./my-composition.html
+npx hyperframes lint ./my-composition
+npx hyperframes lint ./my-composition --json      # JSON output for CI/tooling
+npx hyperframes lint ./my-composition --verbose   # Include info-level findings
 ```
+
+By default only errors and warnings are shown. Use `--verbose` to also display informational findings (e.g., external script dependency notices). Use `--json` for machine-readable output with `errorCount`, `warningCount`, `infoCount`, and a `findings` array.
 
 ### `compositions`
 
