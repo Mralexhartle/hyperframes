@@ -24,8 +24,7 @@ export function StudioApp() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [resolving, setResolving] = useState(true);
 
-  // eslint-disable-next-line no-restricted-syntax
-  useEffect(() => {
+  useMountEffect(() => {
     const hashMatch = window.location.hash.match(/^#project\/([^/]+)/);
     if (hashMatch) {
       setProjectId(hashMatch[1]);
@@ -44,7 +43,7 @@ export function StudioApp() {
       })
       .catch(() => {})
       .finally(() => setResolving(false));
-  }, []);
+  });
 
   const [editingFile, setEditingFile] = useState<EditingFile | null>(null);
   const [activeCompPath, setActiveCompPath] = useState<string | null>(null);
