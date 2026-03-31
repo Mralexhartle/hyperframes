@@ -132,19 +132,60 @@ tl.call(
 );
 ```
 
+## Backspacing (Clearing Text)
+
+TextPlugin's `text: { value: "" }` removes characters from the front of the word, which looks wrong — real backspacing deletes from the end. Do not use TextPlugin to clear text. Instead, use `tl.call()` to step through substrings, removing one character at a time from the end.
+
+```js
+// Backspace a word one character at a time from the end
+function backspace(tl, selector, word, startTime, cps) {
+  const el = document.querySelector(selector);
+  const interval = 1 / cps;
+  for (let i = word.length - 1; i >= 0; i--) {
+    tl.call(
+      () => {
+        el.textContent = word.slice(0, i);
+      },
+      [],
+      startTime + (word.length - i) * interval,
+    );
+  }
+  return word.length * interval; // total duration
+}
+
+// Usage:
+const clearDur = backspace(tl, "#typed-text", "hello", 5.0, 20);
+```
+
+This produces the correct visual: characters disappear from right to left, just like pressing backspace.
+
 ## Word Rotation
 
-Type a word, clear it, type the next. Useful for taglines that cycle through options. The cursor must blink during the hold pause between words and after each clear — every idle moment should blink.
+Type a word, hold, backspace it, type the next. The cursor must blink during every idle moment — hold pauses and after each backspace.
 
 ```js
 const words = ["creative", "powerful", "simple"];
 const cursor = document.querySelector("#cursor");
+const el = document.querySelector("#typed-text");
 let offset = startTime;
+
+function backspace(tl, el, word, start, cps) {
+  const interval = 1 / cps;
+  for (let i = word.length - 1; i >= 0; i--) {
+    tl.call(
+      () => {
+        el.textContent = word.slice(0, i);
+      },
+      [],
+      start + (word.length - i) * interval,
+    );
+  }
+  return word.length * interval;
+}
 
 words.forEach((word, i) => {
   const typeDuration = word.length / 10;
   const holdDuration = 1.5;
-  const clearDuration = word.length / 20; // Clear is faster than typing
 
   // Solid while typing
   tl.call(
@@ -174,9 +215,8 @@ words.forEach((word, i) => {
 
   offset += typeDuration + holdDuration;
 
-  // Clear the word (skip on the last word)
+  // Backspace the word (skip on the last word)
   if (i < words.length - 1) {
-    // Solid while clearing
     tl.call(
       () => {
         cursor.classList.replace("cursor-blink", "cursor-solid");
@@ -184,24 +224,15 @@ words.forEach((word, i) => {
       [],
       offset,
     );
-    tl.to(
-      "#typed-text",
-      {
-        text: { value: "" },
-        duration: clearDuration,
-        ease: "none",
-      },
-      offset,
-    );
-    // Blink after clear
+    const clearDur = backspace(tl, el, word, offset, 20);
     tl.call(
       () => {
         cursor.classList.replace("cursor-solid", "cursor-blink");
       },
       [],
-      offset + clearDuration,
+      offset + clearDur,
     );
-    offset += clearDuration + 0.3;
+    offset += clearDur + 0.3;
   }
 });
 ```
