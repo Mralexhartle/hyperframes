@@ -122,7 +122,7 @@ def compute_fft_bands(windowed: list[float], sample_rate: int, n_bands: int) -> 
     bands = []
     for b in range(n_bands):
         low_bin = max(0, int(band_edges[b] / freq_per_bin))
-        high_bin = min(n_bins - 1, int(band_edges[b + 1] / freq_per_bin))
+        high_bin = min(n_bins, int(band_edges[b + 1] / freq_per_bin))
         if high_bin <= low_bin:
             high_bin = low_bin + 1
         # Use max magnitude in the band (peak), not average — peaks are more

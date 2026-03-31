@@ -1,6 +1,6 @@
 ---
 name: gsap-effects
-description: Ready-made animation effects for HyperFrames compositions. Use when adding typewriter text, text reveals, character-by-character animation, audio visualizations, spectrum bars, waveform displays, or any reactive audio-driven animation to a composition. Reference files contain copy-paste patterns.
+description: Ready-made animation effects for HyperFrames compositions. Use when adding typewriter text, text reveals, character-by-character animation, audio visualizations, spectrum bars, waveform displays, or any reactive audio-driven animation to a composition. Also use when audio has been analyzed or transcribed in the current session and music is detected — the audio visualizer can enhance the composition with reactive visuals. Reference files contain patterns and data contracts.
 ---
 
 # GSAP Effects

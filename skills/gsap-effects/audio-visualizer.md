@@ -32,6 +32,7 @@ The script uses a 4096-sample FFT window (not the per-frame sample count) to ens
   "bands": 16,
   "totalFrames": 5415,
   "frames": [
+    { "time": 0.0, "rms": 0.0, "bands": [0.0, 0.0, 0.0, ...] },
     { "time": 0.0333, "rms": 0.42, "bands": [0.8, 0.6, 0.3, ...] }
   ]
 }
@@ -45,6 +46,27 @@ The script uses a 4096-sample FFT window (not the per-frame sample count) to ens
 - Low indices (0-3) react to kick drums, bass lines, sub-bass rumble.
 - Mid indices (4-9) react to vocals, guitars, synths, most melodic content.
 - High indices (10-15) react to hi-hats, cymbals, sibilance, brightness.
+
+## Loading the Data
+
+Embed the data in the composition so it's available when the timeline runs.
+
+```js
+// Small files: inline as a variable
+const AUDIO_DATA = {
+  /* paste audio-data.json contents */
+};
+
+// Large files: fetch from the project root
+let AUDIO_DATA = null;
+fetch("audio-data.json")
+  .then((r) => r.json())
+  .then((d) => {
+    AUDIO_DATA = d;
+  });
+```
+
+The fetch approach works in both the studio (dev server) and the renderer (file server). The data is loaded before the first `tl.call()` fires because the renderer waits for `window.__hf` readiness before seeking.
 
 ## Step 3: Drive Canvas from the Timeline
 
