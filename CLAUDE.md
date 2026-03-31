@@ -6,10 +6,10 @@ This repo ships skills that are installed globally via `npx hyperframes skills` 
 
 ### HyperFrames Skills (from this repo)
 
-| Skill                    | Invoke with             | When to use                                                                                                                                                                           |
-| ------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **hyperframes-compose**  | `/hyperframes-compose`  | Creating ANY HTML composition — videos, animations, title cards, overlays. Contains required HTML structure, `class="clip"` rules, GSAP timeline patterns, and rendering constraints. |
-| **hyperframes-captions** | `/hyperframes-captions` | Building tone-adaptive captions from whisper transcripts — style detection, per-word styling, positioning.                                                                            |
+| Skill                    | Invoke with             | When to use                                                                                                                                                                                                                 |
+| ------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **hyperframes-compose**  | `/hyperframes-compose`  | Creating ANY HTML composition — videos, animations, title cards, overlays. Contains required HTML structure, `class="clip"` rules, GSAP timeline patterns, and rendering constraints.                                       |
+| **hyperframes-captions** | `/hyperframes-captions` | Any task involving text synced to audio: captions, subtitles, lyrics, lyric videos, karaoke. Also covers transcription strategy (whisper model selection, whisper.cpp flags, transcript format). Lyric videos ARE captions. |
 
 ### GSAP Skills (from [greensock/gsap-skills](https://github.com/greensock/gsap-skills))
 
@@ -29,7 +29,9 @@ The skills encode HyperFrames-specific patterns (e.g., required `class="clip"` o
 ### Rules
 
 - When creating or modifying HTML compositions → invoke `/hyperframes-compose` BEFORE writing any code
-- When adding captions → invoke `/hyperframes-captions` BEFORE writing any code
+- When adding captions, subtitles, lyrics, or any text synced to audio → invoke `/hyperframes-captions` BEFORE writing any code
+- When transcribing audio or choosing a whisper model → invoke `/hyperframes-captions` BEFORE running any transcription tool — it defines the transcription strategy, model selection, and expected output format
+- When creating a video from audio (music video, lyric video, audio visualizer with text) → invoke BOTH `/hyperframes-compose` AND `/hyperframes-captions`
 - When writing GSAP animations → invoke `/gsap-core` and `/gsap-timeline` BEFORE writing any code
 - When optimizing animation performance → invoke `/gsap-performance` BEFORE making changes
 
