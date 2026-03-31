@@ -19,6 +19,7 @@ import {
   clampDurations,
   type ResolvedDuration,
   type UnresolvedElement,
+  rewriteAssetPaths,
 } from "@hyperframes/core";
 import { extractVideoMetadata, extractAudioMetadata } from "../utils/ffprobe.js";
 import {
@@ -577,6 +578,16 @@ function inlineSubCompositions(
       }
       scriptEl.remove();
     }
+
+    // Rewrite relative asset paths before inlining so ../foo.svg from
+    // compositions/ resolves correctly when the content moves to root.
+    const rewriteTarget = innerRoot || contentDoc;
+    rewriteAssetPaths(
+      rewriteTarget.querySelectorAll("[src], [href]"),
+      srcPath,
+      (el, attr) => (el.getAttribute(attr) || "").trim(),
+      (el, attr, val) => el.setAttribute(attr, val),
+    );
 
     if (innerRoot) {
       const innerW = innerRoot.getAttribute("data-width");

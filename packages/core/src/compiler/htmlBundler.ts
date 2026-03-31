@@ -3,6 +3,7 @@ import { join, resolve, isAbsolute, sep } from "path";
 import * as cheerio from "cheerio";
 import { transformSync } from "esbuild";
 import { compileHtml, type MediaDurationProber } from "./htmlCompiler";
+import { rewriteAssetPaths } from "./rewriteSubCompPaths";
 import { validateHyperframeHtmlContract } from "./staticGuard";
 
 /** Resolve a relative path within projectDir, rejecting traversal outside it. */
@@ -431,6 +432,20 @@ export async function bundleToSingleHtml(
       }
       $content(s).remove();
     });
+
+    // Rewrite relative asset paths before inlining so ../foo.svg from
+    // compositions/ resolves correctly when the content moves to root.
+    const $assetEls = $innerRoot.length
+      ? $innerRoot.find("[src], [href]")
+      : $content("[src], [href]");
+    rewriteAssetPaths(
+      $assetEls.toArray(),
+      src,
+      (el, attr) => $content(el).attr(attr),
+      (el, attr, val) => {
+        $content(el).attr(attr, val);
+      },
+    );
 
     if ($innerRoot.length) {
       const innerCompId = $innerRoot.attr("data-composition-id");

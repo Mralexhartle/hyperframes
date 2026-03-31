@@ -120,6 +120,7 @@ export type {
   HyperframeLinterOptions,
 } from "./lint/types";
 export { lintHyperframeHtml } from "./lint/hyperframeLinter";
+export { rewriteAssetPaths, rewriteAssetPath } from "./compiler/rewriteSubCompPaths";
 
 // Inline scripts
 export {
