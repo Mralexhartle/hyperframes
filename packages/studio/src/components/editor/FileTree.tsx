@@ -348,7 +348,7 @@ function InlineInput({
       {isFolder ? (
         <FolderSimple size={SZ} weight="duotone" color="#6B7280" className="flex-shrink-0" />
       ) : (
-        <File size={SZ} weight="duotone" color="#6B7280" className="flex-shrink-0" />
+        <FileIcon path={value} />
       )}
       <input
         ref={inputRef}
