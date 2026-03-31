@@ -26,6 +26,12 @@ interface LeftSidebarProps {
   fileTree?: string[];
   editingFile?: { path: string; content: string | null } | null;
   onSelectFile?: (path: string) => void;
+  onCreateFile?: (path: string) => void;
+  onCreateFolder?: (path: string) => void;
+  onDeleteFile?: (path: string) => void;
+  onRenameFile?: (oldPath: string, newPath: string) => void;
+  onDuplicateFile?: (path: string) => void;
+  onMoveFile?: (oldPath: string, newPath: string) => void;
   codeChildren?: ReactNode;
   onLint?: () => void;
   linting?: boolean;
@@ -42,6 +48,12 @@ export const LeftSidebar = memo(function LeftSidebar({
   fileTree: fileProp,
   editingFile,
   onSelectFile,
+  onCreateFile,
+  onCreateFolder,
+  onDeleteFile,
+  onRenameFile,
+  onDuplicateFile,
+  onMoveFile,
   codeChildren,
   onLint,
   linting,
@@ -127,11 +139,17 @@ export const LeftSidebar = memo(function LeftSidebar({
       {tab === "code" && (
         <div className="flex flex-1 min-h-0">
           {(fileProp?.length ?? 0) > 0 && (
-            <div className="w-[140px] flex-shrink-0 border-r border-neutral-800 overflow-y-auto">
+            <div className="w-[160px] flex-shrink-0 border-r border-neutral-800 overflow-y-auto">
               <FileTree
                 files={fileProp ?? []}
                 activeFile={editingFile?.path ?? null}
                 onSelectFile={onSelectFile ?? (() => {})}
+                onCreateFile={onCreateFile}
+                onCreateFolder={onCreateFolder}
+                onDeleteFile={onDeleteFile}
+                onRenameFile={onRenameFile}
+                onDuplicateFile={onDuplicateFile}
+                onMoveFile={onMoveFile}
               />
             </div>
           )}

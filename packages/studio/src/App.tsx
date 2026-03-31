@@ -246,6 +246,115 @@ export function StudioApp() {
     }, 600);
   }, []);
 
+  // ── File Management Handlers ──
+
+  const refreshFileTree = useCallback(async () => {
+    const pid = projectIdRef.current;
+    if (!pid) return;
+    const res = await fetch(`/api/projects/${pid}`);
+    const data = await res.json();
+    if (data.files) setFileTree(data.files);
+  }, []);
+
+  const handleCreateFile = useCallback(
+    async (path: string) => {
+      const pid = projectIdRef.current;
+      if (!pid) return;
+      let content = "";
+      if (path.endsWith(".html")) {
+        content =
+          '<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="UTF-8">\n</head>\n<body>\n\n</body>\n</html>\n';
+      }
+      const res = await fetch(`/api/projects/${pid}/files/${encodeURIComponent(path)}`, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: content,
+      });
+      if (res.ok) {
+        await refreshFileTree();
+        handleFileSelect(path);
+      }
+    },
+    [refreshFileTree, handleFileSelect],
+  );
+
+  const handleCreateFolder = useCallback(
+    async (path: string) => {
+      const pid = projectIdRef.current;
+      if (!pid) return;
+      // Create a .gitkeep inside the folder so it appears in the tree
+      const res = await fetch(
+        `/api/projects/${pid}/files/${encodeURIComponent(path + "/.gitkeep")}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: "",
+        },
+      );
+      if (res.ok) await refreshFileTree();
+    },
+    [refreshFileTree],
+  );
+
+  const handleDeleteFile = useCallback(
+    async (path: string) => {
+      const pid = projectIdRef.current;
+      if (!pid) return;
+      const res = await fetch(`/api/projects/${pid}/files/${encodeURIComponent(path)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        if (editingFile?.path === path) setEditingFile(null);
+        await refreshFileTree();
+      }
+    },
+    [editingFile, refreshFileTree],
+  );
+
+  const handleRenameFile = useCallback(
+    async (oldPath: string, newPath: string) => {
+      const pid = projectIdRef.current;
+      if (!pid) return;
+      const res = await fetch(`/api/projects/${pid}/files/${encodeURIComponent(oldPath)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPath }),
+      });
+      if (res.ok) {
+        if (editingFile?.path === oldPath) {
+          handleFileSelect(newPath);
+        }
+        await refreshFileTree();
+      }
+    },
+    [editingFile, refreshFileTree, handleFileSelect],
+  );
+
+  const handleDuplicateFile = useCallback(
+    async (path: string) => {
+      const pid = projectIdRef.current;
+      if (!pid) return;
+      const res = await fetch(`/api/projects/${pid}/duplicate-file`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        await refreshFileTree();
+        if (data.path) handleFileSelect(data.path);
+      }
+    },
+    [refreshFileTree, handleFileSelect],
+  );
+
+  const handleMoveFile = useCallback(
+    async (oldPath: string, newPath: string) => {
+      await handleRenameFile(oldPath, newPath);
+    },
+    [handleRenameFile],
+  );
+
   const handleLint = useCallback(async () => {
     const pid = projectIdRef.current;
     if (!pid) return;
@@ -433,6 +542,12 @@ export function StudioApp() {
             fileTree={fileTree}
             editingFile={editingFile}
             onSelectFile={handleFileSelect}
+            onCreateFile={handleCreateFile}
+            onCreateFolder={handleCreateFolder}
+            onDeleteFile={handleDeleteFile}
+            onRenameFile={handleRenameFile}
+            onDuplicateFile={handleDuplicateFile}
+            onMoveFile={handleMoveFile}
             codeChildren={
               editingFile ? (
                 isMediaFile(editingFile.path) ? (
