@@ -58,7 +58,7 @@ If you don't want to touch your global `$PATH`, add a shell alias or call `node`
 alias hyperframes="node /path/to/hyperframes-oss/packages/cli/dist/cli.js"
 
 # Or invoke directly
-node /path/to/hyperframes-oss/packages/cli/dist/cli.js dev .
+node /path/to/hyperframes-oss/packages/cli/dist/cli.js preview .
 ```
 
 Replace `/path/to/hyperframes-oss` with your actual monorepo path.
@@ -76,7 +76,7 @@ npm pack
 mkdir /tmp/pack-test && cd /tmp/pack-test
 npx /path/to/hyperframes-oss/packages/cli/hyperframes-<version>.tgz init my-video
 cd my-video
-npx /path/to/hyperframes-oss/packages/cli/hyperframes-<version>.tgz dev .
+npx /path/to/hyperframes-oss/packages/cli/hyperframes-<version>.tgz preview .
 ```
 
 ## Testing the fix branches
