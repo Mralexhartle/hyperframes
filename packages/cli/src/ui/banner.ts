@@ -1,14 +1,13 @@
 import { isColorSupported } from "./colors.js";
 
 // ---------------------------------------------------------------------------
-// Gradient stops: white → logo blue (#48BFE3)
+// Gradient stops: white → teal #74E1B9 → cyan #6ADCFF
 // ---------------------------------------------------------------------------
 
 const GRADIENT: [number, number, number][] = [
   [255, 255, 255], // white
-  [180, 230, 245], // light sky
-  [120, 210, 238], // mid
-  [72, 191, 227], // logo blue #48BFE3
+  [116, 225, 185], // #74E1B9 teal
+  [106, 220, 255], // #6ADCFF cyan
 ];
 
 function lerp(a: number, b: number, t: number): number {
