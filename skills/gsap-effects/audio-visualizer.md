@@ -10,7 +10,7 @@ HyperFrames renders frame-by-frame in headless Chrome — there's no audio playi
 
 ```bash
 python skills/gsap-effects/scripts/extract-audio-data.py audio.mp3 -o audio-data.json
-python skills/gsap-effects/scripts/extract-audio-data.py video.mp4 --fps 30 --bands 8 -o audio-data.json
+python skills/gsap-effects/scripts/extract-audio-data.py video.mp4 --fps 30 --bands 16 -o audio-data.json
 ```
 
 Requires ffmpeg. Optional: numpy (faster FFT, falls back to pure Python).
@@ -18,8 +18,10 @@ Requires ffmpeg. Optional: numpy (faster FFT, falls back to pure Python).
 | Flag      | Default         | Description                                              |
 | --------- | --------------- | -------------------------------------------------------- |
 | `--fps`   | 30              | Must match the composition/render FPS                    |
-| `--bands` | 8               | Number of frequency bands (more = finer spectrum detail) |
+| `--bands` | 16              | Number of frequency bands (more = finer spectrum detail) |
 | `-o`      | audio-data.json | Output path                                              |
+
+The script uses a 4096-sample FFT window (not the per-frame sample count) to ensure each frequency band maps to distinct FFT bins. Bands are logarithmically spaced from 30Hz to 16kHz — the useful range for music. Each band is normalized independently across the full track so treble activity is visible even when bass is louder in absolute terms.
 
 Output structure:
 
@@ -27,17 +29,25 @@ Output structure:
 {
   "duration": 180.5,
   "fps": 30,
-  "bands": 8,
+  "bands": 16,
   "totalFrames": 5415,
   "frames": [
-    { "time": 0.0, "rms": 0.0, "bands": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] },
-    { "time": 0.0333, "rms": 0.42, "bands": [0.8, 0.6, 0.3, 0.2, 0.1, 0.1, 0.05, 0.02] }
+    { "time": 0.0, "rms": 0.0, "bands": [0.0, 0.0, 0.0, ...] },
+    { "time": 0.0333, "rms": 0.42, "bands": [0.8, 0.6, 0.3, ...] }
   ]
 }
 ```
 
 - `rms` — overall amplitude, normalized 0-1 across the track. Drives pulsing, bouncing, glow.
-- `bands` — frequency magnitudes, normalized 0-1 per frame. Index 0 = bass, last = treble. Drives spectrum bars, EQ displays.
+- `bands` — frequency magnitudes per band, each normalized 0-1 independently across the track. Index 0 = lowest bass (30Hz), last index = highest treble (16kHz). Drives spectrum bars, EQ displays.
+
+## Band Ordering
+
+Bands are always ordered low-to-high frequency: index 0 is bass, last index is treble. When drawing visualizations:
+
+- **Horizontal layouts** (spectrum bars, EQ): low frequencies on the left, high frequencies on the right. Iterate bands left-to-right as index 0, 1, 2, ...
+- **Vertical layouts**: low frequencies at the bottom, high frequencies at the top. Iterate bands bottom-to-top.
+- **Circular layouts**: bass starts at the top (12 o'clock) and wraps clockwise.
 
 ## Step 2: Embed Data in the Composition
 
