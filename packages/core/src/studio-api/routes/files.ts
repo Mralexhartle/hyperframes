@@ -1,5 +1,4 @@
 import type { Hono } from "hono";
-import type { Context } from "hono";
 import {
   existsSync,
   readFileSync,
@@ -20,13 +19,17 @@ import { isSafePath } from "../helpers/safePath.js";
  * Resolve the project and file path from the request, validating safety.
  * Returns null (and sends an error response) if anything is invalid.
  */
+interface RouteContext {
+  req: { param: (name: string) => string; path: string };
+  json: (data: unknown, status?: number) => Response;
+}
+
 async function resolveProjectFile(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  c: Context<any>,
+  c: RouteContext,
   adapter: StudioApiAdapter,
   opts?: { mustExist?: boolean },
 ) {
-  const id = c.req.param("id") as string;
+  const id = c.req.param("id");
   const project = await adapter.resolveProject(id);
   if (!project) {
     return { error: c.json({ error: "not found" }, 404) } as const;
