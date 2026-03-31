@@ -324,6 +324,8 @@ export function StudioApp() {
           handleFileSelect(newPath);
         }
         await refreshFileTree();
+        // Refresh preview — references in compositions may have been updated
+        setRefreshKey((k) => k + 1);
       }
     },
     [refreshFileTree, handleFileSelect],

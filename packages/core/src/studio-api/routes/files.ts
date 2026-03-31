@@ -8,8 +8,9 @@ import {
   rmSync,
   statSync,
   renameSync,
+  readdirSync,
 } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, join } from "node:path";
 import type { StudioApiAdapter } from "../types.js";
 import { isSafePath } from "../helpers/safePath.js";
 
@@ -77,6 +78,61 @@ function generateCopyPath(projectDir: string, originalPath: string): string {
   }
 
   return candidate;
+}
+
+/**
+ * Walk a directory recursively and return all file paths matching a filter.
+ */
+function walkFiles(dir: string, filter: (name: string) => boolean): string[] {
+  const results: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "node_modules" || entry.name === ".thumbnails" || entry.name === "renders")
+        continue;
+      results.push(...walkFiles(full, filter));
+    } else if (filter(entry.name)) {
+      results.push(full);
+    }
+  }
+  return results;
+}
+
+/**
+ * After a rename, update all references to the old path in project files.
+ * Scans HTML, CSS, JS, and JSON files for the old filename/path and replaces.
+ */
+function updateReferences(projectDir: string, oldPath: string, newPath: string): number {
+  const textFiles = walkFiles(projectDir, (name) =>
+    /\.(html|css|js|jsx|ts|tsx|json|mjs|cjs|md|mdx)$/i.test(name),
+  );
+
+  let updatedCount = 0;
+  for (const file of textFiles) {
+    const content = readFileSync(file, "utf-8");
+
+    // Replace both the full relative path and just the filename
+    // e.g. "assets/music.mp3" → "assets/background.mp3"
+    // and "music.mp3" → "background.mp3" (for same-directory refs)
+    const oldName = oldPath.split("/").pop() ?? oldPath;
+    const newName = newPath.split("/").pop() ?? newPath;
+
+    let updated = content;
+    if (content.includes(oldPath)) {
+      updated = updated.split(oldPath).join(newPath);
+    }
+    // Only do filename-level replacement if names actually changed
+    // and the filename isn't too generic (avoid replacing "a.js" inside "data.js")
+    if (oldName !== newName && oldName.length > 2 && content.includes(oldName)) {
+      updated = updated.split(oldName).join(newName);
+    }
+
+    if (updated !== content) {
+      writeFileSync(file, updated, "utf-8");
+      updatedCount++;
+    }
+  }
+  return updatedCount;
 }
 
 // ── Route registration ──────────────────────────────────────────────────────
@@ -160,7 +216,10 @@ export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
     ensureDir(newAbs);
     renameSync(res.absPath, newAbs);
 
-    return c.json({ ok: true, path: body.newPath });
+    // Update references to the old path across all project files
+    const updatedFiles = updateReferences(res.project.dir, res.filePath, body.newPath);
+
+    return c.json({ ok: true, path: body.newPath, updatedReferences: updatedFiles });
   });
 
   // ── Duplicate ──
