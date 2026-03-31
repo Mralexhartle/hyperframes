@@ -272,6 +272,9 @@ export function StudioApp() {
       if (res.ok) {
         await refreshFileTree();
         handleFileSelect(path);
+      } else {
+        const err = await res.json().catch(() => ({ error: "unknown" }));
+        console.error(`Create file failed: ${err.error}`);
       }
     },
     [refreshFileTree, handleFileSelect],
@@ -290,7 +293,12 @@ export function StudioApp() {
           body: "",
         },
       );
-      if (res.ok) await refreshFileTree();
+      if (res.ok) {
+        await refreshFileTree();
+      } else {
+        const err = await res.json().catch(() => ({ error: "unknown" }));
+        console.error(`Create folder failed: ${err.error}`);
+      }
     },
     [refreshFileTree],
   );
@@ -305,6 +313,9 @@ export function StudioApp() {
       if (res.ok) {
         if (editingPathRef.current === path) setEditingFile(null);
         await refreshFileTree();
+      } else {
+        const err = await res.json().catch(() => ({ error: "unknown" }));
+        console.error(`Delete failed: ${err.error}`);
       }
     },
     [refreshFileTree],
@@ -326,6 +337,9 @@ export function StudioApp() {
         await refreshFileTree();
         // Refresh preview — references in compositions may have been updated
         setRefreshKey((k) => k + 1);
+      } else {
+        const err = await res.json().catch(() => ({ error: "unknown" }));
+        console.error(`Rename failed: ${err.error}`);
       }
     },
     [refreshFileTree, handleFileSelect],
@@ -344,6 +358,9 @@ export function StudioApp() {
         const data = await res.json();
         await refreshFileTree();
         if (data.path) handleFileSelect(data.path);
+      } else {
+        const err = await res.json().catch(() => ({ error: "unknown" }));
+        console.error(`Duplicate failed: ${err.error}`);
       }
     },
     [refreshFileTree, handleFileSelect],

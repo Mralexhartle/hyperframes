@@ -98,6 +98,7 @@ function AssetCard({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [renameName, setRenameName] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const name = asset.split("/").pop() ?? asset;
   const serveUrl = `/api/projects/${projectId}/preview/${asset}`;
   const isVideo = VIDEO_EXT.test(asset);
@@ -226,7 +227,7 @@ function AssetCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDelete(asset);
+                  setConfirmDelete(true);
                   setContextMenu(null);
                 }}
                 className="w-full text-left px-3 py-1.5 text-red-400 hover:bg-neutral-800 transition-colors"
@@ -234,6 +235,34 @@ function AssetCard({
                 Delete
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <div className="px-2 py-1.5 bg-red-950/30 border-l-2 border-red-500 flex items-center justify-between gap-2">
+          <span className="text-[10px] text-red-400 truncate">Delete {name}?</span>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(asset);
+                setConfirmDelete(false);
+              }}
+              className="px-2 py-0.5 text-[10px] rounded bg-red-600 text-white hover:bg-red-500 transition-colors"
+            >
+              Delete
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirmDelete(false);
+              }}
+              className="px-2 py-0.5 text-[10px] rounded text-neutral-400 hover:text-neutral-200 transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

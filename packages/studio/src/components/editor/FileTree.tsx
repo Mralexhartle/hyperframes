@@ -64,6 +64,8 @@ interface InlineInputState {
   originalPath?: string;
   /** For rename mode, the original name */
   originalName?: string;
+  onCommit?: (name: string) => void;
+  onCancel?: () => void;
 }
 
 // ── Constants ──
@@ -449,7 +451,7 @@ function TreeFolder({
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const toggle = useCallback(() => setIsOpen((v) => !v), []);
-  const children = sortChildren(node.children);
+  const children = useMemo(() => sortChildren(node.children), [node.children]);
   const Chevron = isOpen ? ChevronDown : ChevronRight;
   const isDragOver = dragOverFolder === node.fullPath;
   const isRenaming = inlineInput?.mode === "rename" && inlineInput.originalPath === node.fullPath;
@@ -461,12 +463,10 @@ function TreeFolder({
         depth={depth}
         isFolder={true}
         onCommit={(name) => {
-          (inlineInput as InlineInputState & { onCommit?: (name: string) => void }).onCommit?.(
-            name,
-          );
+          inlineInput?.onCommit?.(name);
         }}
         onCancel={() => {
-          (inlineInput as InlineInputState & { onCancel?: () => void }).onCancel?.();
+          inlineInput?.onCancel?.();
         }}
       />
     );
@@ -512,12 +512,10 @@ function TreeFolder({
                 onCommit={(name) => {
                   // onCommit is handled by the parent FileTree component
                   // via the inlineInputCommit callback
-                  (
-                    inlineInput as InlineInputState & { onCommit?: (name: string) => void }
-                  ).onCommit?.(name);
+                  inlineInput?.onCommit?.(name);
                 }}
                 onCancel={() => {
-                  (inlineInput as InlineInputState & { onCancel?: () => void }).onCancel?.();
+                  inlineInput?.onCancel?.();
                 }}
               />
             )}
@@ -597,12 +595,10 @@ function TreeFile({
         depth={depth}
         isFolder={false}
         onCommit={(name) => {
-          (inlineInput as InlineInputState & { onCommit?: (name: string) => void }).onCommit?.(
-            name,
-          );
+          inlineInput?.onCommit?.(name);
         }}
         onCancel={() => {
-          (inlineInput as InlineInputState & { onCancel?: () => void }).onCancel?.();
+          inlineInput?.onCancel?.();
         }}
       />
     );
@@ -647,9 +643,7 @@ export const FileTree = memo(function FileTree({
   const children = useMemo(() => sortChildren(tree.children), [tree]);
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [inlineInput, setInlineInput] = useState<
-    (InlineInputState & { onCommit?: (name: string) => void; onCancel?: () => void }) | null
-  >(null);
+  const [inlineInput, setInlineInput] = useState<InlineInputState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [dragOverFolder, setDragOverFolder] = useState<string | null>(null);
   const dragSourceRef = useRef<string | null>(null);

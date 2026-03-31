@@ -111,22 +111,11 @@ function updateReferences(projectDir: string, oldPath: string, newPath: string):
   for (const file of textFiles) {
     const content = readFileSync(file, "utf-8");
 
-    // Replace both the full relative path and just the filename
-    // e.g. "assets/music.mp3" → "assets/background.mp3"
-    // and "music.mp3" → "background.mp3" (for same-directory refs)
-    const oldName = oldPath.split("/").pop() ?? oldPath;
-    const newName = newPath.split("/").pop() ?? newPath;
+    // Only replace full relative paths — never bare filenames, which can
+    // corrupt unrelated content (e.g. "logo.png" inside "my-logo.png").
+    if (!content.includes(oldPath)) continue;
 
-    let updated = content;
-    if (content.includes(oldPath)) {
-      updated = updated.split(oldPath).join(newPath);
-    }
-    // Only do filename-level replacement if names actually changed
-    // and the filename isn't too generic (avoid replacing "a.js" inside "data.js")
-    if (oldName !== newName && oldName.length > 2 && content.includes(oldName)) {
-      updated = updated.split(oldName).join(newName);
-    }
-
+    const updated = content.split(oldPath).join(newPath);
     if (updated !== content) {
       writeFileSync(file, updated, "utf-8");
       updatedCount++;
@@ -201,7 +190,7 @@ export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
     if ("error" in res) return res.error;
 
     const body = (await c.req.json()) as { newPath?: string };
-    if (!body.newPath) {
+    if (!body.newPath || body.newPath.includes("\0")) {
       return c.json({ error: "newPath required" }, 400);
     }
 
@@ -229,7 +218,7 @@ export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
     if (!project) return c.json({ error: "not found" }, 404);
 
     const body = (await c.req.json()) as { path: string };
-    if (!body.path) {
+    if (!body.path || body.path.includes("\0")) {
       return c.json({ error: "path required" }, 400);
     }
 
