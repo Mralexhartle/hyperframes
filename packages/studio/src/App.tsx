@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect, type ReactNode } from "react"
 import { useMountEffect } from "./hooks/useMountEffect";
 import { NLELayout } from "./components/nle/NLELayout";
 import { SourceEditor } from "./components/editor/SourceEditor";
-import { FileTree } from "./components/editor/FileTree";
 import { LeftSidebar } from "./components/sidebar/LeftSidebar";
 import { RenderQueue } from "./components/renders/RenderQueue";
 import { useRenderQueue } from "./components/renders/useRenderQueue";
@@ -277,7 +276,6 @@ export function StudioApp() {
   }, []);
 
   const [editingFile, setEditingFile] = useState<EditingFile | null>(null);
-  const [rightTab, setRightTab] = useState<"code" | "renders">("code");
   const [activeCompPath, setActiveCompPath] = useState<string | null>(null);
   const [fileTree, setFileTree] = useState<string[]>([]);
   const [compIdToSrc, setCompIdToSrc] = useState<Map<string, string>>(new Map());
@@ -287,10 +285,12 @@ export function StudioApp() {
   const [leftWidth, setLeftWidth] = useState(240);
   const [rightWidth, setRightWidth] = useState(400);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
-  const panelDragRef = useRef<{ side: "left" | "right"; startX: number; startW: number } | null>(
-    null,
-  );
+  const [rightCollapsed, setRightCollapsed] = useState(true);
+  const panelDragRef = useRef<{
+    side: "left" | "right";
+    startX: number;
+    startW: number;
+  } | null>(null);
 
   // Derive active preview URL from composition path (for drilled-down thumbnails)
   const activePreviewUrl = activeCompPath
@@ -431,6 +431,8 @@ export function StudioApp() {
   const handleFileSelect = useCallback((path: string) => {
     const pid = projectIdRef.current;
     if (!pid) return;
+    // Expand left panel to 50vw when opening a file in Code tab
+    setLeftWidth((prev) => Math.max(prev, Math.floor(window.innerWidth * 0.5)));
     // Skip fetching binary content for media files — just set the path for preview
     if (isMediaFile(path)) {
       setEditingFile({ path, content: null });
@@ -509,9 +511,13 @@ export function StudioApp() {
     const drag = panelDragRef.current;
     if (!drag) return;
     const delta = e.clientX - drag.startX;
+    const maxLeft = Math.floor(window.innerWidth * 0.5);
     const newW = Math.max(
       160,
-      Math.min(600, drag.startW + (drag.side === "left" ? delta : -delta)),
+      Math.min(
+        drag.side === "left" ? maxLeft : 600,
+        drag.startW + (drag.side === "left" ? delta : -delta),
+      ),
     );
     if (drag.side === "left") setLeftWidth(newW);
     else setRightWidth(newW);
@@ -540,38 +546,16 @@ export function StudioApp() {
     <div className="flex flex-col h-screen w-screen bg-neutral-950">
       {/* Header bar */}
       <div className="flex items-center justify-between h-10 px-3 bg-neutral-900 border-b border-neutral-800 flex-shrink-0">
-        {/* Left: back button + project name */}
+        {/* Left: project name */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              window.location.hash = "";
-              setProjectId(null);
-            }}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-md text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            <span className="text-xs">Projects</span>
-          </button>
-          <span className="text-[11px] text-neutral-600">/</span>
-          <span className="text-[11px] font-medium text-neutral-300">{projectId}</span>
+          <span className="text-[11px] font-medium text-neutral-400">{projectId}</span>
         </div>
         {/* Right: toolbar buttons */}
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setLeftCollapsed((v) => !v)}
             className={`h-7 w-7 flex items-center justify-center rounded-md border transition-colors ${
-              leftCollapsed
+              !leftCollapsed
                 ? "bg-neutral-800 border-neutral-700 text-neutral-300"
                 : "bg-transparent border-transparent text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800"
             }`}
@@ -592,34 +576,26 @@ export function StudioApp() {
             </svg>
           </button>
           <button
-            onClick={handleLint}
-            disabled={linting}
-            className="h-7 px-2.5 rounded-md text-[11px] font-medium text-neutral-500 hover:text-amber-300 hover:bg-neutral-800 transition-colors disabled:opacity-40"
-          >
-            {linting ? "Linting..." : "Lint"}
-          </button>
-          <button
             onClick={() => setRightCollapsed((v) => !v)}
-            className={`h-7 w-7 flex items-center justify-center rounded-md border transition-colors ${
-              rightCollapsed
-                ? "bg-neutral-800 border-neutral-700 text-neutral-300"
-                : "bg-transparent border-transparent text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800"
+            className={`h-7 flex items-center gap-1.5 px-2.5 rounded-md text-[11px] font-medium border transition-colors ${
+              !rightCollapsed
+                ? "text-[#3CE6AC] bg-[#3CE6AC]/10 border-[#3CE6AC]/30"
+                : "text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 border-transparent"
             }`}
-            title={rightCollapsed ? "Show code panel" : "Hide code panel"}
           >
             <svg
-              width="14"
-              height="14"
+              width="12"
+              height="12"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              strokeWidth="2"
             >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M15 3v18" />
+              <circle cx="12" cy="12" r="10" />
+              <polygon points="10 8 16 12 10 16" fill="currentColor" stroke="none" />
             </svg>
+            Renders
+            {renderQueue.jobs.length > 0 ? ` (${renderQueue.jobs.length})` : ""}
           </button>
         </div>
       </div>
@@ -649,6 +625,24 @@ export function StudioApp() {
                 .then((data) => setEditingFile({ path: comp, content: data.content }))
                 .catch(() => {});
             }}
+            fileTree={fileTree}
+            editingFile={editingFile}
+            onSelectFile={handleFileSelect}
+            codeChildren={
+              editingFile ? (
+                isMediaFile(editingFile.path) ? (
+                  <MediaPreview projectId={projectId} filePath={editingFile.path} />
+                ) : (
+                  <SourceEditor
+                    content={editingFile.content ?? ""}
+                    filePath={editingFile.path}
+                    onChange={handleContentChange}
+                  />
+                )
+              ) : undefined
+            }
+            onLint={handleLint}
+            linting={linting}
           />
         )}
 
@@ -682,80 +676,20 @@ export function StudioApp() {
           />
         </div>
 
-        {/* Right resize handle */}
+        {/* Right panel: Renders-only (resizable, collapsible via header Renders button) */}
         {!rightCollapsed && (
-          <div
-            className="w-1 flex-shrink-0 bg-neutral-800 hover:bg-blue-500 cursor-col-resize transition-colors active:bg-blue-400"
-            style={{ touchAction: "none" }}
-            onPointerDown={(e) => handlePanelResizeStart("right", e)}
-            onPointerMove={handlePanelResizeMove}
-            onPointerUp={handlePanelResizeEnd}
-          />
-        )}
-
-        {/* Right panel: Code + Renders tabs (resizable, collapsible) */}
-        {!rightCollapsed && (
-          <div
-            className="flex flex-col border-l border-neutral-800 bg-neutral-900 flex-shrink-0"
-            style={{ width: rightWidth }}
-          >
-            {/* Tab bar */}
-            <div className="flex items-center border-b border-neutral-800 flex-shrink-0">
-              <button
-                onClick={() => setRightTab("code")}
-                className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
-                  rightTab === "code"
-                    ? "text-neutral-200 border-b-2 border-[#3CE6AC]"
-                    : "text-neutral-500 hover:text-neutral-400"
-                }`}
-              >
-                Code
-              </button>
-              <button
-                onClick={() => setRightTab("renders")}
-                className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
-                  rightTab === "renders"
-                    ? "text-neutral-200 border-b-2 border-[#3CE6AC]"
-                    : "text-neutral-500 hover:text-neutral-400"
-                }`}
-              >
-                Renders{renderQueue.jobs.length > 0 ? ` (${renderQueue.jobs.length})` : ""}
-              </button>
-            </div>
-
-            {/* Tab content */}
-            {rightTab === "code" ? (
-              <div className="flex flex-1 min-h-0">
-                {/* File tree sidebar */}
-                {fileTree.length > 0 && (
-                  <div className="w-[140px] flex-shrink-0 border-r border-neutral-800 overflow-y-auto">
-                    <FileTree
-                      files={fileTree}
-                      activeFile={editingFile?.path ?? null}
-                      onSelectFile={handleFileSelect}
-                    />
-                  </div>
-                )}
-                {/* Code editor or media preview */}
-                <div className="flex-1 overflow-hidden min-w-0">
-                  {editingFile ? (
-                    isMediaFile(editingFile.path) ? (
-                      <MediaPreview projectId={projectId} filePath={editingFile.path} />
-                    ) : (
-                      <SourceEditor
-                        content={editingFile.content ?? ""}
-                        filePath={editingFile.path}
-                        onChange={handleContentChange}
-                      />
-                    )
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-neutral-600 text-sm">
-                      Select a file to edit
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
+          <>
+            <div
+              className="w-1 flex-shrink-0 bg-neutral-800 hover:bg-blue-500 cursor-col-resize transition-colors active:bg-blue-400"
+              style={{ touchAction: "none" }}
+              onPointerDown={(e) => handlePanelResizeStart("right", e)}
+              onPointerMove={handlePanelResizeMove}
+              onPointerUp={handlePanelResizeEnd}
+            />
+            <div
+              className="flex flex-col border-l border-neutral-800 bg-neutral-900 flex-shrink-0"
+              style={{ width: rightWidth }}
+            >
               <RenderQueue
                 jobs={renderQueue.jobs}
                 onDelete={renderQueue.deleteRender}
@@ -763,8 +697,8 @@ export function StudioApp() {
                 onStartRender={(format) => renderQueue.startRender(30, "standard", format)}
                 isRendering={renderQueue.isRendering}
               />
-            )}
-          </div>
+            </div>
+          </>
         )}
       </div>
 
