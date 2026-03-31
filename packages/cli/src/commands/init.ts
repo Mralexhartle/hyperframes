@@ -398,7 +398,7 @@ function scaffoldProject(
   // Copy project-level skills (.claude/skills/) for immediate availability
   const skillsSrcDir = getBundledSkillsDir();
   if (existsSync(skillsSrcDir)) {
-    const projectSkills = ["hyperframes-compose", "hyperframes-captions"];
+    const projectSkills = ["hyperframes-compose", "hyperframes-captions", "hyperframes-cli"];
     for (const skill of projectSkills) {
       const src = join(skillsSrcDir, skill);
       if (existsSync(src)) {
