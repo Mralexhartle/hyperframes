@@ -1,4 +1,6 @@
 export type TemplateId =
+  | "hf-dark"
+  | "hf-gradient"
   | "blank"
   | "warm-grain"
   | "play-mode"
@@ -16,6 +18,8 @@ export interface TemplateOption {
 }
 
 export const TEMPLATES: TemplateOption[] = [
+  { id: "hf-dark", label: "HyperFrames Dark", hint: "Sleek dark theme product showcase" },
+  { id: "hf-gradient", label: "HyperFrames Gradient", hint: "Animated gradient product launch" },
   { id: "blank", label: "Blank", hint: "Empty composition — just the scaffolding" },
   { id: "warm-grain", label: "Warm Grain", hint: "Cream aesthetic with grain texture" },
   { id: "play-mode", label: "Play Mode", hint: "Playful elastic animations" },
