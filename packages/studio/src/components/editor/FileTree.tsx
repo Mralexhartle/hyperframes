@@ -298,6 +298,7 @@ function InlineInput({
   onCancel: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const committedRef = useRef(false);
   const [value, setValue] = useState(defaultValue);
 
   // eslint-disable-next-line no-restricted-syntax
@@ -314,11 +315,17 @@ function InlineInput({
     }
   }, [defaultValue]);
 
+  const commit = (name: string) => {
+    if (committedRef.current) return;
+    committedRef.current = true;
+    onCommit(name);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
       const trimmed = value.trim();
-      if (trimmed) onCommit(trimmed);
+      if (trimmed && !(/[/\\]/.test(trimmed) || trimmed.includes(".."))) commit(trimmed);
       else onCancel();
     } else if (e.key === "Escape") {
       e.preventDefault();
@@ -328,7 +335,8 @@ function InlineInput({
 
   const handleBlur = () => {
     const trimmed = value.trim();
-    if (trimmed && trimmed !== defaultValue) onCommit(trimmed);
+    if (trimmed && trimmed !== defaultValue && !(/[/\\]/.test(trimmed) || trimmed.includes("..")))
+      commit(trimmed);
     else onCancel();
   };
 
@@ -779,8 +787,8 @@ export const FileTree = memo(function FileTree({
         ? sourcePath.slice(sourcePath.lastIndexOf("/") + 1)
         : sourcePath;
       const newPath = folderPath ? `${folderPath}/${fileName}` : fileName;
-      // Don't move to same location
-      if (newPath !== sourcePath) {
+      // Don't move to same location or into own subtree
+      if (newPath !== sourcePath && !folderPath.startsWith(sourcePath + "/")) {
         onMoveFile(sourcePath, newPath);
       }
       setDragOverFolder(null);

@@ -13,12 +13,19 @@ import { resolve, dirname } from "node:path";
 import type { StudioApiAdapter } from "../types.js";
 import { isSafePath } from "../helpers/safePath.js";
 
+function extractFilePath(reqPath: string, projectId: string): string | null {
+  const filePath = decodeURIComponent(reqPath.replace(`/projects/${projectId}/files/`, ""));
+  if (filePath.includes("\0")) return null;
+  return filePath;
+}
+
 export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
   // Read file content
   api.get("/projects/:id/files/*", async (c) => {
     const project = await adapter.resolveProject(c.req.param("id"));
     if (!project) return c.json({ error: "not found" }, 404);
-    const filePath = decodeURIComponent(c.req.path.replace(`/projects/${project.id}/files/`, ""));
+    const filePath = extractFilePath(c.req.path, project.id);
+    if (!filePath) return c.json({ error: "forbidden" }, 403);
     const file = resolve(project.dir, filePath);
     if (!isSafePath(project.dir, file) || !existsSync(file)) {
       return c.text("not found", 404);
@@ -31,7 +38,8 @@ export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
   api.put("/projects/:id/files/*", async (c) => {
     const project = await adapter.resolveProject(c.req.param("id"));
     if (!project) return c.json({ error: "not found" }, 404);
-    const filePath = decodeURIComponent(c.req.path.replace(`/projects/${project.id}/files/`, ""));
+    const filePath = extractFilePath(c.req.path, project.id);
+    if (!filePath) return c.json({ error: "forbidden" }, 403);
     const file = resolve(project.dir, filePath);
     if (!isSafePath(project.dir, file)) {
       return c.json({ error: "forbidden" }, 403);
@@ -47,7 +55,8 @@ export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
   api.post("/projects/:id/files/*", async (c) => {
     const project = await adapter.resolveProject(c.req.param("id"));
     if (!project) return c.json({ error: "not found" }, 404);
-    const filePath = decodeURIComponent(c.req.path.replace(`/projects/${project.id}/files/`, ""));
+    const filePath = extractFilePath(c.req.path, project.id);
+    if (!filePath) return c.json({ error: "forbidden" }, 403);
     const file = resolve(project.dir, filePath);
     if (!isSafePath(project.dir, file)) return c.json({ error: "forbidden" }, 403);
     if (existsSync(file)) return c.json({ error: "already exists" }, 409);
@@ -62,7 +71,8 @@ export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
   api.delete("/projects/:id/files/*", async (c) => {
     const project = await adapter.resolveProject(c.req.param("id"));
     if (!project) return c.json({ error: "not found" }, 404);
-    const filePath = decodeURIComponent(c.req.path.replace(`/projects/${project.id}/files/`, ""));
+    const filePath = extractFilePath(c.req.path, project.id);
+    if (!filePath) return c.json({ error: "forbidden" }, 403);
     const file = resolve(project.dir, filePath);
     if (!isSafePath(project.dir, file) || !existsSync(file)) {
       return c.json({ error: "not found" }, 404);
@@ -80,7 +90,8 @@ export function registerFileRoutes(api: Hono, adapter: StudioApiAdapter): void {
   api.patch("/projects/:id/files/*", async (c) => {
     const project = await adapter.resolveProject(c.req.param("id"));
     if (!project) return c.json({ error: "not found" }, 404);
-    const filePath = decodeURIComponent(c.req.path.replace(`/projects/${project.id}/files/`, ""));
+    const filePath = extractFilePath(c.req.path, project.id);
+    if (!filePath) return c.json({ error: "forbidden" }, 403);
     const file = resolve(project.dir, filePath);
     if (!isSafePath(project.dir, file) || !existsSync(file)) {
       return c.json({ error: "not found" }, 404);

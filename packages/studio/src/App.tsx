@@ -304,11 +304,11 @@ export function StudioApp() {
         method: "DELETE",
       });
       if (res.ok) {
-        if (editingFile?.path === path) setEditingFile(null);
+        if (editingPathRef.current === path) setEditingFile(null);
         await refreshFileTree();
       }
     },
-    [editingFile, refreshFileTree],
+    [refreshFileTree],
   );
 
   const handleRenameFile = useCallback(
@@ -321,13 +321,13 @@ export function StudioApp() {
         body: JSON.stringify({ newPath }),
       });
       if (res.ok) {
-        if (editingFile?.path === oldPath) {
+        if (editingPathRef.current === oldPath) {
           handleFileSelect(newPath);
         }
         await refreshFileTree();
       }
     },
-    [editingFile, refreshFileTree, handleFileSelect],
+    [refreshFileTree, handleFileSelect],
   );
 
   const handleDuplicateFile = useCallback(
@@ -348,12 +348,7 @@ export function StudioApp() {
     [refreshFileTree, handleFileSelect],
   );
 
-  const handleMoveFile = useCallback(
-    async (oldPath: string, newPath: string) => {
-      await handleRenameFile(oldPath, newPath);
-    },
-    [handleRenameFile],
-  );
+  const handleMoveFile = handleRenameFile;
 
   const handleLint = useCallback(async () => {
     const pid = projectIdRef.current;
