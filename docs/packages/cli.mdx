@@ -116,8 +116,9 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     npx hyperframes lint
     ```
     ```
-    Linting index.html...
-    No issues found.
+    ◆  Linting my-project/index.html
+
+    ◇  0 errors, 0 warnings
     ```
   </Step>
   <Step title="Render to MP4">
@@ -213,22 +214,31 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
 
     ```bash
     npx hyperframes lint [dir]
+    npx hyperframes lint [dir] --verbose   # include info-level findings
+    npx hyperframes lint [dir] --json      # machine-readable JSON output
     ```
     ```
-    Linting index.html...
+    ◆  Linting my-project/index.html
 
-    WARNING  unmuted-video
-      Video element 'clip-1' should have the 'muted' attribute for reliable autoplay.
-      at index.html:5
+      ✗ missing_gsap_script: Composition uses GSAP but no GSAP script is loaded.
+      ⚠ unmuted-video [clip-1]: Video should have the 'muted' attribute for reliable autoplay.
 
-    1 issue found (0 errors, 1 warning)
+    ◇  1 error(s), 1 warning(s)
     ```
+
+    By default only **errors** and **warnings** are printed. Info-level findings (e.g., external script dependency notices) are hidden to keep output clean for agents and CI. Use `--verbose` to include them.
 
     | Flag | Description |
     |------|-------------|
-    | `--json` | Output findings as JSON |
+    | `--json` | Output findings as JSON (includes `errorCount`, `warningCount`, `infoCount`, and `findings` array) |
+    | `--verbose` | Include info-level findings in output (hidden by default) |
 
-    The linter detects missing attributes, deprecated names, structural problems, and more. See [Common Mistakes](/guides/common-mistakes) for details on each rule.
+    **Severity levels:**
+    - **Error** (`✗`) — must fix before rendering (e.g., missing adapter library, invalid attributes)
+    - **Warning** (`⚠`) — likely issues that may cause unexpected behavior
+    - **Info** (`ℹ`) — informational notices, shown only with `--verbose`
+
+    The linter detects missing attributes, missing adapter libraries (GSAP, Lottie, Three.js), structural problems, and more. See [Common Mistakes](/guides/common-mistakes) for details on each rule.
   </Tab>
   <Tab title="Build">
     ### `render`
