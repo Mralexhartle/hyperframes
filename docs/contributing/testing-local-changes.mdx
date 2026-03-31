@@ -19,12 +19,18 @@ pnpm build
 `pnpm link --global` makes the `hyperframes` binary in your `$PATH` point at your local build. It survives across terminal sessions and auto-picks up new builds without re-linking.
 
 ```bash
-# One-time setup
+# If you previously installed hyperframes globally, remove it first —
+# a global install takes priority over pnpm link and shadows your local build.
+pnpm remove -g hyperframes 2>/dev/null || npm uninstall -g hyperframes 2>/dev/null
+
+# Link your local build
 cd packages/cli
 pnpm link --global
 
-# Verify — should print your local version
+# Verify — should print your local version AND point to the monorepo
 hyperframes --version
+which hyperframes
+# The path should contain your monorepo, NOT pnpm/global/.pnpm/hyperframes@...
 ```
 
 Now use `hyperframes` normally in any directory:
@@ -103,19 +109,21 @@ Common test scenarios:
 
 The CLI binary is a single bundled file at `packages/cli/dist/cli.js`. If your change is in `@hyperframes/core` or another workspace package, make sure `pnpm build` rebuilt _all_ packages — the CLI bundles its dependencies at build time.
 
-**`hyperframes` still shows the old version**
+**`hyperframes` still shows the old version / old UI**
 
-Check which binary is active:
+A globally installed `hyperframes` package shadows `pnpm link`. Check which binary is active:
 
 ```bash
 which hyperframes
-hyperframes --version
+# BAD:  /Users/you/Library/pnpm/hyperframes → pnpm/global/.pnpm/hyperframes@0.x.x/...
+# GOOD: /Users/you/Library/pnpm/hyperframes → your-monorepo/packages/cli/dist/cli.js
 ```
 
-If it points to a global npm installation rather than your link, uninstall the npm version first:
+If it points to the global store, remove the global install and re-link:
 
 ```bash
-npm uninstall -g hyperframes
+pnpm remove -g hyperframes
+npm uninstall -g hyperframes   # in case it was installed via npm
 cd packages/cli && pnpm link --global
 ```
 
