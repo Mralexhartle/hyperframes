@@ -490,6 +490,7 @@ function inlineSubCompositions(
 
   const collectedStyles: string[] = [];
   const collectedScripts: string[] = [];
+  const collectedExternalScriptSrcs: string[] = [];
 
   for (const host of hosts) {
     const srcPath = host.getAttribute("data-composition-src");
@@ -541,7 +542,15 @@ function inlineSubCompositions(
 
     for (const scriptEl of contentDoc.querySelectorAll("script")) {
       const src = (scriptEl.getAttribute("src") || "").trim();
-      if (src) continue;
+      if (src) {
+        // External CDN/remote script — collect for deduped injection into the
+        // parent document, mirroring the bundler's hoisting behavior.
+        if (!collectedExternalScriptSrcs.includes(src)) {
+          collectedExternalScriptSrcs.push(src);
+        }
+        scriptEl.remove();
+        continue;
+      }
       const content = (scriptEl.textContent || "").trim();
       if (content) {
         const scriptMountCompId = compId || inferredCompId || "";
@@ -622,6 +631,25 @@ function inlineSubCompositions(
     const styleEl = document.createElement("style");
     styleEl.textContent = collectedStyles.join("\n\n");
     head.appendChild(styleEl);
+  }
+
+  // Inject external CDN scripts before inline scripts so plugins (e.g.
+  // TextPlugin, ScrollTrigger) are registered before composition code runs.
+  // Deduplicate against scripts already present in the document.
+  if (collectedExternalScriptSrcs.length && body) {
+    const existingScriptSrcs = new Set(
+      Array.from(document.querySelectorAll("script[src]")).map((el) =>
+        (el.getAttribute("src") || "").trim(),
+      ),
+    );
+    for (const src of collectedExternalScriptSrcs) {
+      if (!existingScriptSrcs.has(src)) {
+        const scriptEl = document.createElement("script");
+        scriptEl.setAttribute("src", src);
+        body.appendChild(scriptEl);
+        existingScriptSrcs.add(src);
+      }
+    }
   }
 
   if (collectedScripts.length && body) {
