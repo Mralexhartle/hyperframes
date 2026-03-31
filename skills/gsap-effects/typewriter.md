@@ -44,17 +44,18 @@ tl.to(
 
 ## With Blinking Cursor
 
-Add a cursor element that blinks while idle and holds steady while typing.
+Add a cursor element that blinks while idle and holds steady while typing. Two rules:
+
+1. **The cursor must always blink when idle** — after typing finishes, after clearing, during hold pauses. A cursor that just sits there solid looks broken.
+2. **No gap between text and cursor** — the cursor element must be immediately adjacent to the text element in the HTML (no whitespace, no flex gap). Any space between the last character and `|` looks wrong.
 
 ```html
-<div style="display:inline-flex; align-items:baseline;">
-  <div id="typed-text" style="font-size:48px; font-family:monospace; color:#fff;"></div>
-  <div id="cursor" style="font-size:48px; font-family:monospace; color:#fff; opacity:1;">|</div>
-</div>
+<!-- No whitespace between spans — cursor must sit flush against text -->
+<span id="typed-text" style="font-size:48px; font-family:monospace; color:#fff;"></span
+><span id="cursor" style="font-size:48px; font-family:monospace; color:#fff;">|</span>
 ```
 
 ```css
-/* Blink animation — deterministic, CSS-driven */
 @keyframes blink {
   0%,
   100% {
@@ -65,13 +66,19 @@ Add a cursor element that blinks while idle and holds steady while typing.
   }
 }
 .cursor-blink {
-  animation: blink 1s step-end infinite;
+  animation: blink 0.8s step-end infinite;
 }
 .cursor-solid {
   animation: none;
   opacity: 1;
 }
+.cursor-hide {
+  animation: none;
+  opacity: 0;
+}
 ```
+
+Three states: `cursor-blink` (idle), `cursor-solid` (actively typing), `cursor-hide` (cursor belongs to a different line). The pattern is always: blink → solid → type → solid → blink.
 
 ```js
 const text = "Hello, world!";
@@ -82,7 +89,7 @@ const cursor = document.querySelector("#cursor");
 // Cursor blinks before typing starts
 cursor.classList.add("cursor-blink");
 
-// Stop blinking during typing
+// Solid while typing
 tl.call(
   () => {
     cursor.classList.replace("cursor-blink", "cursor-solid");
@@ -102,7 +109,7 @@ tl.to(
   startTime,
 );
 
-// Resume blinking after typing finishes
+// Back to blinking when done — never leave it solid
 tl.call(
   () => {
     cursor.classList.replace("cursor-solid", "cursor-blink");
@@ -112,12 +119,26 @@ tl.call(
 );
 ```
 
+When handing off between multiple typewriter lines, hide the previous cursor and show the next one:
+
+```js
+tl.call(
+  () => {
+    prevCursor.classList.replace("cursor-blink", "cursor-hide");
+    nextCursor.classList.replace("cursor-hide", "cursor-solid");
+  },
+  [],
+  handoffTime,
+);
+```
+
 ## Word Rotation
 
-Type a word, clear it, type the next. Useful for taglines that cycle through options.
+Type a word, clear it, type the next. Useful for taglines that cycle through options. The cursor must blink during the hold pause between words and after each clear — every idle moment should blink.
 
 ```js
 const words = ["creative", "powerful", "simple"];
+const cursor = document.querySelector("#cursor");
 let offset = startTime;
 
 words.forEach((word, i) => {
@@ -125,7 +146,14 @@ words.forEach((word, i) => {
   const holdDuration = 1.5;
   const clearDuration = word.length / 20; // Clear is faster than typing
 
-  // Type the word
+  // Solid while typing
+  tl.call(
+    () => {
+      cursor.classList.replace("cursor-blink", "cursor-solid");
+    },
+    [],
+    offset,
+  );
   tl.to(
     "#typed-text",
     {
@@ -135,10 +163,27 @@ words.forEach((word, i) => {
     },
     offset,
   );
+  // Blink during hold
+  tl.call(
+    () => {
+      cursor.classList.replace("cursor-solid", "cursor-blink");
+    },
+    [],
+    offset + typeDuration,
+  );
+
   offset += typeDuration + holdDuration;
 
-  // Clear the word (skip clear on the last word)
+  // Clear the word (skip on the last word)
   if (i < words.length - 1) {
+    // Solid while clearing
+    tl.call(
+      () => {
+        cursor.classList.replace("cursor-blink", "cursor-solid");
+      },
+      [],
+      offset,
+    );
     tl.to(
       "#typed-text",
       {
@@ -147,6 +192,14 @@ words.forEach((word, i) => {
         ease: "none",
       },
       offset,
+    );
+    // Blink after clear
+    tl.call(
+      () => {
+        cursor.classList.replace("cursor-solid", "cursor-blink");
+      },
+      [],
+      offset + clearDuration,
     );
     offset += clearDuration + 0.3;
   }
