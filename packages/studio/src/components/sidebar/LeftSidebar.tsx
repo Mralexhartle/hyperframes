@@ -134,7 +134,13 @@ export const LeftSidebar = memo(function LeftSidebar({
         />
       )}
       {tab === "assets" && (
-        <AssetsTab projectId={projectId} assets={assets} onImport={onImportFiles} />
+        <AssetsTab
+          projectId={projectId}
+          assets={assets}
+          onImport={onImportFiles}
+          onDelete={onDeleteFile}
+          onRename={onRenameFile}
+        />
       )}
       {tab === "code" && (
         <div className="flex flex-1 min-h-0">

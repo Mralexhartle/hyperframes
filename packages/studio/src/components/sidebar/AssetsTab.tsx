@@ -6,6 +6,8 @@ interface AssetsTabProps {
   projectId: string;
   assets: string[];
   onImport?: (files: FileList) => void;
+  onDelete?: (path: string) => void;
+  onRename?: (oldPath: string, newPath: string) => void;
 }
 
 /** Inline thumbnail content — rendered inside the container div in AssetCard. */
@@ -82,61 +84,170 @@ function AssetCard({
   asset,
   onCopy,
   isCopied,
+  onDelete,
+  onRename,
 }: {
   projectId: string;
   asset: string;
   onCopy: (path: string) => void;
   isCopied: boolean;
+  onDelete?: (path: string) => void;
+  onRename?: (oldPath: string, newPath: string) => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [renameName, setRenameName] = useState("");
   const name = asset.split("/").pop() ?? asset;
   const serveUrl = `/api/projects/${projectId}/preview/${asset}`;
   const isVideo = VIDEO_EXT.test(asset);
 
   return (
-    <div
-      onClick={() => onCopy(asset)}
-      onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
-      className={`w-full text-left px-2 py-1.5 flex items-center gap-2.5 transition-colors cursor-pointer ${
-        isCopied
-          ? "bg-studio-accent/10 border-l-2 border-studio-accent"
-          : "border-l-2 border-transparent hover:bg-neutral-800/50"
-      }`}
-    >
-      <div className="w-16 h-10 rounded overflow-hidden bg-neutral-900 flex-shrink-0 relative">
-        <AssetThumbnail
-          serveUrl={serveUrl}
-          name={name}
-          isImage={IMAGE_EXT.test(asset)}
-          isVideo={isVideo}
-          isAudio={AUDIO_EXT.test(asset)}
-        />
-        {/* Inline video autoplay on hover — same pattern as renders */}
-        {isVideo && hovered && (
-          <video
-            src={serveUrl}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="absolute inset-0 w-full h-full object-contain"
+    <>
+      <div
+        onClick={() => onCopy(asset)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setContextMenu({ x: e.clientX, y: e.clientY });
+        }}
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+        className={`w-full text-left px-2 py-1.5 flex items-center gap-2.5 transition-colors cursor-pointer ${
+          isCopied
+            ? "bg-studio-accent/10 border-l-2 border-studio-accent"
+            : "border-l-2 border-transparent hover:bg-neutral-800/50"
+        }`}
+      >
+        <div className="w-16 h-10 rounded overflow-hidden bg-neutral-900 flex-shrink-0 relative">
+          <AssetThumbnail
+            serveUrl={serveUrl}
+            name={name}
+            isImage={IMAGE_EXT.test(asset)}
+            isVideo={isVideo}
+            isAudio={AUDIO_EXT.test(asset)}
           />
-        )}
+          {isVideo && hovered && (
+            <video
+              src={serveUrl}
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="absolute inset-0 w-full h-full object-contain"
+            />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          {renaming ? (
+            <input
+              autoFocus
+              value={renameName}
+              onChange={(e) => setRenameName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const trimmed = renameName.trim();
+                  if (trimmed && trimmed !== name) {
+                    const dir = asset.includes("/")
+                      ? asset.slice(0, asset.lastIndexOf("/") + 1)
+                      : "";
+                    onRename?.(asset, dir + trimmed);
+                  }
+                  setRenaming(false);
+                } else if (e.key === "Escape") {
+                  setRenaming(false);
+                }
+              }}
+              onBlur={() => {
+                const trimmed = renameName.trim();
+                if (trimmed && trimmed !== name) {
+                  const dir = asset.includes("/") ? asset.slice(0, asset.lastIndexOf("/") + 1) : "";
+                  onRename?.(asset, dir + trimmed);
+                }
+                setRenaming(false);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full bg-neutral-800 text-neutral-200 text-[11px] px-1.5 py-0.5 rounded border border-neutral-600 outline-none focus:border-studio-accent"
+              spellCheck={false}
+            />
+          ) : (
+            <>
+              <span className="text-[11px] font-medium text-neutral-300 truncate block">
+                {name}
+              </span>
+              {isCopied ? (
+                <span className="text-[9px] text-studio-accent">Copied!</span>
+              ) : (
+                <span className="text-[9px] text-neutral-600 truncate block">{asset}</span>
+              )}
+            </>
+          )}
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <span className="text-[11px] font-medium text-neutral-300 truncate block">{name}</span>
-        {isCopied ? (
-          <span className="text-[9px] text-studio-accent">Copied!</span>
-        ) : (
-          <span className="text-[9px] text-neutral-600 truncate block">{asset}</span>
-        )}
-      </div>
-    </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          className="fixed inset-0 z-[200]"
+          onClick={() => setContextMenu(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setContextMenu(null);
+          }}
+        >
+          <div
+            className="absolute bg-neutral-900 border border-neutral-700 rounded-lg shadow-xl py-1 min-w-[140px] text-xs"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopy(asset);
+                setContextMenu(null);
+              }}
+              className="w-full text-left px-3 py-1.5 text-neutral-300 hover:bg-neutral-800 transition-colors"
+            >
+              Copy path
+            </button>
+            {onRename && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setRenameName(name);
+                  setRenaming(true);
+                  setContextMenu(null);
+                }}
+                className="w-full text-left px-3 py-1.5 text-neutral-300 hover:bg-neutral-800 transition-colors"
+              >
+                Rename
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(asset);
+                  setContextMenu(null);
+                }}
+                className="w-full text-left px-3 py-1.5 text-red-400 hover:bg-neutral-800 transition-colors"
+              >
+                Delete
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
-export const AssetsTab = memo(function AssetsTab({ projectId, assets, onImport }: AssetsTabProps) {
+export const AssetsTab = memo(function AssetsTab({
+  projectId,
+  assets,
+  onImport,
+  onDelete,
+  onRename,
+}: AssetsTabProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [copiedPath, setCopiedPath] = useState<string | null>(null);
@@ -239,6 +350,8 @@ export const AssetsTab = memo(function AssetsTab({ projectId, assets, onImport }
               asset={asset}
               onCopy={handleCopyPath}
               isCopied={copiedPath === asset}
+              onDelete={onDelete}
+              onRename={onRename}
             />
           ))
         )}
