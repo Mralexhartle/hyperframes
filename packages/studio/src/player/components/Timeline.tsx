@@ -338,12 +338,11 @@ export const Timeline = memo(function Timeline({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if ((e.target as HTMLElement).closest("[data-clip]")) return;
       if (e.button !== 0) return;
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
-      // Shift+click starts range selection
+      // Shift+click starts range selection — even on clips
       if (e.shiftKey) {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         isRangeSelecting.current = true;
         setShowPopover(false);
         const rect = scrollRef.current?.getBoundingClientRect();
@@ -355,6 +354,10 @@ export const Timeline = memo(function Timeline({
         }
         return;
       }
+
+      // Normal click on a clip — let the clip handle it
+      if ((e.target as HTMLElement).closest("[data-clip]")) return;
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
       isDragging.current = true;
       setRangeSelection(null);
