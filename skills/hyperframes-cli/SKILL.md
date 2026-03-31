@@ -23,7 +23,7 @@ The natural sequence when building a composition:
 4. **Preview** — `npx hyperframes preview` to see it live in the studio
 5. **Render** — `npx hyperframes render` to export video
 
-**Lint before preview.** It catches missing `data-composition-id`, overlapping tracks on the same `data-track-index`, unregistered timelines, and other structural issues that silently produce broken output. A 2-second lint saves minutes debugging a blank screen. Both `dev` and `render` auto-lint, but linting explicitly after editing gives you a chance to fix issues without waiting for the server or renderer to spin up.
+**Lint before preview.** It catches missing `data-composition-id`, overlapping tracks on the same `data-track-index`, unregistered timelines, and other structural issues that silently produce broken output. A 2-second lint saves minutes debugging a blank screen. Both `preview` and `render` auto-lint, but linting explicitly after editing gives you a chance to fix issues without waiting for the server or renderer to spin up.
 
 ## Scaffolding New Projects
 
