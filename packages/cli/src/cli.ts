@@ -15,7 +15,7 @@ if (process.argv.includes("--version") || process.argv.includes("-V")) {
 // For --help we skip telemetry entirely.
 
 import { defineCommand, runMain } from "citty";
-import { showUsage } from "./help.js";
+import type { CommandDef } from "citty";
 
 const isHelp = process.argv.includes("--help") || process.argv.includes("-h");
 
@@ -91,5 +91,11 @@ process.on("beforeExit", () => {
 process.on("exit", () => {
   _flushSync?.();
 });
+
+// Lazy-load help renderer — avoids allocating help data on non-help invocations
+async function showUsage(cmd: CommandDef, parent?: CommandDef): Promise<void> {
+  const { showUsage: impl } = await import("./help.js");
+  return impl(cmd, parent);
+}
 
 runMain(main, { showUsage });

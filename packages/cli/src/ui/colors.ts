@@ -17,6 +17,8 @@ export const c = {
   dim: wrap(pc.dim),
   bold: wrap(pc.bold),
   accent: wrap(teal),
+  cyan: wrap(pc.cyan),
+  gray: wrap(pc.gray),
   progress: wrap(pc.magenta),
   reset: isColorSupported ? pc.reset : (s: string) => s,
 };

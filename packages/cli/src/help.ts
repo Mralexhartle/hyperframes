@@ -6,19 +6,8 @@
  */
 import { renderUsage } from "citty";
 import type { CommandDef } from "citty";
+import { c } from "./ui/colors.js";
 import { VERSION } from "./version.js";
-
-// ── ANSI helpers (respect NO_COLOR / TERM=dumb / non-TTY) ──────────────────
-const colorEnabled =
-  process.env.NO_COLOR !== "1" && process.env.TERM !== "dumb" && (process.stdout.isTTY ?? false);
-
-const esc = (open: number, close: number) => (s: string) =>
-  colorEnabled ? `\x1b[${open}m${s}\x1b[${close}m` : s;
-
-const bold = esc(1, 22);
-const cyan = esc(36, 39);
-const dim = esc(2, 22);
-const gray = esc(90, 39);
 
 // ── Root-level command groups ──────────────────────────────────────────────
 interface Group {
@@ -47,7 +36,10 @@ const GROUPS: Group[] = [
   {
     title: "Tooling",
     commands: [
-      ["benchmark", "Render with presets and compare speed and file size"],
+      [
+        "benchmark",
+        "Render with preset fps/quality/worker configs and compare speed and file size",
+      ],
       ["browser", "Manage the Chrome browser used for rendering"],
       ["doctor", "Check system dependencies and environment"],
       ["upgrade", "Check for updates and show upgrade instructions"],
@@ -57,7 +49,10 @@ const GROUPS: Group[] = [
     title: "AI & Integrations",
     commands: [
       ["skills", "Install HyperFrames and GSAP skills for AI coding tools"],
-      ["transcribe", "Transcribe audio/video to word-level timestamps"],
+      [
+        "transcribe",
+        "Transcribe audio/video to word-level timestamps, or import an existing transcript",
+      ],
     ],
   },
   {
@@ -67,18 +62,19 @@ const GROUPS: Group[] = [
 ];
 
 // ── Root-level examples ────────────────────────────────────────────────────
-const ROOT_EXAMPLES: [command: string, comment: string][] = [
-  ["hyperframes init my-video", "Create a new project"],
-  ["hyperframes preview", "Start the live preview studio"],
-  ["hyperframes render -o out.mp4", "Render to MP4"],
-  ["hyperframes render --format webm -o out.webm", "Transparent WebM overlay"],
-  ["hyperframes lint", "Validate your composition"],
-  ["hyperframes doctor", "Check system dependencies"],
+type Example = [comment: string, command: string];
+
+const ROOT_EXAMPLES: Example[] = [
+  ["Create a new project", "hyperframes init my-video"],
+  ["Start the live preview studio", "hyperframes preview"],
+  ["Render to MP4", "hyperframes render -o out.mp4"],
+  ["Transparent WebM overlay", "hyperframes render --format webm -o out.webm"],
+  ["Validate your composition", "hyperframes lint"],
+  ["Check system dependencies", "hyperframes doctor"],
 ];
 
 // ── Per-command examples (kubectl style: comment + command) ────────────────
-// Each entry is [comment, command].
-const COMMAND_EXAMPLES: Record<string, [comment: string, command: string][]> = {
+const COMMAND_EXAMPLES: Record<string, Example[]> = {
   init: [
     ["Create a project with the interactive wizard", "hyperframes init my-video"],
     ["Pick a starter template", "hyperframes init my-video --template warm-grain"],
@@ -165,37 +161,37 @@ function renderRootHelp(): string {
   const lines: string[] = [];
 
   lines.push(
-    `${bold("hyperframes")} ${dim(`v${VERSION}`)} — Create and render HTML video compositions`,
+    `${c.bold("hyperframes")} ${c.dim(`v${VERSION}`)} — Create and render HTML video compositions`,
   );
   lines.push("");
-  lines.push(`${bold("Usage:")}  hyperframes ${cyan("<command>")} [options]`);
+  lines.push(`${c.bold("Usage:")}  hyperframes ${c.cyan("<command>")} [options]`);
   lines.push("");
 
   for (const group of GROUPS) {
-    lines.push(bold(`${group.title}:`));
+    lines.push(c.bold(`${group.title}:`));
     for (const [name, desc] of group.commands) {
-      lines.push(`  ${cyan(name.padEnd(NAME_COL))}${desc}`);
+      lines.push(`  ${c.cyan(name.padEnd(NAME_COL))}${desc}`);
     }
     lines.push("");
   }
 
-  lines.push(bold("Examples:"));
-  for (const [command, comment] of ROOT_EXAMPLES) {
-    lines.push(`  ${dim("$")} ${command.padEnd(CMD_COL)} ${dim(comment)}`);
+  lines.push(c.bold("Examples:"));
+  for (const [comment, command] of ROOT_EXAMPLES) {
+    lines.push(`  ${c.dim("$")} ${command.padEnd(CMD_COL)} ${c.dim(comment)}`);
   }
   lines.push("");
 
-  lines.push(`Run ${cyan("hyperframes <command> --help")} for more information about a command.`);
+  lines.push(`Run ${c.cyan("hyperframes <command> --help")} for more information about a command.`);
 
   return lines.join("\n");
 }
 
 // ── Format examples section (kubectl style) ────────────────────────────────
-function formatExamples(examples: [string, string][]): string {
+function formatExamples(examples: Example[]): string {
   const lines: string[] = [];
-  lines.push(bold("Examples:"));
+  lines.push(c.bold("Examples:"));
   for (const [comment, command] of examples) {
-    lines.push(`  ${gray(`# ${comment}`)}`);
+    lines.push(`  ${c.gray(`# ${comment}`)}`);
     lines.push(`  ${command}`);
     lines.push("");
   }
@@ -205,16 +201,14 @@ function formatExamples(examples: [string, string][]): string {
 // ── Main showUsage override ────────────────────────────────────────────────
 export async function showUsage(cmd: CommandDef, parent?: CommandDef): Promise<void> {
   if (!parent) {
-    // Root help → custom grouped output
     console.log(renderRootHelp() + "\n");
     return;
   }
 
-  // Subcommand help → citty's structured output + our examples
+  const meta = await (typeof cmd.meta === "function" ? cmd.meta() : cmd.meta);
   const usage = await renderUsage(cmd, parent);
   console.log(usage + "\n");
 
-  const meta = await (typeof cmd.meta === "function" ? cmd.meta() : cmd.meta);
   const name = meta?.name;
   if (name && COMMAND_EXAMPLES[name]) {
     console.log(formatExamples(COMMAND_EXAMPLES[name]) + "\n");
