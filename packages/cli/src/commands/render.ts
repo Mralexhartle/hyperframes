@@ -27,13 +27,7 @@ function defaultWorkerCount(): number {
 export default defineCommand({
   meta: {
     name: "render",
-    description: `Render a composition to MP4 or WebM
-
-Examples:
-  hyperframes render --output output.mp4
-  hyperframes render --format webm --output overlay.webm    # transparent WebM
-  hyperframes render --fps 60 --quality high --output hd.mp4
-  hyperframes render --docker --output deterministic.mp4`,
+    description: "Render a composition to MP4 or WebM",
   },
   args: {
     dir: {

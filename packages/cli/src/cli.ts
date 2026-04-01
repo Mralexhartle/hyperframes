@@ -15,6 +15,7 @@ if (process.argv.includes("--version") || process.argv.includes("-V")) {
 // For --help we skip telemetry entirely.
 
 import { defineCommand, runMain } from "citty";
+import { showUsage } from "./help.js";
 
 const isHelp = process.argv.includes("--help") || process.argv.includes("-h");
 
@@ -91,4 +92,4 @@ process.on("exit", () => {
   _flushSync?.();
 });
 
-runMain(main);
+runMain(main, { showUsage });

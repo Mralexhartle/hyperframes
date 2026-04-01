@@ -428,13 +428,7 @@ async function scaffoldProject(
 export default defineCommand({
   meta: {
     name: "init",
-    description: `Scaffold a new composition project
-
-Examples:
-  hyperframes init my-video                            # interactive wizard
-  hyperframes init my-video --template warm-grain      # pick a template
-  hyperframes init my-video --video video.mp4          # with video file
-  hyperframes init my-video --non-interactive           # skip prompts (CI/agents)`,
+    description: "Scaffold a new composition project",
   },
   args: {
     name: { type: "positional", description: "Project name", required: false },

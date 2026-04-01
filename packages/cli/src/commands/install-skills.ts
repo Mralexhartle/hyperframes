@@ -364,13 +364,7 @@ async function runInstall({ args }: { args: Record<string, unknown> }): Promise<
 export default defineCommand({
   meta: {
     name: "skills",
-    description: `Install HyperFrames and GSAP skills for AI coding tools
-
-Examples:
-  hyperframes skills                      # install to Claude, Gemini, Codex
-  hyperframes skills --claude             # install to Claude Code only
-  hyperframes skills --cursor             # install to Cursor (project-level)
-  hyperframes skills --claude --gemini    # install to specific tools`,
+    description: "Install HyperFrames and GSAP skills for AI coding tools",
   },
   args: {
     claude: { type: "boolean", description: "Install to Claude Code (~/.claude/skills/)" },
