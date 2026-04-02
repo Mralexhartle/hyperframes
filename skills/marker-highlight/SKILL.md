@@ -225,9 +225,25 @@ MarkerHighlighter.defineStyle("redact", {
 
 Define styles before constructing the `MarkerHighlighter` instance.
 
+## Mode-to-Caption Energy Mapping
+
+Match modes to caption energy levels detected by the `hyperframes-captions` skill:
+
+| Caption energy | Recommended mode      | Use for                               |
+| -------------- | --------------------- | ------------------------------------- |
+| High           | `burst` + `highlight` | Product launches, hype videos         |
+| Medium-high    | `circle`              | Key stats, important terms            |
+| Medium         | `highlight`           | Standard emphasis, clean professional |
+| Medium-low     | `scribble`            | Subtle emphasis, tutorials            |
+| Low            | `sketchout`           | Contrast with active text             |
+
 ## Recipes and Full Example
 
 See [references/examples.md](./references/examples.md) for underline, strikethrough, circled annotation recipes, and a complete composition example with the full GSAP integration pattern.
+
+## CSS+GSAP Fallback (No Library)
+
+For deterministic rendering without the library, see [references/css-patterns.md](./references/css-patterns.md) — pure CSS+GSAP implementations of all five modes. Fully seekable and timeline-controlled, but without the hand-drawn canvas aesthetic.
 
 ## HyperFrames Integration Notes
 
