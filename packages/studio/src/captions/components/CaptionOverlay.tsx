@@ -282,7 +282,7 @@ export const CaptionOverlay = memo(function CaptionOverlay({ iframeRef }: Captio
         wordEl: HTMLElement;
         segmentId: string;
         startMX: number;
-        startWidth: number;
+        startDxFromCenter: number;
         origTX: number;
         origTY: number;
         origScale: number;
@@ -413,20 +413,25 @@ export const CaptionOverlay = memo(function CaptionOverlay({ iframeRef }: Captio
       const win = iframe.contentWindow;
       if (!wordEl || !win) return;
       const rect = wordEl.getBoundingClientRect();
+      const cssScale = getCssScale();
+      const boxCenterX =
+        rect.left * cssScale +
+        (iframeRef.current?.getBoundingClientRect().left ?? 0) +
+        (rect.width * cssScale) / 2;
       const state = readGsapTransform(getOrCreateWrapper(wordEl), win);
       interactionRef.current = {
         type: "scale",
         wordEl,
         segmentId,
         startMX: e.clientX,
-        startWidth: rect.width,
+        startDxFromCenter: e.clientX - boxCenterX,
         origTX: state.x,
         origTY: state.y,
         origScale: state.scale,
         origRotation: state.rotation,
       };
     },
-    [iframeRef],
+    [iframeRef, getCssScale],
   );
 
   // --- Rotate ---
@@ -483,8 +488,12 @@ export const CaptionOverlay = memo(function CaptionOverlay({ iframeRef }: Captio
         const dy = (e.clientY - i.startMY) / cssScale;
         writeTransform(i.wordEl, win, i.origTX + dx, i.origTY + dy, i.origScale, i.origRotation);
       } else if (i.type === "scale") {
-        const dx = e.clientX - i.startMX;
-        const factor = 1 + dx / Math.max(i.startWidth, 50);
+        // Use distance from box center so dragging outward from ANY corner
+        // increases scale (not just right-side handles).
+        const cx = i.startMX - i.startDxFromCenter;
+        const startDist = Math.abs(i.startDxFromCenter);
+        const currentDist = Math.abs(e.clientX - cx);
+        const factor = startDist > 5 ? currentDist / startDist : 1;
         const newScale = Math.max(0.1, i.origScale * factor);
         writeTransform(i.wordEl, win, i.origTX, i.origTY, newScale, i.origRotation);
       } else if (i.type === "rotate") {
