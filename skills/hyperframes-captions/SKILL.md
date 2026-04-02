@@ -216,7 +216,7 @@ The HyperFrames Studio can edit captions in real time, but only if the compositi
 - **Inline the transcript as `var TRANSCRIPT = [...]`** — the studio's parser extracts the transcript by matching this variable name in the composition source. Using `fetch()` to load transcript data at runtime will NOT be detected.
 - **Use JSON-quoted property keys** — write `{ "text": "hello", "start": 0, "end": 1 }` not `{ text: "hello", start: 0, end: 1 }`. The parser's fallback normalization for unquoted keys breaks on apostrophes in words like `didn't`.
 - **Use `.caption-group` and `.caption-word` CSS classes** — the studio detects caption elements by these class names.
-- **Audio data can still use `fetch()`** — only the transcript needs to be inline. `fetch("audio-data.json")` for audio-reactive data is fine.
+- **Audio data can be inline or fetched** — only the transcript must be inline. Audio data loaded via `fetch("audio-data.json")` or embedded as `var AUDIO = {...}` both work.
 
 ## Constraints
 
@@ -225,5 +225,5 @@ The HyperFrames Studio can edit captions in real time, but only if the compositi
 - **One group visible at a time.** No overlapping caption groups.
 - **Every caption group must have a hard `tl.set` kill at `group.end`.** Exit animations alone are not sufficient.
 - **Never `overflow: hidden` on caption containers or groups.** Glow, shadow, and scale effects paint outside the box — clipping them creates hard visual cutoffs. Always use `overflow: visible`.
-- **Music requires audio-reactive captions.** If the source audio is music (any genre, any energy level), extract audio data with `extract-audio-data.py` and wire bass/treble reactivity into the composition. See [dynamic-techniques.md](./dynamic-techniques.md). This is not optional.
+- **Music requires audio-reactive captions.** If the source audio is music (any genre, any energy level), extract audio data with `extract-audio-data.py` and use it to modulate group entrance intensity (scale, glow) in the group loop. No special wiring needed — see [dynamic-techniques.md](./dynamic-techniques.md). This is not optional.
 - **Check project root** for font files before defaulting to Google Fonts.
