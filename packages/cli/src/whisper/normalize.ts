@@ -309,7 +309,7 @@ export function loadTranscript(filePath: string): { words: Word[]; format: Trans
             end: round3(w.end),
           }));
 
-  return { words: rawWords, format };
+  return { words, format };
 }
 
 /**
