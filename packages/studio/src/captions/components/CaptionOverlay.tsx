@@ -37,6 +37,10 @@ function readWordBoxes(
 
   const iframeDisplayRect = iframe.getBoundingClientRect();
   const overlayRect = overlayEl.getBoundingClientRect();
+  // The iframe renders at native resolution (e.g. 1920x1080) but is
+  // CSS-scaled to fit the viewport. getBoundingClientRect() on elements
+  // inside the iframe returns coordinates in the iframe's native space.
+  // Multiply by cssScale to convert to parent window coordinates.
   const nativeW = parseFloat(iframe.style.width) || iframeDisplayRect.width;
   const cssScale = iframeDisplayRect.width / nativeW;
   const offsetX = iframeDisplayRect.left - overlayRect.left;
@@ -53,7 +57,9 @@ function readWordBoxes(
     if (!groupEl) continue;
     const computed = win.getComputedStyle(groupEl);
     if (parseFloat(computed.opacity) <= 0.01 || computed.visibility === "hidden") continue;
-    // Find word spans — may be direct children or inside wrappers
+    // Find word elements — handles both per-word spans (generator output)
+    // and grouped text nodes (existing caption templates that use
+    // el.textContent = line.text instead of individual word spans).
     const resolvedWordEls: HTMLElement[] = [];
     for (const child of groupEl.children) {
       const c = child as HTMLElement;
@@ -62,6 +68,39 @@ function readWordBoxes(
         if (inner) resolvedWordEls.push(inner);
       } else if (c.tagName === "SPAN") {
         resolvedWordEls.push(c);
+      }
+    }
+    // Fallback: if no word spans found but group has text content,
+    // the template uses grouped text. Wrap each word in a span so
+    // the overlay can target them individually.
+    if (resolvedWordEls.length === 0 && groupEl.textContent?.trim()) {
+      const textNode = groupEl.childNodes[0];
+      if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+        const words = (textNode.textContent || "").split(/\s+/).filter(Boolean);
+        const frag = doc.createDocumentFragment();
+        for (const word of words) {
+          const span = doc.createElement("span");
+          span.textContent = word + " ";
+          span.style.display = "inline";
+          frag.appendChild(span);
+          resolvedWordEls.push(span);
+        }
+        groupEl.replaceChild(frag, textNode);
+      } else {
+        // Single span child with all text (e.g. vignelli template)
+        const singleSpan = groupEl.querySelector<HTMLElement>(":scope > span");
+        if (singleSpan && singleSpan.textContent?.trim()) {
+          const words = singleSpan.textContent.split(/\s+/).filter(Boolean);
+          const frag = doc.createDocumentFragment();
+          for (const word of words) {
+            const span = doc.createElement("span");
+            span.textContent = word + " ";
+            span.style.display = "inline";
+            frag.appendChild(span);
+            resolvedWordEls.push(span);
+          }
+          singleSpan.replaceWith(frag);
+        }
       }
     }
     for (let wi = 0; wi < group.segmentIds.length; wi++) {
@@ -243,7 +282,7 @@ export const CaptionOverlay = memo(function CaptionOverlay({ iframeRef }: Captio
         wordEl: HTMLElement;
         segmentId: string;
         startMX: number;
-        startWidth: number;
+        startDxFromCenter: number;
         origTX: number;
         origTY: number;
         origScale: number;
@@ -253,9 +292,7 @@ export const CaptionOverlay = memo(function CaptionOverlay({ iframeRef }: Captio
         type: "rotate";
         wordEl: HTMLElement;
         segmentId: string;
-        centerX: number;
-        centerY: number;
-        startAngle: number;
+        startMX: number;
         origTX: number;
         origTY: number;
         origRotation: number;
@@ -374,20 +411,25 @@ export const CaptionOverlay = memo(function CaptionOverlay({ iframeRef }: Captio
       const win = iframe.contentWindow;
       if (!wordEl || !win) return;
       const rect = wordEl.getBoundingClientRect();
+      const cssScale = getCssScale();
+      const boxCenterX =
+        rect.left * cssScale +
+        (iframeRef.current?.getBoundingClientRect().left ?? 0) +
+        (rect.width * cssScale) / 2;
       const state = readGsapTransform(getOrCreateWrapper(wordEl), win);
       interactionRef.current = {
         type: "scale",
         wordEl,
         segmentId,
         startMX: e.clientX,
-        startWidth: rect.width,
+        startDxFromCenter: e.clientX - boxCenterX,
         origTX: state.x,
         origTY: state.y,
         origScale: state.scale,
         origRotation: state.rotation,
       };
     },
-    [iframeRef],
+    [iframeRef, getCssScale],
   );
 
   // --- Rotate ---
@@ -401,17 +443,12 @@ export const CaptionOverlay = memo(function CaptionOverlay({ iframeRef }: Captio
       const wordEl = getWordEl(iframe, box.groupIndex, box.wordIndex);
       const win = iframe.contentWindow;
       if (!wordEl || !win) return;
-      const cx = box.x + box.width / 2;
-      const cy = box.y + box.height / 2;
-      const startAngle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
       const state = readGsapTransform(getOrCreateWrapper(wordEl), win);
       interactionRef.current = {
         type: "rotate",
         wordEl,
         segmentId: box.segmentId,
-        centerX: cx,
-        centerY: cy,
-        startAngle,
+        startMX: e.clientX,
         origTX: state.x,
         origTY: state.y,
         origRotation: state.rotation,
@@ -444,13 +481,19 @@ export const CaptionOverlay = memo(function CaptionOverlay({ iframeRef }: Captio
         const dy = (e.clientY - i.startMY) / cssScale;
         writeTransform(i.wordEl, win, i.origTX + dx, i.origTY + dy, i.origScale, i.origRotation);
       } else if (i.type === "scale") {
-        const dx = e.clientX - i.startMX;
-        const factor = 1 + dx / Math.max(i.startWidth, 50);
+        // Use distance from box center so dragging outward from ANY corner
+        // increases scale (not just right-side handles).
+        const cx = i.startMX - i.startDxFromCenter;
+        const startDist = Math.abs(i.startDxFromCenter);
+        const currentDist = Math.abs(e.clientX - cx);
+        const factor = startDist > 5 ? currentDist / startDist : 1;
         const newScale = Math.max(0.1, i.origScale * factor);
         writeTransform(i.wordEl, win, i.origTX, i.origTY, newScale, i.origRotation);
       } else if (i.type === "rotate") {
-        const angle = Math.atan2(e.clientY - i.centerY, e.clientX - i.centerX) * (180 / Math.PI);
-        const delta = angle - i.startAngle;
+        // Horizontal drag maps to rotation: right = clockwise, left = counter-clockwise.
+        // 200px of horizontal movement = 90 degrees.
+        const dx = e.clientX - i.startMX;
+        const delta = (dx / 200) * 90;
         writeTransform(i.wordEl, win, i.origTX, i.origTY, i.origScale, i.origRotation + delta);
       }
     },
