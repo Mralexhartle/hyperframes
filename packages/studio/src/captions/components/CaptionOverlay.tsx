@@ -292,9 +292,7 @@ export const CaptionOverlay = memo(function CaptionOverlay({ iframeRef }: Captio
         type: "rotate";
         wordEl: HTMLElement;
         segmentId: string;
-        centerX: number;
-        centerY: number;
-        startAngle: number;
+        startMX: number;
         origTX: number;
         origTY: number;
         origRotation: number;
@@ -445,17 +443,12 @@ export const CaptionOverlay = memo(function CaptionOverlay({ iframeRef }: Captio
       const wordEl = getWordEl(iframe, box.groupIndex, box.wordIndex);
       const win = iframe.contentWindow;
       if (!wordEl || !win) return;
-      const cx = box.x + box.width / 2;
-      const cy = box.y + box.height / 2;
-      const startAngle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
       const state = readGsapTransform(getOrCreateWrapper(wordEl), win);
       interactionRef.current = {
         type: "rotate",
         wordEl,
         segmentId: box.segmentId,
-        centerX: cx,
-        centerY: cy,
-        startAngle,
+        startMX: e.clientX,
         origTX: state.x,
         origTY: state.y,
         origRotation: state.rotation,
@@ -497,8 +490,10 @@ export const CaptionOverlay = memo(function CaptionOverlay({ iframeRef }: Captio
         const newScale = Math.max(0.1, i.origScale * factor);
         writeTransform(i.wordEl, win, i.origTX, i.origTY, newScale, i.origRotation);
       } else if (i.type === "rotate") {
-        const angle = Math.atan2(e.clientY - i.centerY, e.clientX - i.centerX) * (180 / Math.PI);
-        const delta = angle - i.startAngle;
+        // Horizontal drag maps to rotation: right = clockwise, left = counter-clockwise.
+        // 200px of horizontal movement = 90 degrees.
+        const dx = e.clientX - i.startMX;
+        const delta = (dx / 200) * 90;
         writeTransform(i.wordEl, win, i.origTX, i.origTY, i.origScale, i.origRotation + delta);
       }
     },
