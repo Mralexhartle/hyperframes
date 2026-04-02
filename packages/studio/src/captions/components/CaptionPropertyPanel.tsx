@@ -76,7 +76,6 @@ export const CaptionPropertyPanel = memo(function CaptionPropertyPanel({
     ...segmentOverrides,
   };
 
-
   /**
    * Apply a CSS style change to selected word elements in the iframe DOM in real time.
    * Maps CaptionStyle property names to CSS properties.
@@ -112,9 +111,15 @@ export const CaptionPropertyPanel = memo(function CaptionPropertyPanel({
             const c = child as HTMLElement;
             if (c.dataset.captionWrapper === "true") {
               const inner = c.querySelector<HTMLElement>(":scope > span");
-              if (inner && idx === wi) { targetEls.push(inner); break; }
+              if (inner && idx === wi) {
+                targetEls.push(inner);
+                break;
+              }
             } else if (c.tagName === "SPAN") {
-              if (idx === wi) { targetEls.push(c); break; }
+              if (idx === wi) {
+                targetEls.push(c);
+                break;
+              }
             }
             idx++;
           }
@@ -123,15 +128,23 @@ export const CaptionPropertyPanel = memo(function CaptionPropertyPanel({
       }
 
       // Apply transform updates via gsap.set on the WRAPPER (not the word span)
-      const hasTransform = updates.x !== undefined || updates.y !== undefined ||
-        updates.scaleX !== undefined || updates.scaleY !== undefined || updates.rotation !== undefined;
+      const hasTransform =
+        updates.x !== undefined ||
+        updates.y !== undefined ||
+        updates.scaleX !== undefined ||
+        updates.scaleY !== undefined ||
+        updates.rotation !== undefined;
 
       if (hasTransform) {
         try {
-          const iframeGsap = (iframeRef.current?.contentWindow as unknown as {
-            gsap?: { set: (el: HTMLElement, props: Record<string, unknown>) => void;
-                     getProperty: (el: HTMLElement, prop: string) => number };
-          })?.gsap;
+          const iframeGsap = (
+            iframeRef.current?.contentWindow as unknown as {
+              gsap?: {
+                set: (el: HTMLElement, props: Record<string, unknown>) => void;
+                getProperty: (el: HTMLElement, prop: string) => number;
+              };
+            }
+          )?.gsap;
           if (iframeGsap) {
             for (const el of targetEls) {
               // Get or create wrapper
@@ -156,7 +169,9 @@ export const CaptionPropertyPanel = memo(function CaptionPropertyPanel({
               });
             }
           }
-        } catch { /* cross-origin */ }
+        } catch {
+          /* cross-origin */
+        }
       }
     },
     [iframeRef, model, selectedSegmentIds],
@@ -194,18 +209,14 @@ export const CaptionPropertyPanel = memo(function CaptionPropertyPanel({
   const scaleX = effectiveStyle.scaleX ?? 1;
 
   // Count label
-  const countLabel = selectedSegmentIds.size === 1
-    ? "1 word"
-    : `${selectedSegmentIds.size} words`;
+  const countLabel = selectedSegmentIds.size === 1 ? "1 word" : `${selectedSegmentIds.size} words`;
 
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="px-3 py-2 border-b border-neutral-800 flex-shrink-0">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-2xs text-neutral-500">
-            {countLabel}
-          </span>
+          <span className="text-2xs text-neutral-500">{countLabel}</span>
         </div>
         {/* Tab switcher */}
         <div className="flex gap-1">
