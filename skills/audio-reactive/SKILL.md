@@ -39,6 +39,27 @@ Map frequency bands and amplitude to any GSAP-animatable property. The creative 
 
 These are starting points. Any property GSAP can tween is fair game — `clipPath`, `filter`, `backgroundPosition`, SVG attributes, custom CSS properties.
 
+## Content, Not Medium
+
+Audio data provides **timing and intensity** for visuals grounded in the content. It tells the animation _when_ and _how much_ — not _what to show_. The visual vocabulary comes from the narrative, theme, and emotion of the piece. A funeral dirge and a party anthem should produce completely different visuals even though their audio data has the same shape.
+
+**Never add these — they represent the medium, not the content:**
+
+- Frequency equalizer bars, spectrum analyzers, radial spectrum rings — technical readouts that just say "audio exists"
+- Waveform displays, oscilloscope lines, VU meters — diagnostic tools, not creative choices
+- Musical notes, vinyl records, turntable imagery — clip art signaling "music is playing"
+- Generic particle systems driven by amplitude — interchangeable across any song or mood
+- Background color cycling through rainbow hues on frequency — rave aesthetic regardless of content
+- Strobing/flashing white on beat hits — lazy beat sync (also an accessibility problem)
+- Abstract pulsing orbs, breathing geometric wireframes, concentric rings — would look identical on a lullaby or a metal track
+
+**Instead, let the content guide the visual and the audio drive its behavior:**
+
+- If the scene is warm, bass makes the warmth _swell_ (slight scale, deeper color saturation)
+- If the mood is tense, treble sharpens _contrast_ or tightens _letterSpacing_
+- If text is the focus, bass gives it subtle _weight_ (shadow depth, y offset) while treble adds _shimmer_ (glow, lightness)
+- The visual choice comes from asking "what does this piece feel like?" — audio data just animates the answer
+
 ## Guidelines
 
 - **Subtlety for text.** Captions and readable text should stay in the 3–6% scale variation range with soft glow. Heavy pulsing makes text unreadable.
