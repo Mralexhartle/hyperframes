@@ -388,4 +388,89 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
       },
     ];
   },
+
+  // audio_reactive_single_tween_per_group
+  ({ scripts, styles }) => {
+    const findings: HyperframeLintFinding[] = [];
+    const isCaptionFile = styles.some((s) => /\.caption[-_]?(?:group|word)/i.test(s.content));
+    if (!isCaptionFile) return findings;
+
+    for (const script of scripts) {
+      const content = script.content;
+      // Detect audio data loading
+      const hasAudioData = /AUDIO|audio[-_]?data|bands\[/.test(content);
+      if (!hasAudioData) continue;
+
+      // Detect caption group loop
+      const hasCaptionLoop = /forEach/.test(content) && /caption|group|cg-/.test(content);
+      if (!hasCaptionLoop) continue;
+
+      // Check if audio-reactive tweens are created at intervals (loop inside the group loop)
+      // vs a single tween per group (no inner time-sampling loop)
+      const hasInnerSamplingLoop =
+        /for\s*\(\s*var\s+\w+\s*=\s*group\.start/.test(content) ||
+        /for\s*\(\s*var\s+at\s*=/.test(content) ||
+        /while\s*\(\s*\w+\s*<\s*group\.end/.test(content);
+
+      if (!hasInnerSamplingLoop) {
+        // Check if there's at least a peak-based single tween (the minimal pattern)
+        const hasPeakTween =
+          /peak(?:Bass|Treble|Energy)/.test(content) && /group\.start/.test(content);
+        if (hasPeakTween) {
+          findings.push({
+            code: "audio_reactive_single_tween_per_group",
+            severity: "warning",
+            message:
+              "Audio-reactive captions use a single tween per group based on peak values. " +
+              "This sets one static value at group.start — not perceptible as audio reactivity.",
+            fixHint:
+              "Sample audio data at 100-200ms intervals throughout each group's lifetime " +
+              "(for loop from group.start to group.end) and create a tween at each sample " +
+              "point for visible pulsing.",
+          });
+        }
+      }
+    }
+    return findings;
+  },
+
+  // scene_layer_missing_visibility_kill
+  ({ scripts, tags }) => {
+    const findings: HyperframeLintFinding[] = [];
+
+    // Detect multi-scene compositions: multiple elements with "scene" in their id
+    const sceneElements = tags.filter((t) => {
+      const id = readAttr(t.raw, "id") || "";
+      return /^scene\d+$/i.test(id);
+    });
+    if (sceneElements.length < 2) return findings;
+
+    for (const script of scripts) {
+      const content = script.content;
+      // For each scene, check if there's a visibility:hidden set after exit tweens
+      for (const tag of sceneElements) {
+        const id = readAttr(tag.raw, "id") || "";
+        // Check if this scene has exit tweens (opacity: 0)
+        const exitPattern = new RegExp(`["']#${id}["'][^)]*opacity\\s*:\\s*0`);
+        const hasExit = exitPattern.test(content);
+        if (!hasExit) continue;
+
+        // Check if there's a hard visibility kill
+        const killPattern = new RegExp(`["']#${id}["'][^)]*visibility\\s*:\\s*["']hidden["']`);
+        const hasKill = killPattern.test(content);
+        if (!hasKill) {
+          findings.push({
+            code: "scene_layer_missing_visibility_kill",
+            severity: "warning",
+            elementId: id,
+            message:
+              `Scene layer "#${id}" exits via opacity tween but has no visibility: hidden hard kill. ` +
+              "When scrubbing or when tweens conflict, the scene may remain partially visible and overlap the next scene.",
+            fixHint: `Add \`tl.set("#${id}", { visibility: "hidden" }, <exit-end-time>)\` after the scene's exit tweens.`,
+          });
+        }
+      }
+    }
+    return findings;
+  },
 ];

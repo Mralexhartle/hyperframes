@@ -127,6 +127,26 @@ Break groups on sentence boundaries (period, question mark, exclamation), pauses
 - Use `position: absolute` — never relative (causes overflow)
 - One caption group visible at a time
 
+**Caption layer structure:** Use a full-width container with margins instead of `left: 50%; transform: translateX(-50%)`. The transform-centered approach collapses to content width, causing clipping at composition edges when text is wide or words are scaled.
+
+```css
+/* ✓ Full-width with margins — safe for scaled words */
+#caption-layer {
+  position: absolute;
+  bottom: 80px;
+  left: 80px;
+  right: 80px;
+  text-align: center;
+  overflow: visible;
+}
+
+/* ✗ Collapsed width — clips at edges */
+#caption-layer {
+  left: 50%;
+  transform: translateX(-50%);
+}
+```
+
 ## Text Overflow Prevention
 
 Use `window.__hyperframes.fitTextFontSize()` to measure actual rendered text width and compute the correct font size. This replaces character-count heuristics with pixel-accurate measurement powered by [pretext](https://github.com/chenglou/pretext).
@@ -155,10 +175,12 @@ GROUPS.forEach(function (group, gi) {
 
 `fontWeight` and `fontFamily` must match the CSS applied to the text elements exactly, or measurements will be inaccurate.
 
+**Scale headroom for emphasis words:** If per-word styling scales words above 1.0x (e.g., `scale: 1.3` on "GOLDEN"), the scaled word occupies more width than `fitTextFontSize` measured. Reduce `maxWidth` to compensate: `maxWidth = safeWidth / maxScale`. For example, with max scale 1.3x on a 1920px composition with 80px margins: `maxWidth = 1760 / 1.3 ≈ 1350`.
+
 **Safety nets (still required in CSS):**
 
-- `max-width: 1600px` (landscape) or `max-width: 900px` (portrait) on caption container
-- `overflow: hidden` as a fallback for `fits: false` edge cases
+- `max-width` on caption container (reduced from composition width to account for emphasis scale)
+- `overflow: visible` — **not** `overflow: hidden`. Hidden clips scaled emphasis words and their glow effects. Rely on `fitTextFontSize` with reduced `maxWidth` instead.
 - `position: absolute` on all caption elements
 - Explicit `height` on caption container (e.g., `200px`)
 

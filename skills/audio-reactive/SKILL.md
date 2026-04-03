@@ -67,6 +67,30 @@ Audio data provides **timing and intensity** for visuals grounded in the content
 - **Match the energy.** A corporate explainer needs subtle reactivity. A music video can go hard.
 - **Deterministic.** Audio data is pre-extracted — no Web Audio API, no `AnalyserNode`, no runtime mic input. The data is static JSON, the animation is repeatable.
 
+## Sampling Frequency
+
+**One tween per element is not audio reactivity.** Reading peak bass/treble for a time range and creating a single tween at the start sets one static value — the viewer cannot perceive it as reactive. Audio reactivity requires multiple tweens over time so the visual _changes_ with the music.
+
+Sample at **100-200ms intervals** throughout the element's visible lifetime:
+
+```js
+// ✓ Perceptible: sample every 150ms, create a tween at each point
+for (var t = group.start; t < group.end; t += 0.15) {
+  var bass = getBass(t);
+  tl.to(el, { scale: 1 + bass * 0.06, duration: 0.075, ease: "sine.inOut" }, t);
+}
+
+// ✗ Imperceptible: one tween from peak values
+var peakBass = getPeakBass(group.start, group.end);
+tl.to(el, { scale: 1 + peakBass * 0.06, duration: 0.3 }, group.start);
+```
+
+## textShadow on Containers
+
+**Never apply `textShadow` to a container that has semi-transparent children.** When a caption group has inactive words at `rgba(255,255,255,0.3)`, a `textShadow` on the parent div renders a visible glow rectangle behind all children — it looks like a gray background, not a glow effect.
+
+Apply `scale` to the group container for bass-reactive pulsing. Apply `textShadow` to individual active word elements only.
+
 ## Constraints
 
 - All audio data must be pre-extracted — no runtime audio analysis

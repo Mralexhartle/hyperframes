@@ -130,4 +130,100 @@ export const captionRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> 
     }
     return findings;
   },
+
+  // caption_overflow_clips_scaled_words
+  ({ styles, scripts }) => {
+    const findings: HyperframeLintFinding[] = [];
+    const hasScaledWords = scripts.some(
+      (s) => /scale\s*:\s*1\.[2-9]/.test(s.content) && /caption|word|cg-/.test(s.content),
+    );
+    if (!hasScaledWords) return findings;
+
+    for (const style of styles) {
+      const captionBlocks = style.content.matchAll(
+        /(\.caption[-_]?(?:group|container)|#caption[-_]?(?:layer|container))\s*\{([^}]+)\}/gi,
+      );
+      for (const [, selector, body] of captionBlocks) {
+        if (!body) continue;
+        if (/overflow\s*:\s*hidden/i.test(body)) {
+          findings.push({
+            code: "caption_overflow_clips_scaled_words",
+            severity: "warning",
+            selector: (selector ?? "").trim(),
+            message: `"${(selector ?? "").trim()}" has overflow: hidden but GSAP scales caption words above 1.0x. Scaled emphasis words and their glow effects will be clipped.`,
+            fixHint:
+              "Use overflow: visible on caption containers. Rely on fitTextFontSize with reduced maxWidth to prevent overflow instead.",
+          });
+        }
+      }
+    }
+    return findings;
+  },
+
+  // caption_textshadow_on_group_container
+  ({ scripts, styles }) => {
+    const findings: HyperframeLintFinding[] = [];
+    const isCaptionFile = styles.some((s) => /\.caption[-_]?(?:group|word)/i.test(s.content));
+    if (!isCaptionFile) return findings;
+
+    for (const script of scripts) {
+      // Detect textShadow tweened on a group container (div with child word spans)
+      const groupShadowPattern =
+        /\.to\s*\(\s*(?:div|groupEl|el|captionEl|document\.getElementById\s*\(\s*["']cg-)\s*[^,]*,\s*\{[^}]*textShadow/g;
+      // Also catch selector-based targeting of group containers
+      const selectorShadowPattern =
+        /\.to\s*\(\s*["'](?:#cg-\d+|\.caption[-_]?group)["']\s*,\s*\{[^}]*textShadow/g;
+      if (groupShadowPattern.test(script.content) || selectorShadowPattern.test(script.content)) {
+        findings.push({
+          code: "caption_textshadow_on_group_container",
+          severity: "warning",
+          message:
+            "textShadow is tweened on a caption group container. When children have semi-transparent " +
+            "color (e.g., inactive karaoke words at rgba opacity), the glow renders as a visible " +
+            "rectangle behind the entire group.",
+          fixHint:
+            "Apply textShadow to individual active word elements instead of the group container. " +
+            "Use scale on the group for bass-reactive pulsing.",
+        });
+      }
+    }
+    return findings;
+  },
+
+  // caption_fittext_scale_mismatch
+  ({ scripts }) => {
+    const findings: HyperframeLintFinding[] = [];
+    for (const script of scripts) {
+      const content = script.content;
+      const fitTextMatch = content.match(/fitTextFontSize\s*\([^)]*maxWidth\s*:\s*(\d+)/);
+      if (!fitTextMatch) continue;
+      const maxWidth = parseInt(fitTextMatch[1] ?? "0", 10);
+      if (!maxWidth) continue;
+
+      // Find max scale on caption words
+      const scaleMatches = [...content.matchAll(/scale\s*:\s*(1\.\d+)/g)];
+      const captionContext = /caption|word|cg-|karaoke/i.test(content);
+      if (!captionContext || scaleMatches.length === 0) continue;
+
+      let maxScale = 1;
+      for (const m of scaleMatches) {
+        const val = parseFloat(m[1] ?? "1");
+        if (val > maxScale) maxScale = val;
+      }
+
+      // Check if maxWidth * maxScale exceeds safe bounds (1920 - reasonable margins)
+      const effectiveWidth = maxWidth * maxScale;
+      if (effectiveWidth > 1760) {
+        findings.push({
+          code: "caption_fittext_scale_mismatch",
+          severity: "warning",
+          message:
+            `fitTextFontSize uses maxWidth: ${maxWidth}px but emphasis words scale up to ${maxScale}x. ` +
+            `Effective width ${Math.round(effectiveWidth)}px may overflow the composition (1920px minus margins).`,
+          fixHint: `Reduce maxWidth to ${Math.floor(1700 / maxScale)}px to leave headroom for scaled emphasis words.`,
+        });
+      }
+    }
+    return findings;
+  },
 ];
