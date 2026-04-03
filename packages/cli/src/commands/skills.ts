@@ -14,12 +14,13 @@ function hasNpx(): boolean {
 
 function runSkillsAdd(repo: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn("npx", ["skills", "add", repo, "--all", "-g"], {
-      stdio: "ignore",
+    const child = spawn("npx", ["skills", "add", repo, "--all"], {
+      stdio: "inherit",
       timeout: 120_000,
     });
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
       if (code === 0) resolve();
+      else if (signal === "SIGINT" || code === 130) process.exit(0);
       else reject(new Error(`npx skills add exited with code ${code}`));
     });
     child.on("error", reject);
@@ -38,39 +39,20 @@ export default defineCommand({
   },
   args: {},
   async run() {
-    clack.intro(c.bold("hyperframes skills"));
-
     if (!hasNpx()) {
       clack.log.error(c.error("npx not found. Install Node.js and retry."));
-      clack.outro(c.warn("No skills installed."));
       return;
     }
 
-    const installed: string[] = [];
-    const skipped: string[] = [];
-
     for (const source of SOURCES) {
-      const spinner = clack.spinner();
-      spinner.start(`Installing ${source.name} skills...`);
+      console.log();
+      console.log(c.bold(`Installing ${source.name} skills...`));
+      console.log();
       try {
         await runSkillsAdd(source.repo);
-        installed.push(source.name);
-        spinner.stop(c.success(`${source.name} skills installed`));
       } catch {
-        skipped.push(source.name);
-        spinner.stop(c.dim(`${source.name} skills skipped (unavailable)`));
+        console.log(c.dim(`${source.name} skills skipped`));
       }
-    }
-
-    if (skipped.length > 0) {
-      console.log(`   ${c.dim("Skipped:")}  ${skipped.join(", ")}`);
-      console.log();
-    }
-
-    if (installed.length > 0) {
-      clack.outro(c.success(`${installed.join(" + ")} skills installed.`));
-    } else {
-      clack.outro(c.warn("No skills installed."));
     }
   },
 });

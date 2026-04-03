@@ -692,10 +692,19 @@ export default defineCommand({
     const files = readdirSync(destDir);
     clack.note(files.map((f) => c.accent(f)).join("\n"), c.success(`Created ${name}/`));
 
-    clack.log.message(
-      `${c.dim("Tip:")} Install AI coding skills: ${c.accent("npx skills add heygen-com/hyperframes")}\n` +
-        `${c.dim("     Then open this project with")} ${c.accent("Claude Code")}${c.dim(",")} ${c.accent("Cursor")}${c.dim(", or your preferred agent.")}`,
-    );
+    // Offer to install AI coding skills
+    const installSkills = await clack.confirm({
+      message: "Install AI coding skills? (for Claude Code, Cursor, Codex, etc.)",
+      initialValue: true,
+    });
+    if (clack.isCancel(installSkills)) {
+      clack.cancel("Setup cancelled.");
+      process.exit(0);
+    }
+    if (installSkills) {
+      const skillsCmd = await import("./skills.js").then((m) => m.default);
+      await runCommand(skillsCmd, { rawArgs: [] });
+    }
 
     // Auto-launch studio preview
     clack.log.info("Opening studio preview...");
