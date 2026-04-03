@@ -1,5 +1,5 @@
 import type { LintContext, HyperframeLintFinding } from "../context";
-import { readAttr, truncateSnippet } from "../utils";
+import { readAttr, truncateSnippet, extractOpenTags } from "../utils";
 
 export const compositionRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
   // timed_element_missing_visibility_hidden
@@ -188,6 +188,134 @@ export const compositionRules: Array<(ctx: LintContext) => HyperframeLintFinding
       }
     }
 
+    return findings;
+  },
+
+  // invalid_data_props_json
+  ({ tags }) => {
+    const findings: HyperframeLintFinding[] = [];
+    // readAttr uses [^"']+ which breaks on JSON containing quotes inside
+    // single-quoted attributes. Use a dedicated regex that captures the full
+    // single-quoted or double-quoted attribute value.
+    const dataPropsRe = /\bdata-props\s*=\s*(?:'([^']*)'|"([^"]*)")/i;
+    for (const tag of tags) {
+      const match = tag.raw.match(dataPropsRe);
+      if (!match) continue;
+      const propsRaw = (match[1] ?? match[2] ?? "")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, "&");
+      try {
+        const parsed = JSON.parse(propsRaw);
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+          throw new Error("not a plain object");
+        }
+      } catch {
+        const elementId = readAttr(tag.raw, "id") || undefined;
+        findings.push({
+          code: "invalid_data_props_json",
+          severity: "error",
+          message: `<${tag.name}${elementId ? ` id="${elementId}"` : ""}> has data-props with invalid JSON. Value must be a JSON object: '{"key":"value"}'.`,
+          elementId,
+          fixHint:
+            'Fix the data-props JSON. It must be a valid JSON object with string keys. Example: data-props=\'{"title":"Hello","color":"#fff"}\'',
+          snippet: truncateSnippet(tag.raw),
+        });
+      }
+    }
+    return findings;
+  },
+
+  // mustache_placeholder_without_default
+  ({ source, options }) => {
+    const findings: HyperframeLintFinding[] = [];
+    // Only warn in sub-composition files (not index.html), where standalone rendering matters
+    const filePath = options.filePath || "";
+    const isSubComposition =
+      filePath.includes("compositions/") || filePath.includes("compositions\\");
+    if (!isSubComposition) return findings;
+
+    const placeholderRe = /\{\{(\s*[\w.-]+\s*)(?::([^}]*))?\}\}/g;
+    let match: RegExpExecArray | null;
+    const seen = new Set<string>();
+    while ((match = placeholderRe.exec(source)) !== null) {
+      const key = (match[1] ?? "").trim();
+      const hasDefault = match[2] !== undefined;
+      if (!hasDefault && !seen.has(key)) {
+        seen.add(key);
+        findings.push({
+          code: "mustache_placeholder_without_default",
+          severity: "warning",
+          message: `Placeholder {{${key}}} has no default value. This composition will show raw "{{${key}}}" when rendered standalone (preview, lint, render without a parent).`,
+          fixHint: `Add a default: {{${key}:your default value}}. This ensures the composition renders correctly both standalone and when used with data-props.`,
+          snippet: match[0],
+        });
+      }
+    }
+    return findings;
+  },
+
+  // unused_data_props_key (inline templates only — cross-file not supported)
+  ({ rawSource }) => {
+    const findings: HyperframeLintFinding[] = [];
+    const placeholderRe = /\{\{(\s*[\w.-]+\s*)(?::[^}]*)?\}\}/g;
+
+    // Use rawSource (not template-stripped source) to find hosts with data-props
+    const rawTags = extractOpenTags(rawSource);
+    for (const tag of rawTags) {
+      // Only check hosts that reference inline templates (same-file)
+      const compId = readAttr(tag.raw, "data-composition-id");
+      if (!compId) continue;
+      if (readAttr(tag.raw, "data-composition-src")) continue; // external — can't check
+
+      const dataPropsMatch = tag.raw.match(/\bdata-props\s*=\s*(?:'([^']*)'|"([^"]*)")/i);
+      if (!dataPropsMatch) continue;
+
+      const propsRaw = (dataPropsMatch[1] ?? dataPropsMatch[2] ?? "")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, "&");
+      let propsKeys: Set<string>;
+      try {
+        const parsed = JSON.parse(propsRaw);
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) continue;
+        propsKeys = new Set(Object.keys(parsed));
+      } catch {
+        continue; // invalid JSON is caught by invalid_data_props_json rule
+      }
+      if (propsKeys.size === 0) continue;
+
+      // Find the matching inline template
+      const templateRe = new RegExp(
+        `<template[^>]*id=["']${compId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-template["'][^>]*>([\\s\\S]*?)</template>`,
+        "i",
+      );
+      const templateMatch = rawSource.match(templateRe);
+      if (!templateMatch?.[1]) continue;
+
+      // Collect all placeholder keys in the template
+      const templateKeys = new Set<string>();
+      let pMatch: RegExpExecArray | null;
+      const pRe = new RegExp(placeholderRe.source, placeholderRe.flags);
+      while ((pMatch = pRe.exec(templateMatch[1])) !== null) {
+        templateKeys.add((pMatch[1] ?? "").trim());
+      }
+
+      // Warn about props keys that don't match any placeholder
+      for (const key of propsKeys) {
+        if (!templateKeys.has(key)) {
+          const elementId = readAttr(tag.raw, "id") || undefined;
+          findings.push({
+            code: "unused_data_props_key",
+            severity: "warning",
+            message: `data-props key "${key}" on <${tag.name}${elementId ? ` id="${elementId}"` : ""}> does not match any {{${key}}} placeholder in the "${compId}" template. Possible typo.`,
+            elementId,
+            fixHint: `Check the key name. Available placeholders in the template: ${[...templateKeys].map((k) => `{{${k}}}`).join(", ") || "(none found)"}`,
+            snippet: truncateSnippet(tag.raw),
+          });
+        }
+      }
+    }
     return findings;
   },
 

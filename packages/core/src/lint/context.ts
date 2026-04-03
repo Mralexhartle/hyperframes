@@ -13,7 +13,10 @@ import type { OpenTag, ExtractedBlock } from "./utils";
 export type { OpenTag, ExtractedBlock };
 
 export type LintContext = {
+  /** Source after template unwrapping (used by most rules). */
   source: string;
+  /** Original unmodified HTML (for rules that need to cross-reference templates with hosts). */
+  rawSource: string;
   tags: OpenTag[];
   styles: ExtractedBlock[];
   scripts: ExtractedBlock[];
@@ -27,7 +30,8 @@ export type LintContext = {
 export type { HyperframeLintFinding };
 
 export function buildLintContext(html: string, options: HyperframeLinterOptions = {}): LintContext {
-  let source = html || "";
+  const rawSource = html || "";
+  let source = rawSource;
   const templateMatch = source.match(/<template[^>]*>([\s\S]*)<\/template>/i);
   if (templateMatch?.[1]) source = templateMatch[1];
 
@@ -40,6 +44,7 @@ export function buildLintContext(html: string, options: HyperframeLinterOptions 
 
   return {
     source,
+    rawSource,
     tags,
     styles,
     scripts,

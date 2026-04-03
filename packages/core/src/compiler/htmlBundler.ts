@@ -534,23 +534,21 @@ export async function bundleToSingleHtml(
     if (!host) continue;
     if (host.children.length > 0) continue; // already has content
 
-    // Get template content and parse (interpolation happens per-context below)
+    // Parse first (raw), then interpolate per-context — matching the external
+    // composition path so CSS gets raw values and scripts get JS-escaped values.
     const templateHtml = templateEl.innerHTML || "";
     const templateVarValues = parseVariableValues(host.getAttribute("data-props"));
 
-    // Interpolate HTML content (always run so defaults resolve even without data-props)
-    const interpolatedTemplateHtml = interpolateProps(templateHtml, templateVarValues);
-
-    const innerDoc = parseHTMLContent(interpolatedTemplateHtml);
+    const innerDoc = parseHTMLContent(templateHtml);
     const innerRoot = innerDoc.querySelector(`[data-composition-id="${compId}"]`);
 
     if (innerRoot) {
-      // Hoist styles into the collected style chunks (CSS: raw interpolation)
+      // Hoist styles (CSS: raw interpolation)
       for (const styleEl of [...innerRoot.querySelectorAll("style")]) {
         compStyleChunks.push(interpolateCssProps(styleEl.textContent || "", templateVarValues));
         styleEl.remove();
       }
-      // Hoist scripts into the collected script chunks (JS: JS-escaped interpolation)
+      // Hoist scripts (JS: JS-escaped interpolation)
       for (const scriptEl of [...innerRoot.querySelectorAll("script")]) {
         const externalSrc = (scriptEl.getAttribute("src") || "").trim();
         if (externalSrc) {
@@ -572,7 +570,8 @@ export async function bundleToSingleHtml(
       if (innerW && !host.getAttribute("data-width")) host.setAttribute("data-width", innerW);
       if (innerH && !host.getAttribute("data-height")) host.setAttribute("data-height", innerH);
 
-      // Set host content from inner root
+      // Interpolate remaining HTML content (HTML-escaped via innerHTML serialization)
+      innerRoot.innerHTML = interpolateProps(innerRoot.innerHTML || "", templateVarValues);
       host.innerHTML = innerRoot.innerHTML || "";
     } else {
       // No matching inner root — inject all template content directly
@@ -594,6 +593,8 @@ export async function bundleToSingleHtml(
         }
         scriptEl.remove();
       }
+      // Interpolate remaining HTML content
+      innerDoc.body.innerHTML = interpolateProps(innerDoc.body.innerHTML || "", templateVarValues);
       host.innerHTML = innerDoc.body.innerHTML || "";
     }
 

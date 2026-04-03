@@ -22,7 +22,6 @@ import {
   type UnresolvedElement,
   rewriteAssetPaths,
   rewriteCssAssetUrls,
-  interpolateProps,
   interpolateScriptProps,
   interpolateCssProps,
   parseVariableValues,
@@ -532,14 +531,16 @@ function inlineSubCompositions(
       : contentDoc.querySelector("[data-composition-id]");
     const inferredCompId = innerRoot?.getAttribute("data-composition-id")?.trim() || null;
 
-    // Interpolate {{key}} and {{key:default}} in HTML text/attributes (always run for defaults)
+    // Interpolate {{key}} and {{key:default}} in HTML text/attributes (always run for defaults).
+    // Use raw replacement (interpolateCssProps) since linkedom auto-escapes on serialization —
+    // HTML-escaping here would double-escape (e.g., "A & B" → "A &amp;amp; B").
     {
       const bodyEl2 = contentDoc.querySelector("body");
       if (bodyEl2) {
         for (const el of bodyEl2.querySelectorAll("*")) {
           if (el.tagName === "STYLE" || el.tagName === "SCRIPT") continue;
           for (const attr of [...el.attributes]) {
-            el.setAttribute(attr.name, interpolateProps(attr.value, varValues));
+            el.setAttribute(attr.name, interpolateCssProps(attr.value, varValues));
           }
         }
         const walk = contentDoc.createTreeWalker(bodyEl2, 4 /* NodeFilter.SHOW_TEXT */);
@@ -547,7 +548,7 @@ function inlineSubCompositions(
         while ((textNode = walk.nextNode())) {
           const parent = textNode.parentNode as Element | null;
           if (parent && (parent.tagName === "STYLE" || parent.tagName === "SCRIPT")) continue;
-          textNode.textContent = interpolateProps(textNode.textContent || "", varValues);
+          textNode.textContent = interpolateCssProps(textNode.textContent || "", varValues);
         }
       }
     }

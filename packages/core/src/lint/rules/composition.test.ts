@@ -201,6 +201,227 @@ describe("composition rules", () => {
     });
   });
 
+  describe("invalid_data_props_json", () => {
+    it("flags invalid JSON in data-props", () => {
+      const html = `
+<html><body>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div id="card" data-composition-src="card.html" data-props='{broken json}' data-start="0" data-duration="5" data-track-index="0" class="clip"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+      const result = lintHyperframeHtml(html);
+      const finding = result.findings.find((f) => f.code === "invalid_data_props_json");
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe("error");
+    });
+
+    it("flags array in data-props", () => {
+      const html = `
+<html><body>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div id="card" data-composition-src="card.html" data-props='[1,2,3]' data-start="0" data-duration="5" data-track-index="0" class="clip"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+      const result = lintHyperframeHtml(html);
+      const finding = result.findings.find((f) => f.code === "invalid_data_props_json");
+      expect(finding).toBeDefined();
+    });
+
+    it("passes with valid data-props JSON", () => {
+      const html = `
+<html><body>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div id="card" data-composition-src="card.html" data-props='{"title":"Pro","price":29}' data-start="0" data-duration="5" data-track-index="0" class="clip"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+      const result = lintHyperframeHtml(html);
+      expect(result.findings.find((f) => f.code === "invalid_data_props_json")).toBeUndefined();
+    });
+
+    it("no finding when data-props is absent", () => {
+      const html = `
+<html><body>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div id="card" data-composition-src="card.html" data-start="0" data-duration="5" data-track-index="0" class="clip"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+      const result = lintHyperframeHtml(html);
+      expect(result.findings.find((f) => f.code === "invalid_data_props_json")).toBeUndefined();
+    });
+  });
+
+  describe("mustache_placeholder_without_default", () => {
+    it("warns about placeholders without defaults in sub-compositions", () => {
+      const html = `<template id="card-template">
+  <div data-composition-id="card" data-width="1920" data-height="1080">
+    <h2>{{title}}</h2>
+    <p>{{price}}</p>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["card"] = gsap.timeline({ paused: true });
+    </script>
+  </div>
+</template>`;
+      const result = lintHyperframeHtml(html, { filePath: "compositions/card.html" });
+      const findings = result.findings.filter(
+        (f) => f.code === "mustache_placeholder_without_default",
+      );
+      expect(findings).toHaveLength(2);
+      expect(findings[0]?.message).toContain("{{title}}");
+      expect(findings[1]?.message).toContain("{{price}}");
+      expect(findings[0]?.severity).toBe("warning");
+    });
+
+    it("does not warn when placeholders have defaults", () => {
+      const html = `<template id="card-template">
+  <div data-composition-id="card" data-width="1920" data-height="1080">
+    <h2>{{title:Card Title}}</h2>
+    <p>{{price:$0}}</p>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["card"] = gsap.timeline({ paused: true });
+    </script>
+  </div>
+</template>`;
+      const result = lintHyperframeHtml(html, { filePath: "compositions/card.html" });
+      expect(
+        result.findings.find((f) => f.code === "mustache_placeholder_without_default"),
+      ).toBeUndefined();
+    });
+
+    it("does not warn for placeholders in root index.html", () => {
+      const html = `
+<html><body>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <h2>{{title}}</h2>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+      const result = lintHyperframeHtml(html, { filePath: "index.html" });
+      expect(
+        result.findings.find((f) => f.code === "mustache_placeholder_without_default"),
+      ).toBeUndefined();
+    });
+
+    it("deduplicates warnings for the same key used multiple times", () => {
+      const html = `<template id="card-template">
+  <div data-composition-id="card" data-width="1920" data-height="1080">
+    <h2>{{title}}</h2>
+    <p>Also: {{title}}</p>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["card"] = gsap.timeline({ paused: true });
+    </script>
+  </div>
+</template>`;
+      const result = lintHyperframeHtml(html, { filePath: "compositions/card.html" });
+      const findings = result.findings.filter(
+        (f) => f.code === "mustache_placeholder_without_default",
+      );
+      expect(findings).toHaveLength(1);
+    });
+  });
+
+  describe("unused_data_props_key", () => {
+    it("warns about props keys that don't match any placeholder in inline template", () => {
+      const html = `
+<html><body>
+  <template id="card-template">
+    <div data-composition-id="card" data-width="1920" data-height="1080">
+      <h2>{{title:Default}}</h2>
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+      <script>
+        window.__timelines = window.__timelines || {};
+        window.__timelines["card"] = gsap.timeline({ paused: true });
+      </script>
+    </div>
+  </template>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div id="my-card" data-composition-id="card"
+      data-props='{"title":"Pro","typo":"oops"}'
+      data-start="0" data-duration="5" data-track-index="0" class="clip"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+      const result = lintHyperframeHtml(html);
+      const findings = result.findings.filter((f) => f.code === "unused_data_props_key");
+      expect(findings).toHaveLength(1);
+      expect(findings[0]?.message).toContain('"typo"');
+      expect(findings[0]?.severity).toBe("warning");
+      expect(findings[0]?.fixHint).toContain("{{title}}");
+    });
+
+    it("does not warn when all props keys match placeholders", () => {
+      const html = `
+<html><body>
+  <template id="card-template">
+    <div data-composition-id="card" data-width="1920" data-height="1080">
+      <h2>{{title:Default}}</h2>
+      <p>{{price:$0}}</p>
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+      <script>
+        window.__timelines = window.__timelines || {};
+        window.__timelines["card"] = gsap.timeline({ paused: true });
+      </script>
+    </div>
+  </template>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div data-composition-id="card"
+      data-props='{"title":"Pro","price":"$29"}'
+      data-start="0" data-duration="5" data-track-index="0" class="clip"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+      const result = lintHyperframeHtml(html);
+      expect(result.findings.find((f) => f.code === "unused_data_props_key")).toBeUndefined();
+    });
+
+    it("skips external compositions (data-composition-src)", () => {
+      const html = `
+<html><body>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div data-composition-id="card" data-composition-src="compositions/card.html"
+      data-props='{"typo":"oops"}'
+      data-start="0" data-duration="5" data-track-index="0" class="clip"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+      const result = lintHyperframeHtml(html);
+      expect(result.findings.find((f) => f.code === "unused_data_props_key")).toBeUndefined();
+    });
+  });
+
   describe("requestanimationframe_in_composition", () => {
     it("flags requestAnimationFrame usage in script content", () => {
       const html = `
