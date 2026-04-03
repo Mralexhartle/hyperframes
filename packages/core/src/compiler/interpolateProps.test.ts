@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { interpolateProps, interpolateScriptProps, parseVariableValues } from "./interpolateProps";
+import {
+  interpolateProps,
+  interpolateScriptProps,
+  interpolateCssProps,
+  parseVariableValues,
+} from "./interpolateProps";
 
 describe("parseVariableValues", () => {
   it("parses valid JSON object", () => {
@@ -93,6 +98,51 @@ describe("interpolateProps", () => {
     const result = interpolateProps("{{card.title}}", { "card.title": "Premium" });
     expect(result).toBe("Premium");
   });
+
+  it("uses default when no value provided", () => {
+    const result = interpolateProps("<h2>{{title:Hello World}}</h2>");
+    expect(result).toBe("<h2>Hello World</h2>");
+  });
+
+  it("uses default when values object is empty", () => {
+    const result = interpolateProps("<h2>{{title:Fallback}}</h2>", {});
+    expect(result).toBe("<h2>Fallback</h2>");
+  });
+
+  it("overrides default with provided value", () => {
+    const result = interpolateProps("<h2>{{title:Fallback}}</h2>", { title: "Override" });
+    expect(result).toBe("<h2>Override</h2>");
+  });
+
+  it("handles default with special characters", () => {
+    const result = interpolateProps("<p>{{color:#ff0000}}</p>");
+    expect(result).toBe("<p>#ff0000</p>");
+  });
+
+  it("handles empty default", () => {
+    const result = interpolateProps("<p>{{title:}}</p>");
+    expect(result).toBe("<p></p>");
+  });
+
+  it("handles default with spaces", () => {
+    const result = interpolateProps("<p>{{label:Hello World}}</p>");
+    expect(result).toBe("<p>Hello World</p>");
+  });
+
+  it("HTML-escapes defaults too", () => {
+    const result = interpolateProps("<p>{{val:<b>bold</b>}}</p>");
+    expect(result).toBe("<p>&lt;b&gt;bold&lt;/b&gt;</p>");
+  });
+
+  it("mixes defaulted and non-defaulted placeholders", () => {
+    const result = interpolateProps("{{title:Default}} by {{author}}", { author: "Alice" });
+    expect(result).toBe("Default by Alice");
+  });
+
+  it("resolves all defaults when called with no values", () => {
+    const result = interpolateProps('<div style="color:{{color:#333}}">{{text:Sample}}</div>');
+    expect(result).toBe('<div style="color:#333">Sample</div>');
+  });
 });
 
 describe("interpolateScriptProps", () => {
@@ -109,8 +159,100 @@ describe("interpolateScriptProps", () => {
     expect(result).toBe("const x = {{unknown}};");
   });
 
-  it("does not escape special characters in scripts", () => {
+  it("does not HTML-escape ampersands in scripts", () => {
     const result = interpolateScriptProps('const s = "{{val}}";', { val: "A & B" });
     expect(result).toBe('const s = "A & B";');
+  });
+
+  it("JS-escapes quotes to prevent injection", () => {
+    const result = interpolateScriptProps('const s = "{{val}}";', {
+      val: 'hello"; alert(1); //',
+    });
+    expect(result).toBe('const s = "hello\\"; alert(1); //";');
+  });
+
+  it("JS-escapes backslashes and backticks", () => {
+    const result = interpolateScriptProps("const s = `{{val}}`;", { val: "a\\b`c" });
+    expect(result).toBe("const s = `a\\\\b\\`c`;");
+  });
+
+  it("JS-escapes </script> to prevent tag breakout", () => {
+    const result = interpolateScriptProps('const s = "{{val}}";', {
+      val: "</script><script>alert(1)",
+    });
+    expect(result).not.toContain("</script>");
+    expect(result).toContain("<\\/script>");
+  });
+
+  it("does not escape numbers and booleans", () => {
+    const result = interpolateScriptProps("const n = {{num}}; const b = {{bool}};", {
+      num: 42,
+      bool: true,
+    });
+    expect(result).toBe("const n = 42; const b = true;");
+  });
+
+  it("preserves $ in regular string contexts", () => {
+    const result = interpolateScriptProps('const p = "{{price}}";', { price: "$19/mo" });
+    expect(result).toBe('const p = "$19/mo";');
+  });
+
+  it("escapes ${ in template literal contexts", () => {
+    const result = interpolateScriptProps("const s = `{{val}}`;", { val: "${dangerous}" });
+    expect(result).toBe("const s = `\\${dangerous}`;");
+  });
+
+  it("uses default when no value provided", () => {
+    const result = interpolateScriptProps("const dur = {{duration:10}};");
+    expect(result).toBe("const dur = 10;");
+  });
+
+  it("overrides default with provided value", () => {
+    const result = interpolateScriptProps("const dur = {{duration:10}};", { duration: 5 });
+    expect(result).toBe("const dur = 5;");
+  });
+
+  it("JS-escapes defaults containing special characters", () => {
+    const result = interpolateScriptProps('const s = "{{label:hello\\"world}}";');
+    expect(result).toBe('const s = "hello\\\\\\"world";');
+  });
+});
+
+describe("interpolateCssProps", () => {
+  it("replaces placeholders with raw values", () => {
+    const result = interpolateCssProps(".card { background: {{bgColor}}; }", {
+      bgColor: "#ec4899",
+    });
+    expect(result).toBe(".card { background: #ec4899; }");
+  });
+
+  it("does not HTML-escape values in CSS", () => {
+    const result = interpolateCssProps(".card { content: '{{text}}'; }", {
+      text: "A & B",
+    });
+    expect(result).toBe(".card { content: 'A & B'; }");
+    expect(result).not.toContain("&amp;");
+  });
+
+  it("preserves unmatched placeholders", () => {
+    const result = interpolateCssProps(".card { color: {{unknown}}; }", { bg: "red" });
+    expect(result).toBe(".card { color: {{unknown}}; }");
+  });
+
+  it("returns original content when values is empty and no defaults", () => {
+    const css = ".card { color: {{color}}; }";
+    expect(interpolateCssProps(css, {})).toBe(css);
+  });
+
+  it("uses default when no value provided", () => {
+    const result = interpolateCssProps(".card { background: {{bgColor:#6366f1}}; }");
+    expect(result).toBe(".card { background: #6366f1; }");
+  });
+
+  it("overrides default with provided value", () => {
+    const result = interpolateCssProps(".card { background: {{bgColor:#6366f1}}; }", {
+      bgColor: "#ec4899",
+    });
+    expect(result).toBe(".card { background: #ec4899; }");
   });
 });

@@ -98,16 +98,16 @@ Reuse a single composition with different data by passing `data-props` — a JSO
 ></div>
 ```
 
-**Sub-composition (compositions/card.html) — uses `{{key}}` placeholders:**
+**Sub-composition (compositions/card.html) — uses `{{key:default}}` placeholders:**
 
 ```html
 <template id="card-free-template">
   <div data-composition-id="card-free" data-width="1920" data-height="1080">
     <style>
-      .card { background: {{bgColor}}; }
+      .card { background: {{bgColor:#6366f1}}; }
     </style>
-    <h2>{{title}}</h2>
-    <p>{{price}}/mo</p>
+    <h2>{{title:Card Title}}</h2>
+    <p>{{price:$0}}/mo</p>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <script>
       window.__timelines = window.__timelines || {};
@@ -122,11 +122,13 @@ Reuse a single composition with different data by passing `data-props` — a JSO
 **Rules:**
 
 - `data-props` value must be valid JSON: `'{"key":"value"}'`
-- Placeholders use mustache syntax: `{{key}}` (whitespace OK: `{{ key }}`)
+- `{{key}}` — replaced with value, or left as-is if no value provided
+- `{{key:default}}` — replaced with value, or the default if no value provided
+- Whitespace OK: `{{ key }}`, `{{ key : default }}`
 - Works in HTML content, CSS `<style>` blocks, and `<script>` blocks
-- Values are HTML-escaped in content/CSS (XSS-safe), raw in scripts
-- Unmatched `{{key}}` placeholders are left as-is (no error)
+- Values are HTML-escaped in content (XSS-safe), raw in CSS, JS-escaped in scripts
 - Supported value types: string, number, boolean
+- **Always use defaults** so compositions render standalone (preview, lint, render all work without a parent)
 
 **When to use:** Any time you have 2+ similar elements (pricing cards, team members, testimonials, chart bars, timeline steps). Write the component once, instantiate with different data.
 

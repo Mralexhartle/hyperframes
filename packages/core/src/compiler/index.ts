@@ -24,4 +24,9 @@ export {
 } from "./staticGuard";
 
 // Prop interpolation
-export { interpolateProps, interpolateScriptProps, parseVariableValues } from "./interpolateProps";
+export {
+  interpolateProps,
+  interpolateScriptProps,
+  interpolateCssProps,
+  parseVariableValues,
+} from "./interpolateProps";

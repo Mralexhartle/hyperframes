@@ -5,7 +5,12 @@ import { transformSync } from "esbuild";
 import { compileHtml, type MediaDurationProber } from "./htmlCompiler";
 import { rewriteAssetPaths, rewriteCssAssetUrls } from "./rewriteSubCompPaths";
 import { validateHyperframeHtmlContract } from "./staticGuard";
-import { parseVariableValues, interpolateProps, interpolateScriptProps } from "./interpolateProps";
+import {
+  parseVariableValues,
+  interpolateProps,
+  interpolateScriptProps,
+  interpolateCssProps,
+} from "./interpolateProps";
 
 /**
  * Parse an HTML string into a document. Fragments (without a full document
@@ -432,15 +437,12 @@ export async function bundleToSingleHtml(
       continue;
     }
 
-    // Parse variable values from host element for prop interpolation
+    // Parse variable values from host element for per-context interpolation
     const variableValues = parseVariableValues(hostEl.getAttribute("data-props"));
 
-    // Interpolate {{key}} placeholders in the composition HTML before parsing
-    const interpolatedCompHtml = variableValues
-      ? interpolateProps(compHtml, variableValues)
-      : compHtml;
-
-    const compDoc = parseHTMLContent(interpolatedCompHtml);
+    // Parse first — interpolation happens per-context below (HTML-escaped for
+    // text/attributes, raw for CSS, JS-escaped for scripts).
+    const compDoc = parseHTMLContent(compHtml);
     const compId = hostEl.getAttribute("data-composition-id");
     const contentRoot = compDoc.querySelector("template");
     const contentHtml = contentRoot ? contentRoot.innerHTML || "" : compDoc.body.innerHTML || "";
@@ -451,8 +453,8 @@ export async function bundleToSingleHtml(
 
     for (const s of [...contentDoc.querySelectorAll("style")]) {
       const cssText = s.textContent || "";
-      // Interpolate props in CSS (e.g., {{accentColor}} in style rules)
-      const interpolatedCss = variableValues ? interpolateProps(cssText, variableValues) : cssText;
+      // Interpolate props in CSS with raw replacement (HTML entities are invalid in CSS)
+      const interpolatedCss = interpolateCssProps(cssText, variableValues);
       compStyleChunks.push(rewriteCssAssetUrls(interpolatedCss, src));
       s.remove();
     }
@@ -467,9 +469,7 @@ export async function bundleToSingleHtml(
       } else {
         const scriptText = s.textContent || "";
         // Interpolate props in script content (e.g., {{duration}} in GSAP timelines)
-        const interpolatedScript = variableValues
-          ? interpolateScriptProps(scriptText, variableValues)
-          : scriptText;
+        const interpolatedScript = interpolateScriptProps(scriptText, variableValues);
         compScriptChunks.push(
           `(function(){ try { ${interpolatedScript} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
         );
@@ -490,6 +490,15 @@ export async function bundleToSingleHtml(
         el.setAttribute(attr, val);
       },
     );
+
+    // Interpolate {{key}} and {{key:default}} in remaining HTML content (always run for defaults)
+    {
+      const targetRoot = innerRoot ?? contentDoc.body;
+      if (targetRoot) {
+        const rawInner = targetRoot.innerHTML || "";
+        targetRoot.innerHTML = interpolateProps(rawInner, variableValues);
+      }
+    }
 
     if (innerRoot) {
       const innerCompId = innerRoot.getAttribute("data-composition-id");
@@ -525,25 +534,23 @@ export async function bundleToSingleHtml(
     if (!host) continue;
     if (host.children.length > 0) continue; // already has content
 
-    // Get template content and inject into host
+    // Get template content and parse (interpolation happens per-context below)
     const templateHtml = templateEl.innerHTML || "";
-
-    // Interpolate {{key}} placeholders in inline template compositions
     const templateVarValues = parseVariableValues(host.getAttribute("data-props"));
-    const interpolatedTemplateHtml = templateVarValues
-      ? interpolateProps(templateHtml, templateVarValues)
-      : templateHtml;
+
+    // Interpolate HTML content (always run so defaults resolve even without data-props)
+    const interpolatedTemplateHtml = interpolateProps(templateHtml, templateVarValues);
 
     const innerDoc = parseHTMLContent(interpolatedTemplateHtml);
     const innerRoot = innerDoc.querySelector(`[data-composition-id="${compId}"]`);
 
     if (innerRoot) {
-      // Hoist styles into the collected style chunks
+      // Hoist styles into the collected style chunks (CSS: raw interpolation)
       for (const styleEl of [...innerRoot.querySelectorAll("style")]) {
-        compStyleChunks.push(styleEl.textContent || "");
+        compStyleChunks.push(interpolateCssProps(styleEl.textContent || "", templateVarValues));
         styleEl.remove();
       }
-      // Hoist scripts into the collected script chunks
+      // Hoist scripts into the collected script chunks (JS: JS-escaped interpolation)
       for (const scriptEl of [...innerRoot.querySelectorAll("script")]) {
         const externalSrc = (scriptEl.getAttribute("src") || "").trim();
         if (externalSrc) {
@@ -551,8 +558,9 @@ export async function bundleToSingleHtml(
             compExternalScriptSrcs.push(externalSrc);
           }
         } else {
+          const scriptText = interpolateScriptProps(scriptEl.textContent || "", templateVarValues);
           compScriptChunks.push(
-            `(function(){ try { ${scriptEl.textContent || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
+            `(function(){ try { ${scriptText} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
           );
         }
         scriptEl.remove();
@@ -569,7 +577,7 @@ export async function bundleToSingleHtml(
     } else {
       // No matching inner root — inject all template content directly
       for (const styleEl of [...innerDoc.querySelectorAll("style")]) {
-        compStyleChunks.push(styleEl.textContent || "");
+        compStyleChunks.push(interpolateCssProps(styleEl.textContent || "", templateVarValues));
         styleEl.remove();
       }
       for (const scriptEl of [...innerDoc.querySelectorAll("script")]) {
@@ -579,8 +587,9 @@ export async function bundleToSingleHtml(
             compExternalScriptSrcs.push(externalSrc);
           }
         } else {
+          const scriptText = interpolateScriptProps(scriptEl.textContent || "", templateVarValues);
           compScriptChunks.push(
-            `(function(){ try { ${scriptEl.textContent || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
+            `(function(){ try { ${scriptText} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
           );
         }
         scriptEl.remove();

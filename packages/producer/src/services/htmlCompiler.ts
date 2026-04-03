@@ -23,6 +23,8 @@ import {
   rewriteAssetPaths,
   rewriteCssAssetUrls,
   interpolateProps,
+  interpolateScriptProps,
+  interpolateCssProps,
   parseVariableValues,
 } from "@hyperframes/core";
 import { extractVideoMetadata, extractAudioMetadata } from "../utils/ffprobe.js";
@@ -509,11 +511,8 @@ function inlineSubCompositions(
       continue;
     }
 
-    // Interpolate {{key}} placeholders using data-props from the host element
+    // Parse variable values from host element for per-context interpolation
     const varValues = parseVariableValues(host.getAttribute("data-props"));
-    if (varValues) {
-      compHtml = interpolateProps(compHtml, varValues);
-    }
 
     const compDoc = parseHTML(compHtml).document;
     const compId = host.getAttribute("data-composition-id");
@@ -533,8 +532,29 @@ function inlineSubCompositions(
       : contentDoc.querySelector("[data-composition-id]");
     const inferredCompId = innerRoot?.getAttribute("data-composition-id")?.trim() || null;
 
+    // Interpolate {{key}} and {{key:default}} in HTML text/attributes (always run for defaults)
+    {
+      const bodyEl2 = contentDoc.querySelector("body");
+      if (bodyEl2) {
+        for (const el of bodyEl2.querySelectorAll("*")) {
+          if (el.tagName === "STYLE" || el.tagName === "SCRIPT") continue;
+          for (const attr of [...el.attributes]) {
+            el.setAttribute(attr.name, interpolateProps(attr.value, varValues));
+          }
+        }
+        const walk = contentDoc.createTreeWalker(bodyEl2, 4 /* NodeFilter.SHOW_TEXT */);
+        let textNode: Node | null;
+        while ((textNode = walk.nextNode())) {
+          const parent = textNode.parentNode as Element | null;
+          if (parent && (parent.tagName === "STYLE" || parent.tagName === "SCRIPT")) continue;
+          textNode.textContent = interpolateProps(textNode.textContent || "", varValues);
+        }
+      }
+    }
+
     for (const styleEl of contentDoc.querySelectorAll("style")) {
-      const css = rewriteCssAssetUrls(styleEl.textContent || "", srcPath);
+      let css = rewriteCssAssetUrls(styleEl.textContent || "", srcPath);
+      css = interpolateCssProps(css, varValues);
       const scopeId = compId || inferredCompId;
       if (scopeId && css.trim()) {
         // Scope sub-composition styles to their composition ID to prevent
@@ -559,7 +579,9 @@ function inlineSubCompositions(
         scriptEl.remove();
         continue;
       }
-      const content = (scriptEl.textContent || "").trim();
+      let content = (scriptEl.textContent || "").trim();
+      // Interpolate script content with JS-safe escaping (always run for defaults)
+      if (content) content = interpolateScriptProps(content, varValues);
       if (content) {
         const scriptMountCompId = compId || inferredCompId || "";
         const compIdLiteral = JSON.stringify(scriptMountCompId);

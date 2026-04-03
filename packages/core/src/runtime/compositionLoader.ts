@@ -1,6 +1,7 @@
 // ── Prop interpolation (browser-safe) ─────────────────────────────────────
 
-const MUSTACHE_RE = /\{\{(\s*[\w.-]+\s*)\}\}/g;
+/** Matches `{{key}}` and `{{key:default value}}`. */
+const MUSTACHE_RE = /\{\{(\s*[\w.-]+\s*)(?::([^}]*))?\}\}/g;
 
 function parseVariableValues(raw: string | null): Record<string, string | number | boolean> | null {
   if (!raw) return null;
@@ -13,22 +14,96 @@ function parseVariableValues(raw: string | null): Record<string, string | number
   }
 }
 
-function escapeHtml(str: string): string {
+function escapeJsString(str: string): string {
   return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/'/g, "\\'")
+    .replace(/`/g, "\\`")
+    .replace(/\$\{/g, "\\${")
+    .replace(/<\/(script)/gi, "<\\/$1");
 }
 
-function interpolateHtml(html: string, values: Record<string, string | number | boolean>): string {
-  if (!html || Object.keys(values).length === 0) return html;
-  return html.replace(MUSTACHE_RE, (_match, rawKey: string) => {
+function interpolateScriptContent(
+  content: string,
+  values?: Record<string, string | number | boolean> | null,
+): string {
+  if (!content) return content;
+  const vals = values ?? {};
+  return content.replace(MUSTACHE_RE, (_match, rawKey: string, rawDefault: string | undefined) => {
     const key = rawKey.trim();
-    if (key in values) return escapeHtml(String(values[key]));
+    if (key in vals) {
+      const val = vals[key];
+      if (typeof val === "string") return escapeJsString(val);
+      return String(val);
+    }
+    if (rawDefault !== undefined) return escapeJsString(rawDefault);
     return _match;
   });
+}
+
+/** Raw interpolation for CSS — HTML entity escaping is invalid in CSS. */
+function interpolateCss(
+  content: string,
+  values?: Record<string, string | number | boolean> | null,
+): string {
+  if (!content) return content;
+  const vals = values ?? {};
+  return content.replace(MUSTACHE_RE, (_match, rawKey: string, rawDefault: string | undefined) => {
+    const key = rawKey.trim();
+    if (key in vals) return String(vals[key]);
+    if (rawDefault !== undefined) return rawDefault;
+    return _match;
+  });
+}
+
+/**
+ * Walk a parsed DOM document and interpolate {{key}} placeholders in-place,
+ * using context-appropriate escaping: HTML-escaped for text nodes and
+ * attributes, raw for CSS, JS-escaped for scripts.
+ */
+function interpolateParsedDocument(
+  doc: Document,
+  values?: Record<string, string | number | boolean> | null,
+): void {
+  // CSS: raw interpolation
+  for (const style of Array.from(doc.querySelectorAll("style"))) {
+    const text = style.textContent || "";
+    if (MUSTACHE_RE.test(text)) {
+      MUSTACHE_RE.lastIndex = 0;
+      style.textContent = interpolateCss(text, values);
+    }
+  }
+  // Scripts: JS-escaped interpolation
+  for (const script of Array.from(doc.querySelectorAll("script"))) {
+    const text = script.textContent || "";
+    if (MUSTACHE_RE.test(text)) {
+      MUSTACHE_RE.lastIndex = 0;
+      script.textContent = interpolateScriptContent(text, values);
+    }
+  }
+  // Text nodes and attributes: raw replacement. The browser auto-escapes
+  // when rendering textContent / setAttribute, so we must NOT HTML-escape here.
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  let node: Text | null;
+  while ((node = walker.nextNode() as Text | null)) {
+    const parent = node.parentElement;
+    if (parent && (parent.tagName === "STYLE" || parent.tagName === "SCRIPT")) continue;
+    const text = node.textContent || "";
+    if (MUSTACHE_RE.test(text)) {
+      MUSTACHE_RE.lastIndex = 0;
+      node.textContent = interpolateCss(text, values); // raw replacement
+    }
+  }
+  // Attributes
+  for (const el of Array.from(doc.querySelectorAll("*"))) {
+    for (const attr of Array.from(el.attributes)) {
+      if (MUSTACHE_RE.test(attr.value)) {
+        MUSTACHE_RE.lastIndex = 0;
+        el.setAttribute(attr.name, interpolateCss(attr.value, values)); // raw replacement
+      }
+    }
+  }
 }
 
 // ── Composition loader types ──────────────────────────────────────────────
@@ -250,12 +325,26 @@ export async function loadInlineTemplateCompositions(
       `template#${CSS.escape(compId)}-template`,
     )!;
 
+    // Interpolate {{key}} and {{key:default}} placeholders using data-props from host.
+    // Always run interpolation so defaults resolve even when data-props is absent.
+    const varValues = parseVariableValues(host.getAttribute("data-props"));
+    // Serialize template content to HTML, parse as a full document for
+    // interpolateParsedDocument (which needs querySelectorAll on <style>/<script>).
+    const container = document.createElement("div");
+    container.appendChild(document.importNode(template.content, true));
+    const rawHtml = container.innerHTML;
+    const tempDoc = new DOMParser().parseFromString(rawHtml, "text/html");
+    interpolateParsedDocument(tempDoc, varValues);
+    const tempTemplate = document.createElement("template");
+    tempTemplate.innerHTML = tempDoc.body.innerHTML;
+    const sourceNode: ParentNode = tempTemplate.content;
+
     resetCompositionHost(host);
     await mountCompositionContent({
       host,
       hostCompositionId: compId,
       hostCompositionSrc: `template#${compId}-template`,
-      sourceNode: template.content,
+      sourceNode,
       hasTemplate: true,
       fallbackBodyInnerHtml: "",
       compositionUrl: null,
@@ -312,16 +401,15 @@ export async function loadExternalCompositions(
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        let html = await response.text();
-
-        // Interpolate {{key}} placeholders using data-props from host
-        const varValues = parseVariableValues(host.getAttribute("data-props"));
-        if (varValues) {
-          html = interpolateHtml(html, varValues);
-        }
+        const html = await response.text();
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
+
+        // Interpolate {{key}} and {{key:default}} placeholders per-context after
+        // parsing. Always run so defaults resolve even without data-props.
+        const varValues = parseVariableValues(host.getAttribute("data-props"));
+        interpolateParsedDocument(doc, varValues);
         const template =
           (hostCompositionId
             ? doc.querySelector<HTMLTemplateElement>(

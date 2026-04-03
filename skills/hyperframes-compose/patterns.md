@@ -127,11 +127,11 @@ Write a composition once, use it N times with different data. Avoids copy-pastin
 <template id="stat-card-template">
   <div data-composition-id="stat-card" data-width="1920" data-height="1080">
     <style>
-      .stat-value { font-size: 120px; font-weight: 900; color: {{color}}; }
+      .stat-value { font-size: 120px; font-weight: 900; color: {{color:#22c55e}}; }
       .stat-label { font-size: 32px; color: #fff; }
     </style>
-    <div class="stat-value" id="val-inner">{{value}}</div>
-    <div class="stat-label" id="lbl-inner">{{label}}</div>
+    <div class="stat-value" id="val-inner">{{value:$0}}</div>
+    <div class="stat-label" id="lbl-inner">{{label:Metric}}</div>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <script>
       window.__timelines = window.__timelines || {};

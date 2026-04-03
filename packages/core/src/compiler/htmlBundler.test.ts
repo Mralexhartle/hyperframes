@@ -329,4 +329,29 @@ describe("bundleToSingleHtml", () => {
     // The raw script tag should NOT appear as actual HTML content (only in the JSON attribute)
     expect(bundled).not.toContain("<p>Hello, <script>alert(1)</script></p>");
   });
+
+  it("resolves {{key:default}} when no data-props provided", async () => {
+    const dir = makeTempProject({
+      "index.html": `<!doctype html>
+<html><head></head><body>
+  <template id="card-template">
+    <div data-composition-id="card" data-width="1920" data-height="1080">
+      <style>.card { background: {{bgColor:#6366f1}}; }</style>
+      <h2>{{title:Default Title}}</h2>
+    </div>
+  </template>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div data-composition-id="card"
+      data-start="0" data-duration="5" data-track-index="0" class="clip"></div>
+  </div>
+</body></html>`,
+    });
+
+    const bundled = await bundleToSingleHtml(dir);
+
+    expect(bundled).toContain("Default Title");
+    expect(bundled).toContain("#6366f1");
+    expect(bundled).not.toContain("{{title");
+    expect(bundled).not.toContain("{{bgColor");
+  });
 });

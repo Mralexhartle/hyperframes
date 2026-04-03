@@ -130,6 +130,7 @@ export {
 export {
   interpolateProps,
   interpolateScriptProps,
+  interpolateCssProps,
   parseVariableValues,
 } from "./compiler/interpolateProps";
 

@@ -1,16 +1,21 @@
 /**
- * Interpolate `{{key}}` mustache-style placeholders in HTML content
- * using values from a `data-props` JSON attribute.
+ * Interpolate `{{key}}` and `{{key:default}}` mustache-style placeholders
+ * in HTML content using values from a `data-props` JSON attribute.
  *
  * Supports:
- * - `{{key}}` — replaced with the value (HTML-escaped for safety)
+ * - `{{key}}` — replaced with the value, or left as-is if no value provided
+ * - `{{key:default}}` — replaced with the value, or the default if no value provided
  * - Nested keys are NOT supported (flat key-value only)
- * - Unmatched placeholders are left as-is (no error)
  *
  * Values are coerced to strings. Numbers and booleans are stringified.
  */
 
-const MUSTACHE_RE = /\{\{(\s*[\w.-]+\s*)\}\}/g;
+/**
+ * Matches `{{key}}` and `{{key:default value}}`.
+ * Group 1: key (trimmed)
+ * Group 2: default value (everything after the first colon, if present)
+ */
+const MUSTACHE_RE = /\{\{(\s*[\w.-]+\s*)(?::([^}]*))?\}\}/g;
 
 /**
  * Parse `data-props` JSON from an element attribute.
@@ -42,41 +47,91 @@ function escapeHtml(str: string): string {
 }
 
 /**
- * Interpolate `{{key}}` placeholders in an HTML string using the provided values.
- * Values are HTML-escaped to prevent XSS. Unmatched placeholders are preserved.
+ * Escape a string for safe insertion into a JavaScript string context.
+ * Handles quote characters, backslashes, template literal delimiters,
+ * and `</script>` sequences that would prematurely close a script tag.
+ */
+function escapeJsString(str: string): string {
+  return str
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/'/g, "\\'")
+    .replace(/`/g, "\\`")
+    .replace(/\$\{/g, "\\${")
+    .replace(/<\/(script)/gi, "<\\/$1");
+}
+
+/**
+ * Interpolate `{{key}}` and `{{key:default}}` placeholders in an HTML string.
+ * Values are HTML-escaped to prevent XSS. When no value is provided and a
+ * default is specified, the default is used. Unmatched placeholders without
+ * defaults are preserved as-is.
  */
 export function interpolateProps(
   html: string,
-  values: Record<string, string | number | boolean>,
+  values?: Record<string, string | number | boolean> | null,
 ): string {
-  if (!html || Object.keys(values).length === 0) return html;
-  return html.replace(MUSTACHE_RE, (_match, rawKey: string) => {
+  if (!html) return html;
+  const vals = values ?? {};
+  return html.replace(MUSTACHE_RE, (_match, rawKey: string, rawDefault: string | undefined) => {
     const key = rawKey.trim();
-    if (key in values) {
-      return escapeHtml(String(values[key]));
+    if (key in vals) {
+      return escapeHtml(String(vals[key]));
     }
-    return _match; // preserve unmatched placeholders
+    if (rawDefault !== undefined) {
+      return escapeHtml(rawDefault);
+    }
+    return _match;
   });
 }
 
 /**
- * Interpolate props in script content. Values are NOT HTML-escaped here
- * since they'll be used as JavaScript string values.
- * Replaces `{{key}}` with the raw string value.
+ * Interpolate props in script content. String values are JS-escaped to
+ * prevent breaking out of string delimiters. Numbers and booleans are
+ * inserted as-is (safe for direct use as JS literals).
+ * Defaults are used when no value is provided.
  */
 export function interpolateScriptProps(
   scriptContent: string,
-  values: Record<string, string | number | boolean>,
+  values?: Record<string, string | number | boolean> | null,
 ): string {
-  if (!scriptContent || Object.keys(values).length === 0) return scriptContent;
-  return scriptContent.replace(MUSTACHE_RE, (_match, rawKey: string) => {
-    const key = rawKey.trim();
-    if (key in values) {
-      const val = values[key];
-      // For strings, return the raw value (caller wraps in quotes if needed)
-      // For numbers/booleans, return the stringified value
-      return String(val);
-    }
-    return _match;
-  });
+  if (!scriptContent) return scriptContent;
+  const vals = values ?? {};
+  return scriptContent.replace(
+    MUSTACHE_RE,
+    (_match, rawKey: string, rawDefault: string | undefined) => {
+      const key = rawKey.trim();
+      if (key in vals) {
+        const val = vals[key];
+        if (typeof val === "string") return escapeJsString(val);
+        return String(val);
+      }
+      if (rawDefault !== undefined) {
+        return escapeJsString(rawDefault);
+      }
+      return _match;
+    },
+  );
+}
+
+/**
+ * Interpolate props in CSS content. Values are inserted raw — HTML entity
+ * escaping (`&amp;`, `&lt;`) is invalid in CSS and would produce broken rules.
+ * Defaults are used when no value is provided.
+ */
+export function interpolateCssProps(
+  cssContent: string,
+  values?: Record<string, string | number | boolean> | null,
+): string {
+  if (!cssContent) return cssContent;
+  const vals = values ?? {};
+  return cssContent.replace(
+    MUSTACHE_RE,
+    (_match, rawKey: string, rawDefault: string | undefined) => {
+      const key = rawKey.trim();
+      if (key in vals) return String(vals[key]);
+      if (rawDefault !== undefined) return rawDefault;
+      return _match;
+    },
+  );
 }

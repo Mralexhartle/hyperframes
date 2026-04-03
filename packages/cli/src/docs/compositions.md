@@ -36,17 +36,18 @@ Reuse a composition with different data using `data-props`:
 <!-- compositions/card.html -->
 <template id="card-template">
   <div data-composition-id="card" data-width="1920" data-height="1080">
-    <style>.card { background: {{color}}; }</style>
-    <h2>{{title}}</h2>
-    <p>{{price}}/mo</p>
+    <style>.card { background: {{color:#6366f1}}; }</style>
+    <h2>{{title:Card Title}}</h2>
+    <p>{{price:$0}}/mo</p>
   </div>
 </template>
 ```
 
 - `data-props` accepts a JSON object
-- `{{key}}` placeholders are replaced in HTML, CSS, and scripts
-- Values are HTML-escaped (XSS-safe)
-- Unmatched placeholders are preserved
+- `{{key}}` — replaced with value, left as-is if unmatched
+- `{{key:default}}` — replaced with value, or default if unmatched (use this so compositions render standalone)
+- Works in HTML, CSS, and scripts
+- Values are HTML-escaped in content, raw in CSS, JS-escaped in scripts
 
 ## Listing Compositions
 
