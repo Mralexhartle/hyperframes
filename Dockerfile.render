@@ -6,7 +6,7 @@
 #
 # Manual build:
 #   docker build -f Dockerfile.render -t hyperframes-renderer:dev \
-#     --build-arg HYPERFRAMES_VERSION=0.2.3-alpha.1 .
+#     --build-arg HYPERFRAMES_VERSION=0.2.3 .
 #
 # Manual run:
 #   docker run --rm --security-opt seccomp=unconfined --shm-size=2g \
