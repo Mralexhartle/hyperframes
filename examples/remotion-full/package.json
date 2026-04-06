@@ -1,0 +1,21 @@
+{
+  "name": "remotion-full-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npx tsx build.ts"
+  },
+  "dependencies": {
+    "@remotion/player": "^4.0.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "esbuild": "^0.21.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
