@@ -1,0 +1,58 @@
+{
+  "name": "@hyperframes/remotion-adapter",
+  "version": "0.1.0",
+  "description": "Use Remotion compositions inside HyperFrames — full interop between React-based video and HTML-based video",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/heygen-com/hyperframes",
+    "directory": "packages/adapter-remotion"
+  },
+  "files": [
+    "dist/"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./primitives": {
+      "import": "./dist/primitives.js",
+      "types": "./dist/primitives.d.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@remotion/core": "^4.0.0",
+    "@remotion/player": "^4.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@remotion/core": ">=4.0.0",
+    "@remotion/player": ">=4.0.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@remotion/core": {
+      "optional": true
+    },
+    "@remotion/player": {
+      "optional": true
+    }
+  }
+}

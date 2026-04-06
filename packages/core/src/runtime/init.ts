@@ -4,6 +4,7 @@ import { createCssAdapter } from "./adapters/css";
 import { createGsapAdapter } from "./adapters/gsap";
 import { createLottieAdapter } from "./adapters/lottie";
 import { createThreeAdapter } from "./adapters/three";
+import { createRemotionAdapter } from "./adapters/remotion";
 import { createWaapiAdapter } from "./adapters/waapi";
 import { refreshRuntimeMediaCache, syncRuntimeMedia } from "./media";
 import { createPickerModule } from "./picker";
@@ -1455,6 +1456,7 @@ export function initSandboxRuntimeModular(): void {
     createLottieAdapter(),
     createThreeAdapter(),
     createGsapAdapter({ getTimeline: () => state.capturedTimeline }),
+    createRemotionAdapter(),
   ] as RuntimeDeterministicAdapter[];
   installRuntimeErrorDiagnostics();
   runAdapters("discover");

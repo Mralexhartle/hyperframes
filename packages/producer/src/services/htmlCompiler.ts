@@ -736,7 +736,10 @@ export async function inlineExternalScripts(html: string): Promise<string> {
       // <\/script is safe: the HTML parser doesn't recognize it as a close tag,
       // but JS treats \/ as / so the code executes identically.
       const safeText = download.value.text.replace(/<\/script/gi, "<\\/script");
-      result = result.replace(scriptTagRe, `<script>/* inlined: ${src} */\n${safeText}\n</script>`);
+      result = result.replace(
+        scriptTagRe,
+        () => `<script>/* inlined: ${src} */\n${safeText}\n</script>`,
+      );
       console.log(`[Compiler] Inlined CDN script: ${src}`);
     } else {
       console.warn(
