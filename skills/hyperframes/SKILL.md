@@ -1,6 +1,6 @@
 ---
 name: hyperframes
-description: Create video compositions, animations, title cards, overlays, captions, voiceovers, and audio-reactive visuals in HyperFrames HTML. Use when asked to build any HTML-based video content, add captions or subtitles synced to audio, generate text-to-speech narration, create audio-reactive animation (beat sync, glow, pulse driven by music), or add animated text highlighting (marker sweeps, hand-drawn circles, burst lines, scribble, sketchout). Covers composition authoring, timing, media, and the full video production workflow. For CLI commands (init, lint, preview, render, transcribe, tts) see the hyperframes-cli skill.
+description: Create video compositions, animations, title cards, overlays, captions, voiceovers, audio-reactive visuals, and scene transitions in HyperFrames HTML. Use when asked to build any HTML-based video content, add captions or subtitles synced to audio, generate text-to-speech narration, create audio-reactive animation (beat sync, glow, pulse driven by music), add animated text highlighting (marker sweeps, hand-drawn circles, burst lines, scribble, sketchout), or add transitions between scenes (crossfades, wipes, reveals, shader transitions). Covers composition authoring, timing, media, and the full video production workflow. For CLI commands (init, lint, preview, render, transcribe, tts) see the hyperframes-cli skill.
 ---
 
 # HyperFrames
@@ -146,5 +146,10 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 - **[data-in-motion.md](data-in-motion.md)** — Data, stats, and infographic patterns.
 - **[references/transcript-guide.md](references/transcript-guide.md)** — Transcription commands, whisper models, external APIs, troubleshooting.
 - **[references/dynamic-techniques.md](references/dynamic-techniques.md)** — Dynamic caption animation techniques (karaoke, clip-path, slam, scatter, elastic, 3D).
+
+- **[references/transitions.md](references/transitions.md)** — Scene transitions: crossfades, wipes, reveals, shader transitions. Energy/mood selection, narrative position, CSS vs WebGL guidance. Read when a composition has multiple scenes that need visual handoffs.
+  - [transitions/catalog.md](references/transitions/catalog.md) — Hard rules, scene template, and routing to per-type implementation code.
+  - [transitions/shader-setup.md](references/transitions/shader-setup.md) — WebGL boilerplate for shader transitions.
+  - [transitions/shader-transitions.md](references/transitions/shader-transitions.md) — 14 fragment shaders.
 
 GSAP patterns and effects are in the `/gsap` skill.

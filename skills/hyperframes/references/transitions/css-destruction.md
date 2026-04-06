@@ -92,6 +92,4 @@ tl.set("#scene1", { clipPath: "none" }, T + BURN_DURATION);
 
 The `onUpdate` handles clip-path and canvas edge per-frame. The `tl.set` handles the final hide — and GSAP automatically reverses it when scrubbing backward, restoring scene1 to `opacity: 1`.
 
-**Note:** This is the most complex transition in the catalog. Reference the full implementation at `text-burn-dom.html` for the complete standalone example.
-
-See `/Users/vanceingalls/src/claude/text-burn-dom.html` for the complete standalone implementation.
+The `onUpdate` callback is the key — it runs every frame to advance the clip-path and canvas edge in sync with the timeline.

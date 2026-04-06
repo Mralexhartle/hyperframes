@@ -1,8 +1,3 @@
----
-name: transitions
-description: Use when a HyperFrames composition has multiple scenes that need transitions between them. Also use when the user mentions crossfades, wipes, reveals, scene changes, or when a composition feels like scenes just pop in and out without visual handoffs.
----
-
 # Scene Transitions
 
 A transition tells the viewer how two scenes relate. A crossfade says "this continues." A push slide says "next point." A flash cut says "wake up." A blur crossfade says "drift with me." Choose transitions that match what the content is doing emotionally, not just technically.
@@ -65,7 +60,7 @@ Think about what the transition _communicates_, not just what it looks like.
 
 ## Implementation
 
-Read [catalog.md](./catalog.md) for GSAP code and hard rules for every transition type.
+Read [transitions/catalog.md](transitions/catalog.md) for GSAP code and hard rules for every transition type.
 
 | Category             | Transitions                                                                                                                                                                                                           |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -94,7 +89,7 @@ Most compositions should use **CSS/GSAP transitions** (the other categories abov
 | No images/video in scenes (text + shapes only) | Live video needs to play through the transition |
 | Quick to set up, no boilerplate                | Willing to add WebGL setup layer (~200 lines)   |
 
-Shader transitions require setup boilerplate (canvas, scene capture, WebGL init). Read [references/shader-setup.md](./references/shader-setup.md) for the complete code. The fragment shaders themselves are in the Shader section of [catalog.md](./catalog.md).
+Shader transitions require setup boilerplate (canvas, scene capture, WebGL init). Read [transitions/shader-setup.md](transitions/shader-setup.md) for the complete code. The fragment shaders themselves are in the Shader section of [transitions/catalog.md](transitions/catalog.md).
 
 ## Visual Pattern Warning
 

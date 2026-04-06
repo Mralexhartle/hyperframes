@@ -30,7 +30,7 @@ These cause real bugs if violated.
 
 ## Hard Rules (Shader)
 
-Read [references/shader-setup.md](./references/shader-setup.md) for the full setup code these rules apply to.
+Read [shader-setup.md](./shader-setup.md) for the full setup code these rules apply to.
 
 **WebGL setup:** `gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)` — NOT true. Vertex shader flips Y: `v_uv.y = 1.0 - v_uv.y`. `preserveDrawingBuffer: true` required for HyperFrames capture. No `fwidth()` without extension — use constant `0.003`.
 
@@ -106,27 +106,27 @@ Every transition follows: position new scene → animate outgoing → swap → a
 
 All code examples use `old` for the outgoing scene-inner selector and `new` for the incoming, with `T` as the transition start time. Read the reference file for the type you need.
 
-| Type           | Transitions                                          | Reference                                             |
-| -------------- | ---------------------------------------------------- | ----------------------------------------------------- |
-| Push           | Push slide, vertical push, elastic push, squeeze     | [css-push.md](./references/css-push.md)               |
-| Radial / Shape | Circle iris, diamond iris, diagonal split            | [css-radial.md](./references/css-radial.md)           |
-| 3D             | 3D card flip                                         | [css-3d.md](./references/css-3d.md)                   |
-| Scale / Zoom   | Zoom through, zoom out                               | [css-scale.md](./references/css-scale.md)             |
-| Dissolve       | Crossfade, blur crossfade, focus pull, color dip     | [css-dissolve.md](./references/css-dissolve.md)       |
-| Cover          | Staggered blocks, horizontal blinds, vertical blinds | [css-cover.md](./references/css-cover.md)             |
-| Light          | Light leak, overexposure burn, film burn             | [css-light.md](./references/css-light.md)             |
-| Distortion     | Glitch, chromatic aberration, ripple, VHS tape       | [css-distortion.md](./references/css-distortion.md)   |
-| Mechanical     | Shutter, clock wipe                                  | [css-mechanical.md](./references/css-mechanical.md)   |
-| Grid           | Grid dissolve                                        | [css-grid.md](./references/css-grid.md)               |
-| Other          | Flash cut, gravity drop, morph circle                | [css-other.md](./references/css-other.md)             |
-| Blur           | Blur through, directional blur                       | [css-blur.md](./references/css-blur.md)               |
-| Destruction    | Page burn                                            | [css-destruction.md](./references/css-destruction.md) |
+| Type           | Transitions                                          | Reference                                  |
+| -------------- | ---------------------------------------------------- | ------------------------------------------ |
+| Push           | Push slide, vertical push, elastic push, squeeze     | [css-push.md](./css-push.md)               |
+| Radial / Shape | Circle iris, diamond iris, diagonal split            | [css-radial.md](./css-radial.md)           |
+| 3D             | 3D card flip                                         | [css-3d.md](./css-3d.md)                   |
+| Scale / Zoom   | Zoom through, zoom out                               | [css-scale.md](./css-scale.md)             |
+| Dissolve       | Crossfade, blur crossfade, focus pull, color dip     | [css-dissolve.md](./css-dissolve.md)       |
+| Cover          | Staggered blocks, horizontal blinds, vertical blinds | [css-cover.md](./css-cover.md)             |
+| Light          | Light leak, overexposure burn, film burn             | [css-light.md](./css-light.md)             |
+| Distortion     | Glitch, chromatic aberration, ripple, VHS tape       | [css-distortion.md](./css-distortion.md)   |
+| Mechanical     | Shutter, clock wipe                                  | [css-mechanical.md](./css-mechanical.md)   |
+| Grid           | Grid dissolve                                        | [css-grid.md](./css-grid.md)               |
+| Other          | Flash cut, gravity drop, morph circle                | [css-other.md](./css-other.md)             |
+| Blur           | Blur through, directional blur                       | [css-blur.md](./css-blur.md)               |
+| Destruction    | Page burn                                            | [css-destruction.md](./css-destruction.md) |
 
 ## Shader Transitions
 
 WebGL fragment shaders that composite between scene textures per-pixel. Require setup boilerplate.
 
-| What                                                                                                                                                                                                                                            | Reference                                                   |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Setup (canvas, capture, WebGL init, render loop, GSAP integration)                                                                                                                                                                              | [shader-setup.md](./references/shader-setup.md)             |
-| Fragment shaders (14 transitions: domain warp, ridged burn, whip pan, SDF iris, ripple waves, gravitational lens, cinematic zoom, chromatic split, glitch, swirl vortex, thermal distortion, flash through white, cross-warp morph, light leak) | [shader-transitions.md](./references/shader-transitions.md) |
+| What                                                                                                                                                                                                                                            | Reference                                        |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Setup (canvas, capture, WebGL init, render loop, GSAP integration)                                                                                                                                                                              | [shader-setup.md](./shader-setup.md)             |
+| Fragment shaders (14 transitions: domain warp, ridged burn, whip pan, SDF iris, ripple waves, gravitational lens, cinematic zoom, chromatic split, glitch, swirl vortex, thermal distortion, flash through white, cross-warp morph, light leak) | [shader-transitions.md](./shader-transitions.md) |
