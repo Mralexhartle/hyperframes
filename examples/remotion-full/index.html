@@ -5,7 +5,8 @@
     <title>Remotion Full Interop Demo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
-      body, html {
+      body,
+      html {
         margin: 0;
         padding: 0;
         width: 1920px;
@@ -30,15 +31,27 @@
         data-start="0"
         data-duration="9"
         data-track-index="0"
-        style="position:absolute;top:0;left:0;width:1920px;height:1080px;"
+        style="position: absolute; top: 0; left: 0; width: 1920px; height: 1080px"
       >
-        <div id="bg-inner" style="width:100%;height:100%;background:radial-gradient(ellipse at center, #1a1a3e 0%, #0f0f1a 70%);"></div>
+        <div
+          id="bg-inner"
+          style="
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at center, #1a1a3e 0%, #0f0f1a 70%);
+          "
+        ></div>
 
         <!-- Animated grid lines -->
-        <svg id="grid-svg" width="1920" height="1080" style="position:absolute;top:0;left:0;opacity:0.08;">
+        <svg
+          id="grid-svg"
+          width="1920"
+          height="1080"
+          style="position: absolute; top: 0; left: 0; opacity: 0.08"
+        >
           <defs>
             <pattern id="grid" width="120" height="120" patternUnits="userSpaceOnUse">
-              <path d="M 120 0 L 0 0 0 120" fill="none" stroke="#8b5cf6" stroke-width="0.5"/>
+              <path d="M 120 0 L 0 0 0 120" fill="none" stroke="#8b5cf6" stroke-width="0.5" />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#grid)" />
@@ -52,9 +65,9 @@
         data-start="0"
         data-duration="9"
         data-track-index="1"
-        style="position:absolute;top:0;left:0;width:1920px;height:1080px;"
+        style="position: absolute; top: 0; left: 0; width: 1920px; height: 1080px"
       >
-        <div id="remotion-root" style="width:1920px;height:1080px;"></div>
+        <div id="remotion-root" style="width: 1920px; height: 1080px"></div>
       </div>
 
       <!-- Track 2: GSAP animated corner badges (native HyperFrames) -->
@@ -64,16 +77,64 @@
         data-start="0"
         data-duration="9"
         data-track-index="2"
-        style="position:absolute;top:0;left:0;width:1920px;height:1080px;pointer-events:none;"
+        style="
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 1920px;
+          height: 1080px;
+          pointer-events: none;
+        "
       >
-        <div id="badge-gsap" style="position:absolute;top:40px;left:40px;opacity:0;padding:8px 16px;background:rgba(139,92,246,0.15);border:1px solid rgba(139,92,246,0.3);border-radius:8px;">
-          <span style="font-family:monospace;font-size:14px;color:#a78bfa;">GSAP</span>
+        <div
+          id="badge-gsap"
+          style="
+            position: absolute;
+            top: 40px;
+            left: 40px;
+            opacity: 0;
+            padding: 8px 16px;
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 8px;
+          "
+        >
+          <span style="font-family: monospace; font-size: 14px; color: #a78bfa">GSAP</span>
         </div>
-        <div id="badge-remotion" style="position:absolute;top:40px;right:40px;opacity:0;padding:8px 16px;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.3);border-radius:8px;">
-          <span style="font-family:monospace;font-size:14px;color:#67e8f9;">REMOTION</span>
+        <div
+          id="badge-remotion"
+          style="
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            opacity: 0;
+            padding: 8px 16px;
+            background: rgba(6, 182, 212, 0.15);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px;
+          "
+        >
+          <span style="font-family: monospace; font-size: 14px; color: #67e8f9">REMOTION</span>
         </div>
-        <div id="badge-hf" style="position:absolute;bottom:40px;left:50%;transform:translateX(-50%);opacity:0;">
-          <span style="font-family:system-ui,sans-serif;font-size:16px;color:rgba(255,255,255,0.3);letter-spacing:0.15em;">RENDERED BY HYPERFRAMES</span>
+        <div
+          id="badge-hf"
+          style="
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+          "
+        >
+          <span
+            style="
+              font-family: system-ui, sans-serif;
+              font-size: 16px;
+              color: rgba(255, 255, 255, 0.3);
+              letter-spacing: 0.15em;
+            "
+            >RENDERED BY HYPERFRAMES</span
+          >
         </div>
       </div>
 
@@ -82,52 +143,71 @@
         const tl = gsap.timeline({ paused: true });
 
         // Background grid fade in
-        tl.fromTo('#grid-svg',
+        tl.fromTo(
+          "#grid-svg",
           { opacity: 0 },
-          { opacity: 0.08, duration: 2, ease: 'power2.out' },
-          0
+          { opacity: 0.08, duration: 2, ease: "power2.out" },
+          0,
         );
 
         // Grid subtle drift
-        tl.to('#grid-svg', {
-          y: -30,
-          duration: 9,
-          ease: 'none',
-        }, 0);
+        tl.to(
+          "#grid-svg",
+          {
+            y: -30,
+            duration: 9,
+            ease: "none",
+          },
+          0,
+        );
 
         // Background radial pulse
-        tl.fromTo('#bg-inner',
-          { background: 'radial-gradient(ellipse at center, #1a1a3e 0%, #0f0f1a 70%)' },
-          { background: 'radial-gradient(ellipse at center, #1e1e4a 0%, #0f0f1a 70%)', duration: 4.5, ease: 'power1.inOut', yoyo: true, repeat: 1 },
-          0
+        tl.fromTo(
+          "#bg-inner",
+          { background: "radial-gradient(ellipse at center, #1a1a3e 0%, #0f0f1a 70%)" },
+          {
+            background: "radial-gradient(ellipse at center, #1e1e4a 0%, #0f0f1a 70%)",
+            duration: 4.5,
+            ease: "power1.inOut",
+            yoyo: true,
+            repeat: 1,
+          },
+          0,
         );
 
         // Badges appear
-        tl.fromTo('#badge-gsap',
+        tl.fromTo(
+          "#badge-gsap",
           { opacity: 0, x: -20 },
-          { opacity: 1, x: 0, duration: 0.6, ease: 'power2.out' },
-          0.5
+          { opacity: 1, x: 0, duration: 0.6, ease: "power2.out" },
+          0.5,
         );
-        tl.fromTo('#badge-remotion',
+        tl.fromTo(
+          "#badge-remotion",
           { opacity: 0, x: 20 },
-          { opacity: 1, x: 0, duration: 0.6, ease: 'power2.out' },
-          0.7
+          { opacity: 1, x: 0, duration: 0.6, ease: "power2.out" },
+          0.7,
         );
-        tl.fromTo('#badge-hf',
+        tl.fromTo(
+          "#badge-hf",
           { opacity: 0, y: 10 },
-          { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out' },
-          1.0
+          { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" },
+          1.0,
         );
 
         // Badges fade out at the end
-        tl.to(['#badge-gsap', '#badge-remotion', '#badge-hf'], {
-          opacity: 0,
-          duration: 0.5,
-          ease: 'power2.in',
-        }, 8.0);
+        tl.to(
+          ["#badge-gsap", "#badge-remotion", "#badge-hf"],
+          {
+            opacity: 0,
+            duration: 0.5,
+            ease: "power2.in",
+          },
+          8.0,
+        );
 
         window.__timelines = window.__timelines || {};
-        window.__timelines['remotion-full'] = tl;
+        window.__timelines["remotion-full"] = tl;
       </script>
 
       <!-- Load the bundled Remotion composition -->

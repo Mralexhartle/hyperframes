@@ -71,6 +71,7 @@ COPY packages/engine/package.json packages/engine/package.json
 COPY packages/producer/package.json packages/producer/package.json
 COPY packages/cli/package.json packages/cli/package.json
 COPY packages/studio/package.json packages/studio/package.json
+COPY packages/adapter-remotion/package.json packages/adapter-remotion/package.json
 RUN bun install --frozen-lockfile
 
 # Copy source
