@@ -401,7 +401,12 @@ async function renderDocker(
     "--workers",
     String(options.workers),
   ];
-  if (options.gpu) dockerArgs.push("--gpu");
+  if (options.quiet) dockerArgs.push("--quiet");
+  // GPU encoding requires host GPU access via --gpus
+  if (options.gpu) {
+    dockerArgs.splice(dockerArgs.indexOf("--rm") + 1, 0, "--gpus", "all");
+    dockerArgs.push("--gpu");
+  }
 
   if (!options.quiet) {
     console.log(c.dim("  Running render in Docker container..."));
@@ -411,7 +416,8 @@ async function renderDocker(
   try {
     await new Promise<void>((resolvePromise, reject) => {
       const child = spawn("docker", dockerArgs, {
-        stdio: options.quiet ? "pipe" : "inherit",
+        // When quiet, still show stderr so container errors surface
+        stdio: options.quiet ? ["pipe", "pipe", "inherit"] : "inherit",
       });
       child.on("close", (code) => {
         if (code === 0) resolvePromise();
