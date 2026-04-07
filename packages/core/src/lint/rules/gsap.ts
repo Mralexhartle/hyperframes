@@ -488,7 +488,7 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
     for (const script of scripts) {
       const content = script.content;
       // Match repeat: -1 in GSAP tweens or timeline configs
-      const pattern = /repeat\s*:\s*-1/g;
+      const pattern = /repeat\s*:\s*-1(?!\d)/g;
       let match: RegExpExecArray | null;
       while ((match = pattern.exec(content)) !== null) {
         const contextStart = Math.max(0, match.index - 60);

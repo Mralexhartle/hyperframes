@@ -447,4 +447,21 @@ describe("GSAP rules", () => {
     const finding = result.findings.find((f) => f.code === "gsap_infinite_repeat");
     expect(finding).toBeUndefined();
   });
+
+  it("does not false-positive on repeat: -10 (invalid GSAP but not infinite)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080"></div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#box", { x: 100, duration: 1, repeat: -10 }, 0);
+    window.__timelines["main"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "gsap_infinite_repeat");
+    expect(finding).toBeUndefined();
+  });
 });
