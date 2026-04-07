@@ -81,6 +81,10 @@ async function mountCompositionContent(params: {
   injectedStyles: HTMLStyleElement[];
   injectedScripts: HTMLScriptElement[];
   parseDimensionPx: (value: string | null) => string | null;
+  /** Extra <style> elements from the parsed document <head> (non-template sub-compositions). */
+  headStyles?: HTMLStyleElement[];
+  /** Extra <script> elements from the parsed document <head> (non-template sub-compositions). */
+  headScripts?: HTMLScriptElement[];
   onDiagnostic?: (payload: {
     code: string;
     details: Record<string, string | number | boolean | null | string[]>;
@@ -98,6 +102,17 @@ async function mountCompositionContent(params: {
   }
   const contentNode = innerRoot ?? params.sourceNode;
 
+  // Inject <head> styles from non-template sub-compositions first (they define
+  // element styles like backgrounds and positioning that the composition needs).
+  if (params.headStyles) {
+    for (const style of params.headStyles) {
+      const clonedStyle = style.cloneNode(true);
+      if (!(clonedStyle instanceof HTMLStyleElement)) continue;
+      document.head.appendChild(clonedStyle);
+      params.injectedStyles.push(clonedStyle);
+    }
+  }
+
   const styles = Array.from(contentNode.querySelectorAll<HTMLStyleElement>("style"));
   for (const style of styles) {
     const clonedStyle = style.cloneNode(true);
@@ -106,8 +121,27 @@ async function mountCompositionContent(params: {
     params.injectedStyles.push(clonedStyle);
   }
 
+  // Collect head scripts first (e.g. GSAP CDN loaded in <head> of non-template sub-comps),
+  // then content scripts. Head scripts must execute before content scripts.
+  const headScriptPayloads: PendingScript[] = [];
+  if (params.headScripts) {
+    for (const script of params.headScripts) {
+      const scriptType = script.getAttribute("type")?.trim() ?? "";
+      const scriptSrc = script.getAttribute("src")?.trim() ?? "";
+      if (scriptSrc) {
+        const resolvedSrc = resolveScriptSourceUrl(scriptSrc, params.compositionUrl);
+        headScriptPayloads.push({ kind: "external", src: resolvedSrc, type: scriptType });
+      } else {
+        const scriptText = script.textContent?.trim() ?? "";
+        if (scriptText) {
+          headScriptPayloads.push({ kind: "inline", content: scriptText, type: scriptType });
+        }
+      }
+    }
+  }
+
   const scripts = Array.from(contentNode.querySelectorAll<HTMLScriptElement>("script"));
-  const scriptPayloads: PendingScript[] = [];
+  const scriptPayloads: PendingScript[] = [...headScriptPayloads];
   for (const script of scripts) {
     const scriptType = script.getAttribute("type")?.trim() ?? "";
     const scriptSrc = script.getAttribute("src")?.trim() ?? "";
@@ -287,6 +321,18 @@ export async function loadExternalCompositions(
               )
             : null) ?? doc.querySelector<HTMLTemplateElement>("template");
         const sourceNode = template ? template.content : doc.body;
+        // When loading a non-template sub-composition (full HTML document),
+        // extract <style> and <script> elements from the parsed document's
+        // <head>. These contain critical CSS (backgrounds, positioning, fonts)
+        // and library scripts (e.g. GSAP CDN) that would otherwise be lost
+        // because mountCompositionContent only looks inside the composition
+        // root element.
+        const headStyles = !template
+          ? Array.from(doc.head.querySelectorAll<HTMLStyleElement>("style"))
+          : undefined;
+        const headScripts = !template
+          ? Array.from(doc.head.querySelectorAll<HTMLScriptElement>("script"))
+          : undefined;
         await mountCompositionContent({
           host,
           hostCompositionId,
@@ -298,6 +344,8 @@ export async function loadExternalCompositions(
           injectedStyles: params.injectedStyles,
           injectedScripts: params.injectedScripts,
           parseDimensionPx: params.parseDimensionPx,
+          headStyles,
+          headScripts,
           onDiagnostic: params.onDiagnostic,
         });
       } catch (error) {
