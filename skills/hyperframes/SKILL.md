@@ -92,11 +92,15 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 
 ## Rules (Non-Negotiable)
 
-**Deterministic:** No `Math.random()`, `Date.now()`, or time-based logic.
+**Deterministic:** No `Math.random()`, `Date.now()`, or time-based logic. Use a seeded PRNG if you need pseudo-random values (e.g. mulberry32).
 
 **GSAP:** Only animate visual properties (`opacity`, `x`, `y`, `scale`, `rotation`, `color`, `backgroundColor`, `borderRadius`, transforms). Do NOT animate `visibility`, `display`, or call `video.play()`/`audio.play()`.
 
 **Animation conflicts:** Never animate the same property on the same element from multiple timelines simultaneously.
+
+**No `repeat: -1`:** Infinite-repeat timelines break the capture engine. Calculate the exact repeat count from composition duration: `repeat: Math.ceil(duration / cycleDuration) - 1`.
+
+**Synchronous timeline construction:** Never build timelines inside `async`/`await`, `setTimeout`, or Promises. The capture engine reads `window.__timelines` synchronously after page load. If you need fonts loaded first, use a synchronous `document.fonts.load()` call or rely on `font-display: block` — the engine waits for the page `load` event.
 
 **Never do:**
 
@@ -107,15 +111,26 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 5. Animate video element dimensions — animate a wrapper div
 6. Call play/pause/seek on media — framework owns playback
 7. Create a top-level container without `data-composition-id`
+8. Use `repeat: -1` on any timeline or tween — always finite repeats
+9. Build timelines asynchronously (inside `async`, `setTimeout`, `Promise`)
 
 ## Typography and Assets
 
-- Every composition loads its own fonts (`@import` or `@font-face`)
-- Use `font-display: block` for local fonts
+- Load fonts via `<link>` tags with `display=block` in `<head>`, NOT via CSS `@import` — `@import` is async and may not complete before the first frame capture
+- Use `font-display: block` for `@font-face` declarations
 - Add `crossorigin="anonymous"` to external media
-- Minimum readable text: 20px landscape, 18px portrait
+- **Minimum font sizes for rendered video (1080p at DPR 1):**
+  - Body/label text: 20px minimum (landscape), 18px minimum (portrait)
+  - Data labels, axis labels, footnotes: 16px minimum — anything smaller becomes illegible after encoding
+  - Headlines: 36px+ recommended
+  - Avoid sub-14px text entirely — it will be unreadable in the final MP4
 - For dynamic text overflow, use `window.__hyperframes.fitTextFontSize(text, { maxWidth, fontFamily, fontWeight })` — returns `{ fontSize, fits }`
 - All files live at the project root alongside `index.html`; sub-compositions use `../`
+
+### Backgrounds and Color
+
+- **Avoid full-screen linear gradients on dark backgrounds** — H.264 encoding creates visible color banding. Prefer: solid colors, radial gradients with limited range, or subtle noise/texture overlays to break up banding.
+- For dark themes, use solid `#000` or `#0A0A0A` with localized radial glows rather than a linear gradient spanning the full viewport.
 
 ## Editing Existing Compositions
 
@@ -129,6 +144,11 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 - [ ] Compositions in own HTML files, loaded via `data-composition-src`
 - [ ] `<template>` wrapper on sub-compositions
 - [ ] `window.__timelines` registered for every composition
+- [ ] Timeline construction is synchronous (no async/await wrapping timeline code)
+- [ ] No `repeat: -1` on any tween or nested timeline
+- [ ] No text below 16px (data labels, footnotes) or 20px (body text)
+- [ ] No full-screen linear dark gradients (use radial or solid + localized glow)
+- [ ] Fonts loaded via `<link>` with `display=block`, not CSS `@import`
 - [ ] 100% deterministic
 - [ ] Each composition includes GSAP script tag
 - [ ] `npx hyperframes lint` and `npx hyperframes validate` both pass
