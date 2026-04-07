@@ -389,8 +389,6 @@ async function renderDocker(
     "--rm",
     "--platform",
     "linux/amd64",
-    "--security-opt",
-    "seccomp=unconfined",
     "--shm-size=2g",
     // GPU encoding requires host GPU passthrough
     ...(options.gpu ? ["--gpus", "all"] : []),
