@@ -525,6 +525,31 @@ function inlineSubCompositions(
       : contentDoc.querySelector("[data-composition-id]");
     const inferredCompId = innerRoot?.getAttribute("data-composition-id")?.trim() || null;
 
+    // When a sub-composition is a full HTML document (no <template>), styles
+    // and scripts in <head> are not part of contentDoc (which only has body
+    // content). Extract them separately so backgrounds, positioning, fonts,
+    // and library scripts (e.g. GSAP CDN) are not silently dropped.
+    if (!templateEl) {
+      const compHead = compDoc.querySelector("head");
+      if (compHead) {
+        for (const styleEl of compHead.querySelectorAll("style")) {
+          const css = rewriteCssAssetUrls(styleEl.textContent || "", srcPath);
+          const scopeId = compId || inferredCompId;
+          if (scopeId && css.trim()) {
+            collectedStyles.push(scopeCssToComposition(css, scopeId));
+          } else {
+            collectedStyles.push(css);
+          }
+        }
+        for (const scriptEl of compHead.querySelectorAll("script")) {
+          const src = (scriptEl.getAttribute("src") || "").trim();
+          if (src && !collectedExternalScriptSrcs.includes(src)) {
+            collectedExternalScriptSrcs.push(src);
+          }
+        }
+      }
+    }
+
     for (const styleEl of contentDoc.querySelectorAll("style")) {
       const css = rewriteCssAssetUrls(styleEl.textContent || "", srcPath);
       const scopeId = compId || inferredCompId;
