@@ -201,7 +201,7 @@ function createViteAdapter(dataDir: string, server: ViteDevServer): StudioApiAda
                 if (evt.type === "complete") {
                   state.status = "complete";
                   state.outputPath = evt.outputPath || opts.outputPath;
-                  const metaPath = opts.outputPath.replace(/\.(mp4|webm)$/, ".meta.json");
+                  const metaPath = opts.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json");
                   writeFileSync(
                     metaPath,
                     JSON.stringify({ status: "complete", durationMs: Date.now() - startTime }),
@@ -209,7 +209,7 @@ function createViteAdapter(dataDir: string, server: ViteDevServer): StudioApiAda
                 }
                 if (evt.type === "error") {
                   state.status = "failed";
-                  const metaPath = opts.outputPath.replace(/\.(mp4|webm)$/, ".meta.json");
+                  const metaPath = opts.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json");
                   writeFileSync(metaPath, JSON.stringify({ status: "failed" }));
                 }
               } catch {
@@ -219,7 +219,7 @@ function createViteAdapter(dataDir: string, server: ViteDevServer): StudioApiAda
           }
           if (state.status === "rendering") {
             state.status = "complete";
-            const metaPath = opts.outputPath.replace(/\.(mp4|webm)$/, ".meta.json");
+            const metaPath = opts.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json");
             writeFileSync(
               metaPath,
               JSON.stringify({ status: "complete", durationMs: Date.now() - startTime }),
@@ -229,7 +229,7 @@ function createViteAdapter(dataDir: string, server: ViteDevServer): StudioApiAda
         .catch(() => {
           state.status = "failed";
           try {
-            const metaPath = opts.outputPath.replace(/\.(mp4|webm)$/, ".meta.json");
+            const metaPath = opts.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json");
             writeFileSync(metaPath, JSON.stringify({ status: "failed" }));
           } catch {
             /* ignore */

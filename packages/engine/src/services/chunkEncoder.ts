@@ -130,6 +130,7 @@ export function buildEncoderArgs(
     }
   } else if (codec === "prores") {
     args.push("-c:v", "prores_ks", "-profile:v", preset, "-vendor", "apl0");
+    args.push("-pix_fmt", pixelFormat);
     return [...args, "-y", outputPath];
   }
 
@@ -318,7 +319,11 @@ export async function encodeFramesChunkedConcat(
     }
     const startNumber = i * chunkSize;
     const framesInChunk = Math.min(chunkSize, files.length - startNumber);
-    const ext = outputPath.endsWith(".webm") ? ".webm" : ".mp4";
+    const ext = outputPath.endsWith(".webm")
+      ? ".webm"
+      : outputPath.endsWith(".mov")
+        ? ".mov"
+        : ".mp4";
     const chunkPath = join(chunkDir, `chunk_${String(i).padStart(4, "0")}${ext}`);
     const inputPath = join(framesDir, framePattern);
     const inputArgs = [

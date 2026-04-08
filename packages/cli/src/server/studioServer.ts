@@ -177,7 +177,7 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
           await executeRenderJob(job, opts.project.dir, opts.outputPath, onProgress);
           state.status = "complete";
           state.progress = 100;
-          const metaPath = opts.outputPath.replace(/\.(mp4|webm)$/, ".meta.json");
+          const metaPath = opts.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json");
           writeFileSync(
             metaPath,
             JSON.stringify({ status: "complete", durationMs: Date.now() - startTime }),
@@ -186,7 +186,7 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
           state.status = "failed";
           state.error = err instanceof Error ? err.message : String(err);
           try {
-            const metaPath = opts.outputPath.replace(/\.(mp4|webm)$/, ".meta.json");
+            const metaPath = opts.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json");
             writeFileSync(metaPath, JSON.stringify({ status: "failed" }));
           } catch {
             /* ignore */
