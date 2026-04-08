@@ -1,9 +1,9 @@
 ---
 title: Rendering
-description: "Render compositions to MP4 locally or in Docker."
+description: "Render compositions to MP4, MOV, or WebM locally or in Docker."
 ---
 
-Render your Hyperframes [compositions](/concepts/compositions) to MP4 with the [CLI](/packages/cli). The rendering pipeline is frame-by-frame and seek-driven — see [Deterministic Rendering](/concepts/determinism) for how this works under the hood.
+Render your Hyperframes [compositions](/concepts/compositions) to MP4, MOV, or WebM with the [CLI](/packages/cli). The rendering pipeline is frame-by-frame and seek-driven — see [Deterministic Rendering](/concepts/determinism) for how this works under the hood.
 
 ## Getting Started
 
@@ -114,6 +114,7 @@ Render your Hyperframes [compositions](/concepts/compositions) to MP4 with the [
 | Flag | Values | Default | Description |
 |------|--------|---------|-------------|
 | `--output` | path | `renders/<name>.mp4` | Output file path |
+| `--format` | mp4, mov, webm | mp4 | Output format (see [Transparent Video](#transparent-video) below) |
 | `--fps` | 24, 30, 60 | 30 | Frames per second |
 | `--quality` | draft, standard, high | standard | Encoding quality preset |
 | `--workers` | 1-8 or `auto` | auto | Parallel render workers (see [Workers](#workers) below) |
@@ -166,6 +167,75 @@ npx hyperframes render --workers 8 --output output.mp4
 - Long compositions (30+ seconds) on a machine with 8+ cores and 16+ GB RAM
 - Dedicated render machines or CI runners
 - Docker mode on a well-provisioned host
+
+## Transparent Video
+
+Hyperframes supports rendering with a transparent background — useful for overlays, lower thirds, subscribe cards, and any element you want to composite over other footage in a video editor.
+
+### Recommended format: MOV (ProRes 4444)
+
+```bash Terminal
+npx hyperframes render --format mov --output overlay.mov
+```
+
+**MOV with ProRes 4444** is the industry standard for transparent video. It works in all major video editors:
+
+- CapCut
+- Final Cut Pro
+- Adobe Premiere Pro
+- DaVinci Resolve
+- After Effects
+
+<Warning>
+  ProRes MOV files are large (typically 5-40 MB for short clips) because ProRes is a high-quality intermediate codec optimized for editing, not delivery. This is expected — the same tradeoff Remotion and professional pipelines make.
+</Warning>
+
+### Format comparison
+
+| Format | Codec | Transparency | Video editors | Browsers | File size |
+|--------|-------|-------------|---------------|----------|-----------|
+| **MOV** | ProRes 4444 | Yes | CapCut, Final Cut, Premiere, DaVinci, After Effects | No | Large |
+| **WebM** | VP9 | Yes | None (shows black background) | Chrome, Firefox | Small |
+| **MP4** | H.264 | No | All | All | Small |
+
+<Note>
+  **WebM VP9 alpha** is technically supported but all major video editors ignore the alpha channel and render transparent areas as black. Only Chromium-based browsers (Chrome, Arc, Brave, Edge) decode VP9 alpha correctly. Safari does not support it. Use MOV for editor workflows and WebM only for browser-based playback.
+</Note>
+
+### How it works
+
+When you render with `--format mov` or `--format webm`, Hyperframes:
+
+1. Captures each frame as a **PNG with alpha channel** (instead of JPEG for MP4)
+2. Sets Chrome's page background to transparent via `Emulation.setDefaultBackgroundColorOverride`
+3. Encodes with an alpha-capable codec (ProRes 4444 for MOV, VP9 for WebM)
+
+Your composition's HTML should **not** set a `background` on `html` or `body` — leave it unset so the transparent background comes through.
+
+### Authoring transparent compositions
+
+```html
+<style>
+  /* Do NOT set background on html/body — leave them transparent */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  [data-composition-id="my-overlay"] {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    /* No background here either */
+  }
+</style>
+```
+
+Only the visible elements (cards, text, images) will appear in the final video. Everything else will be transparent.
+
+### Verifying transparency
+
+- **In a browser:** Open the MOV file — it won't play (ProRes is not a browser codec). Instead, render a WebM copy and open it in Chrome on a checkerboard background page.
+- **In a video editor:** Import the MOV file and place it on a track above other footage. Transparent areas should show the footage below.
+- **Online tool:** Use [rotato.app/tools/transparent-video](https://rotato.app/tools/transparent-video) to verify your MOV or WebM has working transparency.
 
 ## Tips
 
