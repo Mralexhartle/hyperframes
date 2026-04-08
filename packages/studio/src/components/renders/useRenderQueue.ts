@@ -96,7 +96,8 @@ export function useRenderQueue(projectId: string | null) {
       }
       const { jobId } = await res.json();
 
-      const ext = format === "webm" ? ".webm" : format === "mov" ? ".mov" : ".mp4";
+      const FORMAT_EXT: Record<string, string> = { mp4: ".mp4", webm: ".webm", mov: ".mov" };
+      const ext = FORMAT_EXT[format] ?? ".mp4";
       const job: RenderJob = {
         id: jobId,
         status: "rendering",

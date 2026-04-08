@@ -783,7 +783,8 @@ export async function executeRenderJob(
 
     const workerCount = calculateOptimalWorkers(job.totalFrames!, job.config.workers, cfg);
 
-    const videoExt = isMov ? ".mov" : isWebm ? ".webm" : ".mp4";
+    const FORMAT_EXT: Record<string, string> = { mp4: ".mp4", webm: ".webm", mov: ".mov" };
+    const videoExt = FORMAT_EXT[outputFormat] ?? ".mp4";
     const videoOnlyPath = join(workDir, `video-only${videoExt}`);
     const preset = getEncoderPreset(job.config.quality, outputFormat);
 

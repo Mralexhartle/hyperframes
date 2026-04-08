@@ -26,6 +26,7 @@ import type { RenderJob } from "@hyperframes/producer";
 const VALID_FPS = new Set([24, 30, 60]);
 const VALID_QUALITY = new Set(["draft", "standard", "high"]);
 const VALID_FORMAT = new Set(["mp4", "webm", "mov"]);
+const FORMAT_EXT: Record<string, string> = { mp4: ".mp4", webm: ".webm", mov: ".mov" };
 
 const CPU_CORE_COUNT = cpus().length;
 
@@ -133,7 +134,7 @@ export default defineCommand({
 
     // ── Resolve output path ───────────────────────────────────────────────
     const rendersDir = resolve("renders");
-    const ext = format === "webm" ? ".webm" : format === "mov" ? ".mov" : ".mp4";
+    const ext = FORMAT_EXT[format] ?? ".mp4";
     const now = new Date();
     const datePart = now.toISOString().slice(0, 10);
     const timePart = now.toTimeString().slice(0, 8).replace(/:/g, "-");

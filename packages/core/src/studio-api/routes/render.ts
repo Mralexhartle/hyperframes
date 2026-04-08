@@ -50,7 +50,9 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
       quality?: string;
       format?: string;
     };
-    const format = body.format === "webm" ? "webm" : body.format === "mov" ? "mov" : "mp4";
+    const VALID_FORMATS = new Set(["mp4", "webm", "mov"]);
+    const FORMAT_EXT: Record<string, string> = { mp4: ".mp4", webm: ".webm", mov: ".mov" };
+    const format = VALID_FORMATS.has(body.format ?? "") ? (body.format as string) : "mp4";
     const fps: 24 | 30 | 60 = body.fps === 24 || body.fps === 60 ? body.fps : 30;
     const quality = ["draft", "standard", "high"].includes(body.quality ?? "")
       ? (body.quality as string)
@@ -62,7 +64,7 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
     const jobId = `${project.id}_${datePart}_${timePart}`;
     const rendersDir = adapter.rendersDir(project);
     if (!existsSync(rendersDir)) mkdirSync(rendersDir, { recursive: true });
-    const ext = format === "webm" ? ".webm" : format === "mov" ? ".mov" : ".mp4";
+    const ext = FORMAT_EXT[format] ?? ".mp4";
     const outputPath = join(rendersDir, `${jobId}${ext}`);
 
     const jobState = adapter.startRender({
