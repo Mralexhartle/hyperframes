@@ -37,8 +37,8 @@ export async function catalogAssets(page: Page): Promise<CatalogedAsset[]> {
       if (lurl.indexOf('bci=') > -1 && lurl.indexOf('twpid=') > -1) return;
       if (lurl.indexOf('cachebust=') > -1 || lurl.indexOf('event_id=') > -1) return;
       // Filter CSS fragment references to SVG filter IDs (not real downloadable assets)
-      // e.g., "page.css#hph-illustration-filter", "#linkedin-clip-1"
       if (url.indexOf('.css#') > -1) return;
+      if (url.indexOf('.css%23') > -1) return;
       // Filter same-page fragment references like "https://site.com/#clip-1"
       try { var parsed = new URL(url); if (parsed.hash && parsed.pathname.length <= 1) return; } catch(e2) {}
 
@@ -227,15 +227,73 @@ function getWidthParam(url: string): number {
 
 /**
  * Format cataloged assets as markdown for the DESIGN.md Assets section.
+ * Matches Aura.build's format: grouped by type, named from file paths.
  */
 export function formatAssetCatalog(assets: CatalogedAsset[]): string {
   if (assets.length === 0) return "No assets detected.\n";
 
-  const lines: string[] = [];
+  // Group by type
+  const groups: Record<string, CatalogedAsset[]> = {};
   for (const a of assets) {
-    const contexts = a.contexts.join(", ");
-    const notes = a.notes ? ` | notes: ${a.notes}` : "";
-    lines.push(`- **${a.type}**: ${a.url} — contexts: ${contexts}${notes}`);
+    const group = a.type;
+    if (!groups[group]) groups[group] = [];
+    groups[group]!.push(a);
   }
-  return lines.join("\n") + "\n";
+
+  const lines: string[] = [];
+
+  // Output in order: Fonts, Images, Videos, Icons, Background, Other
+  const order: CatalogedAsset["type"][] = ["Font", "Image", "Video", "Icon", "Background", "Other"];
+  for (const type of order) {
+    const group = groups[type];
+    if (!group || group.length === 0) continue;
+
+    const sectionName =
+      type === "Font"
+        ? "Fonts"
+        : type === "Image"
+          ? "Images"
+          : type === "Video"
+            ? "Videos"
+            : type === "Icon"
+              ? "Icons"
+              : type === "Background"
+                ? "Backgrounds"
+                : "Other";
+    lines.push(`### ${sectionName}`);
+
+    for (const a of group) {
+      const name = a.notes || deriveAssetName(a.url);
+      const contexts = a.contexts.join(", ");
+      lines.push(`- **${name}**: ${a.url} — contexts: ${contexts}`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Derive a human-readable name from a URL's file path.
+ * E.g., "ConnectBentoBackground.jpg" → "Connect Bento Background"
+ */
+function deriveAssetName(url: string): string {
+  try {
+    const u = new URL(url);
+    const path = u.pathname;
+    // Get filename without extension
+    const filename = path.split("/").pop() || "";
+    const nameWithoutExt = filename.replace(/\.[^.]+$/, "");
+    // Remove hash suffixes (e.g., "Sohne.cb178166" → "Sohne")
+    const cleaned = nameWithoutExt.replace(/\.[a-f0-9]{6,}$/, "");
+    // Convert camelCase/PascalCase to spaces
+    const spaced = cleaned
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/[-_]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return spaced || filename;
+  } catch {
+    return "Asset";
+  }
 }

@@ -16,7 +16,7 @@ import { extractHtml } from "./htmlExtractor.js";
 // captureScreenshots removed — full-page screenshot replaces per-section shots
 import { extractTokens } from "./tokenExtractor.js";
 import { downloadAssets, downloadAndRewriteFonts } from "./assetDownloader.js";
-import { generateCaptureBrief } from "./briefGenerator.js";
+// briefGenerator.ts, visual-style, capture-summary removed — DESIGN.md replaces them
 import {
   setupAnimationCapture,
   startCdpAnimationCapture,
@@ -190,7 +190,7 @@ export async function captureWebsite(
     // Capture full-page screenshot (scrolls to trigger lazy loading, neutralizes sticky elements)
     progress("screenshots", "Capturing full-page screenshot...");
     const { captureFullPageScreenshot } = await import("./screenshotCapture.js");
-    const fullPageScreenshot = await captureFullPageScreenshot(page1, outputDir);
+    const fullPageScreenshot = await captureFullPageScreenshot(page1, outputDir, url);
     const screenshots: string[] = [];
     if (fullPageScreenshot) {
       screenshots.push(fullPageScreenshot);
@@ -249,6 +249,63 @@ export async function captureWebsite(
       warnings.push(`Asset cataloging failed: ${err}`);
     }
 
+    // Detect JS libraries via globals and script URLs (Wappalyzer-style)
+    let detectedLibraries: string[] = [];
+    try {
+      detectedLibraries = (await page1.evaluate(`(() => {
+        var libs = [];
+        if (typeof window.gsap !== 'undefined' || typeof window.TweenMax !== 'undefined') libs.push('GSAP');
+        if (typeof window.ScrollTrigger !== 'undefined' || typeof window.gsap?.plugins?.scrollTrigger !== 'undefined') libs.push('ScrollTrigger');
+        if (typeof window.THREE !== 'undefined') libs.push('Three.js');
+        if (typeof window.PIXI !== 'undefined') libs.push('PixiJS');
+        if (typeof window.BABYLON !== 'undefined') libs.push('Babylon.js');
+        if (typeof window.Lottie !== 'undefined' || typeof window.lottie !== 'undefined') libs.push('Lottie');
+        if (typeof window.__NEXT_DATA__ !== 'undefined') libs.push('Next.js');
+        if (typeof window.__NUXT__ !== 'undefined') libs.push('Nuxt');
+        // Also check script src URLs
+        document.querySelectorAll('script[src]').forEach(function(s) {
+          var src = s.src.toLowerCase();
+          if (src.includes('gsap') || src.includes('tweenmax')) { if (libs.indexOf('GSAP') === -1) libs.push('GSAP'); }
+          if (src.includes('scrolltrigger')) { if (libs.indexOf('ScrollTrigger') === -1) libs.push('ScrollTrigger'); }
+          if (src.includes('three')) { if (libs.indexOf('Three.js') === -1) libs.push('Three.js'); }
+          if (src.includes('pixi')) { if (libs.indexOf('PixiJS') === -1) libs.push('PixiJS'); }
+          if (src.includes('lottie')) { if (libs.indexOf('Lottie') === -1) libs.push('Lottie'); }
+          if (src.includes('framer-motion') || src.includes('motion')) { if (libs.indexOf('Framer Motion') === -1) libs.push('Framer Motion'); }
+        });
+        return libs;
+      })()`)) as string[];
+    } catch {
+      // Non-blocking
+    }
+
+    // Extract all visible text in DOM order (for accurate replica generation)
+    let visibleTextContent = "";
+    try {
+      visibleTextContent = (await page1.evaluate(`(() => {
+        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+        var texts = [];
+        var node;
+        while (node = walker.nextNode()) {
+          var text = (node.textContent || '').trim();
+          if (text.length < 3) continue;
+          var el = node.parentElement;
+          if (!el) continue;
+          var style = getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
+          var tag = el.tagName.toLowerCase();
+          if (tag === 'script' || tag === 'style' || tag === 'noscript') continue;
+          texts.push(text);
+        }
+        return texts.join('\\n');
+      })()`)) as string;
+      // Truncate to ~30K chars to avoid blowing up the prompt
+      if (visibleTextContent.length > 30000) {
+        visibleTextContent = visibleTextContent.slice(0, 30000) + "\n[...truncated]";
+      }
+    } catch {
+      // Non-blocking
+    }
+
     await page1.close();
 
     // Download fonts and rewrite URLs to local paths
@@ -273,25 +330,7 @@ export async function captureWebsite(
       assets = await downloadAssets(tokens, outputDir);
     }
 
-    // Generate visual-style.md
-    progress("style", "Generating visual style...");
-    const visualStyle = generateVisualStyle(tokens, url);
-    writeFileSync(join(outputDir, "visual-style.md"), visualStyle, "utf-8");
-
-    // Generate capture-summary.md
-    const summary = generateCaptureSummary(
-      url,
-      tokens,
-      screenshots,
-      assets,
-      extracted,
-      animationCatalog,
-    );
-    writeFileSync(join(outputDir, "capture-summary.md"), summary, "utf-8");
-
-    // Generate capture-brief.md (prompt-ready design brief for AI)
-    progress("brief", "Generating design brief...");
-    // Collect font file paths from assets/fonts/ (already downloaded by downloadAndRewriteFonts)
+    // Collect font file paths (used by DESIGN.md generator)
     const fontsDir = join(outputDir, "assets", "fonts");
     let fontPaths: string[] = [];
     try {
@@ -302,15 +341,6 @@ export async function captureWebsite(
     } catch {
       /* no fonts dir */
     }
-    const brief = generateCaptureBrief(
-      url,
-      tokens,
-      animationCatalog,
-      screenshots,
-      assets,
-      fontPaths,
-    );
-    writeFileSync(join(outputDir, "capture-brief.md"), brief, "utf-8");
 
     // Generate DESIGN.md (AI-powered if ANTHROPIC_API_KEY is set)
     progress("design", "Generating DESIGN.md...");
@@ -331,6 +361,40 @@ export async function captureWebsite(
       progress("design", "DESIGN.md generated");
     } catch (err) {
       warnings.push(`DESIGN.md generation failed: ${err}`);
+    }
+
+    // Generate lightweight HTML replica (Aura approach — AI rebuilds site as clean HTML)
+    progress("replica", "Generating HTML replica...");
+    try {
+      const { generateReplica, detectImplementationCues } = await import("./replicaGenerator.js");
+      const cues = detectImplementationCues(
+        animationCatalog,
+        Object.keys(tokens.cssVariables).length > 10,
+        tokens.fonts.length > 0,
+        !!animationCatalog?.cssDeclarations?.some(
+          (d) =>
+            d.animation?.name?.toLowerCase().includes("marquee") ||
+            d.animation?.name?.toLowerCase().includes("scroll"),
+        ),
+        (animationCatalog?.summary?.canvases ?? 0) > 0,
+        !tokens.sections.some((s) => {
+          if (!s.backgroundColor) return false;
+          const m = s.backgroundColor.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+          if (m) return (0.299 * +m[1]! + 0.587 * +m[2]! + 0.114 * +m[3]!) / 255 < 0.5;
+          return false;
+        }),
+        detectedLibraries,
+      );
+      await generateReplica(
+        join(outputDir, "DESIGN.md"),
+        fullPageScreenshot,
+        outputDir,
+        (detail) => progress("replica", detail),
+        cues,
+        visibleTextContent,
+      );
+    } catch (err) {
+      warnings.push(`Replica generation failed: ${err}`);
     }
 
     // Split into sections (if not skipped)
@@ -418,83 +482,4 @@ export async function captureWebsite(
   }
 }
 
-// ── Generators ──────────────────────────────────────────────────────────────
-
-function generateVisualStyle(tokens: CaptureResult["tokens"], url: string): string {
-  return `---
-name: "${tokens.title}"
-source_url: "${url}"
-
-style_prompt_short: >
-  Visual style extracted from ${tokens.title}.
-
-colors:
-${tokens.colors
-  .slice(0, 8)
-  .map((c, i) => `  - hex: "${c}"\n    role: "color-${i}"`)
-  .join("\n")}
-
-typography:
-  fonts: [${tokens.fonts.map((f) => `"${f}"`).join(", ")}]
-
-mood:
-  keywords: ["extracted", "website-captured"]
----
-`;
-}
-
-function generateCaptureSummary(
-  url: string,
-  tokens: CaptureResult["tokens"],
-  screenshots: string[],
-  assets: CaptureResult["assets"],
-  extracted: CaptureResult["extracted"],
-  animations?: CaptureResult["animationCatalog"],
-): string {
-  const svgLogos = tokens.svgs.filter((s) => s.isLogo);
-
-  return `# Capture Summary: ${tokens.title}
-Source: ${url}
-Captured: ${new Date().toISOString().split("T")[0]}
-
-## Brand Identity
-- **Fonts:** ${tokens.fonts.join(", ") || "system-ui"}
-- **Colors:** ${tokens.colors.slice(0, 6).join(", ")}
-- **SVG Logos:** ${svgLogos.length} found
-- **Favicon:** ${tokens.icons.length > 0 ? "Yes" : "No"}
-
-## Content
-- **Title:** ${tokens.title}
-- **Description:** ${tokens.description}
-- **Headings:** ${tokens.headings.length} extracted
-- **CTAs:** ${tokens.ctas.map((c) => `"${c.text}"`).join(", ")}
-
-## Extracted HTML
-- **Head CSS + Scripts:** ${Math.round(extracted.headHtml.length / 1024)} KB
-- **Body HTML:** ${Math.round(extracted.bodyHtml.length / 1024)} KB
-- **CSSOM CSS:** ${Math.round(extracted.cssomRules.length / 1024)} KB
-- **Page height:** ${extracted.fullPageHeight}px
-- **Viewport:** ${extracted.viewportWidth}x${extracted.viewportHeight}
-
-## Animations Catalog
-${
-  animations
-    ? `- **Web Animations:** ${animations.summary.webAnimations} (with keyframes)
-- **CSS Declarations:** ${animations.summary.cssDeclarations} (animation/transition)
-- **Scroll Targets:** ${animations.summary.scrollTargets} (IntersectionObserver)
-- **CDP Events:** ${animations.summary.cdpAnimations}
-- **Canvases:** ${animations.summary.canvases}
-- **See:** extracted/animations.json for full keyframe data`
-    : "Not captured"
-}
-
-## Screenshots
-${screenshots.map((s) => `- ${s}`).join("\n")}
-
-## Assets
-${assets.map((a) => `- ${a.localPath} (${a.type})`).join("\n") || "None downloaded"}
-
-## Sections Detected
-${tokens.sections.map((s) => `- **${s.type}** at y=${s.y}: "${s.heading}" (${s.height}px)`).join("\n")}
-`;
-}
+// visual-style.md and capture-summary.md generators removed — DESIGN.md replaces them

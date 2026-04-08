@@ -15,12 +15,14 @@ export async function downloadAssets(
 
   const assets: DownloadedAsset[] = [];
 
-  // 1. SVG logos — save as files
-  const logoSvgs = tokens.svgs.filter((s) => s.isLogo);
-  for (let i = 0; i < logoSvgs.length && i < 5; i++) {
-    const svg = logoSvgs[i];
-    const name = svg.label ? slugify(svg.label) + ".svg" : `logo-${i}.svg`;
-    const localPath = `assets/${name}`;
+  // 1. ALL inline SVGs — save as files (logos get priority naming)
+  mkdirSync(join(outputDir, "assets", "svgs"), { recursive: true });
+  for (let i = 0; i < tokens.svgs.length && i < 30; i++) {
+    const svg = tokens.svgs[i]!;
+    if (!svg.outerHTML || svg.outerHTML.length < 50) continue;
+    const label = svg.label?.replace(/[^a-zA-Z0-9-_ ]/g, "").trim();
+    const name = label ? slugify(label) + ".svg" : svg.isLogo ? `logo-${i}.svg` : `icon-${i}.svg`;
+    const localPath = `assets/svgs/${name}`;
     try {
       writeFileSync(join(outputDir, localPath), svg.outerHTML, "utf-8");
       assets.push({ url: "", localPath, type: "svg" });

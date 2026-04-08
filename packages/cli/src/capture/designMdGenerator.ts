@@ -22,9 +22,10 @@ export async function generateDesignMd(
   fullPageScreenshot?: string,
   catalogedAssets?: CatalogedAsset[],
 ): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
-  if (!apiKey) {
+  if (!anthropicKey && !geminiKey) {
     return generateFallbackDesignMd(
       url,
       tokens,
@@ -36,9 +37,8 @@ export async function generateDesignMd(
     );
   }
 
-  const { default: Anthropic } = await import("@anthropic-ai/sdk");
   const { join } = await import("node:path");
-  const client = new Anthropic({ apiKey });
+  const useGemini = !!geminiKey;
 
   const context = buildContext(
     url,
@@ -93,23 +93,45 @@ export async function generateDesignMd(
     text: context,
   });
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4096,
-    messages: [
-      {
-        role: "user",
-        content: contentParts,
-      },
-    ],
-    system: SYSTEM_PROMPT,
-  });
-
-  // Extract text from response
   let aiText = "";
-  for (const block of response.content) {
-    if (block.type === "text") {
-      aiText += block.text;
+
+  if (useGemini) {
+    // Gemini path
+    const { GoogleGenAI } = await import("@google/genai");
+    const genai = new GoogleGenAI({ apiKey: geminiKey! });
+
+    // Build Gemini parts: images first, then text
+    const geminiParts: Array<
+      { inlineData: { mimeType: string; data: string } } | { text: string }
+    > = [];
+    for (const part of contentParts) {
+      if (part.type === "image") {
+        geminiParts.push({ inlineData: { mimeType: "image/png", data: part.source.data } });
+      }
+    }
+    geminiParts.push({ text: SYSTEM_PROMPT + "\n\n" + context });
+
+    const response = await genai.models.generateContent({
+      model: "gemini-3.1-pro-preview",
+      contents: [{ role: "user", parts: geminiParts }],
+    });
+    aiText = response.text ?? "";
+  } else {
+    // Claude path
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const client = new Anthropic({ apiKey: anthropicKey! });
+
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4096,
+      messages: [{ role: "user", content: contentParts }],
+      system: SYSTEM_PROMPT,
+    });
+
+    for (const block of response.content) {
+      if (block.type === "text") {
+        aiText += block.text;
+      }
     }
   }
 
@@ -127,10 +149,25 @@ export async function generateDesignMd(
 
   // Append programmatic Assets section
   const { formatAssetCatalog } = await import("./assetCataloger.js");
-  const assetsSection =
-    catalogedAssets && catalogedAssets.length > 0
-      ? formatAssetCatalog(catalogedAssets)
-      : assets.map((a) => `- **${a.type}**: ${a.localPath}`).join("\n") + "\n";
+  let assetsSection =
+    catalogedAssets && catalogedAssets.length > 0 ? formatAssetCatalog(catalogedAssets) : "";
+
+  // Add locally saved assets (inline SVGs, downloaded images) that aren't in the browser catalog
+  const savedSvgs = assets.filter((a) => a.type === "svg" && a.localPath);
+  if (savedSvgs.length > 0) {
+    assetsSection += "\n### Inline SVGs (saved from page)\n";
+    for (const svg of savedSvgs) {
+      assetsSection += `- **SVG**: ${svg.localPath}\n`;
+    }
+  }
+
+  const otherSaved = assets.filter((a) => a.type !== "svg" && a.localPath);
+  if (otherSaved.length > 0 && (!catalogedAssets || catalogedAssets.length === 0)) {
+    assetsSection += "\n### Downloaded Assets\n";
+    for (const a of otherSaved) {
+      assetsSection += `- **${a.type}**: ${a.localPath}\n`;
+    }
+  }
 
   return aiText + "\n\n## Assets\n" + assetsSection;
 }

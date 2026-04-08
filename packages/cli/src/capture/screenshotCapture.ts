@@ -89,64 +89,69 @@ export async function captureScreenshots(
 }
 
 /**
- * Capture a full-page screenshot after scrolling to trigger lazy loading.
- * Uses Puppeteer's built-in fullPage stitching (same as Chrome DevTools
- * Cmd+Shift+P → "Capture full size screenshot").
+ * Capture a full-page screenshot using Playwright.
  *
- * Note: Chrome has a ~16384px height limit. Content below that is clipped,
- * but the important above-the-fold design patterns are always captured.
+ * Playwright uses CDP Page.getLayoutMetrics + captureBeyondViewport
+ * WITHOUT resizing the viewport — this preserves position:fixed,
+ * vh units, and CSS stacking contexts that Puppeteer's fullPage breaks.
+ *
+ * We use a separate Playwright browser instance for just the screenshot,
+ * since the main capture pipeline uses Puppeteer.
  */
 export async function captureFullPageScreenshot(
-  page: Page,
+  _page: Page,
   outputDir: string,
+  url?: string,
 ): Promise<string | undefined> {
   const screenshotsDir = join(outputDir, "screenshots");
   mkdirSync(screenshotsDir, { recursive: true });
 
+  if (!url) return undefined;
+
   try {
-    // Scroll through the page to trigger lazy loading first
-    await page.evaluate(`(async () => {
-      var step = Math.floor(window.innerHeight * 0.7);
-      var limit = Math.min(document.body.scrollHeight, 50000);
-      for (var y = 0; y < limit; y += step) {
+    const { chromium } = await import("playwright");
+    const browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    });
+    const pwPage = await context.newPage();
+
+    await pwPage.goto(url, { waitUntil: "networkidle", timeout: 60000 });
+
+    // Scroll through to trigger lazy loading
+    await pwPage.evaluate(async () => {
+      const step = Math.floor(window.innerHeight * 0.7);
+      const limit = Math.min(document.body.scrollHeight, 50000);
+      for (let y = 0; y < limit; y += step) {
         window.scrollTo(0, y);
-        await new Promise(function(r) { setTimeout(r, 200); });
+        await new Promise((r) => setTimeout(r, 200));
       }
       window.scrollTo(0, document.body.scrollHeight);
-      await new Promise(function(r) { setTimeout(r, 500); });
+      await new Promise((r) => setTimeout(r, 500));
       window.scrollTo(0, 0);
-      await new Promise(function(r) { setTimeout(r, 300); });
-    })()`);
+      await new Promise((r) => setTimeout(r, 300));
+    });
 
-    // Wait for all images to finish loading
-    await page
+    // Wait for images
+    await pwPage
       .waitForFunction(
-        `Array.from(document.querySelectorAll("img")).every(function(img) { return img.complete; })`,
+        () => Array.from(document.querySelectorAll("img")).every((img) => img.complete),
         { timeout: 10000 },
       )
       .catch(() => {});
 
-    // Kill animations and scroll to top before capture
-    await page.evaluate(`(() => {
-      var style = document.createElement("style");
-      style.id = "__hf_fullpage_style";
-      style.textContent = "*, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }";
-      document.head.appendChild(style);
-      window.scrollTo(0, 0);
-    })()`);
-    await new Promise((r) => setTimeout(r, 200));
+    // Freeze animations
+    await pwPage.addStyleTag({
+      content:
+        "*, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }",
+    });
+    await pwPage.waitForTimeout(200);
 
     const filename = "full-page.png";
     const filePath = join(screenshotsDir, filename);
-    const buffer = await page.screenshot({ type: "png", fullPage: true });
-    writeFileSync(filePath, buffer);
+    await pwPage.screenshot({ path: filePath, fullPage: true, type: "png" });
 
-    // Cleanup
-    await page.evaluate(`(() => {
-      var style = document.getElementById("__hf_fullpage_style");
-      if (style) style.remove();
-    })()`);
-
+    await browser.close();
     return `screenshots/${filename}`;
   } catch {
     return undefined;

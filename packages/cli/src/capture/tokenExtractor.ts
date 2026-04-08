@@ -75,16 +75,18 @@ const EXTRACT_SCRIPT = `(() => {
   // 8. SVGs
   var svgEls = Array.from(document.querySelectorAll("svg"));
   var svgs = svgEls.map(function(svg) {
-    var label = svg.getAttribute("aria-label");
+    var label = svg.getAttribute("aria-label") || svg.getAttribute("title") || svg.getAttribute("alt");
     var w = svg.getAttribute("width");
-    if (!label && (!w || parseInt(w) < 30)) return null;
+    // Keep SVGs that have a label OR are at least 16px wide OR are inside a logo/brand context
+    var inLogoContext = svg.closest('[class*="logo"], [class*="brand"], [class*="partner"], [class*="customer"], [class*="marquee"]') !== null;
+    if (!label && !inLogoContext && (!w || parseInt(w) < 16)) return null;
     return {
       label: label || undefined,
       viewBox: svg.getAttribute("viewBox") || undefined,
-      outerHTML: svg.outerHTML.slice(0, 3000),
-      isLogo: (label && label.toLowerCase().indexOf("logo") !== -1) || svg.closest('[class*="logo"], [class*="brand"], [class*="home"]') !== null
+      outerHTML: svg.outerHTML.slice(0, 10000),
+      isLogo: (label && label.toLowerCase().indexOf("logo") !== -1) || svg.closest('[class*="logo"], [class*="brand"], [class*="home"], [class*="marquee"], [class*="partner"], [class*="customer"]') !== null
     };
-  }).filter(Boolean).slice(0, 20);
+  }).filter(Boolean).slice(0, 50);
 
   // 9. Images
   var imgEls = Array.from(document.querySelectorAll("img[src]")).filter(function(img) { return img.naturalWidth > 200 && isVisible(img); }).slice(0, 15);

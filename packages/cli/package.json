@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
+    "@google/genai": "^1.48.0",
     "@hono/node-server": "^1.8.0",
     "@puppeteer/browsers": "^2.13.0",
     "adm-zip": "^0.5.16",
@@ -36,6 +37,7 @@
     "hono": "^4.0.0",
     "mime-types": "^3.0.2",
     "open": "^10.0.0",
+    "playwright": "^1.59.1",
     "postcss": "^8.5.8",
     "prettier": "^3.8.1",
     "puppeteer-core": "^24.39.1",
