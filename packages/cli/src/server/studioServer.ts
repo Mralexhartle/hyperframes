@@ -128,7 +128,8 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
           'data-hyperframes-preview-runtime="1" src="/api/runtime.js"',
         );
         return html;
-      } catch {
+      } catch (err) {
+        console.error("[studio] Bundle failed:", err);
         return null;
       }
     },

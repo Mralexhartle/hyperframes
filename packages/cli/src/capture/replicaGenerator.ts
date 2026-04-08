@@ -160,7 +160,12 @@ export async function generateReplica(
     await refPage.goto(`http://127.0.0.1:${port}`, { waitUntil: "networkidle", timeout: 30000 });
     await refPage.waitForTimeout(3000); // Wait for Tailwind CDN + fonts to load
 
-    const replicaScreenshotBuf = await refPage.screenshot({ fullPage: true, type: "png" });
+    // Cap screenshot height to 7500px for Claude's 8000px limit
+    const replicaScreenshotBuf = await refPage.screenshot({
+      fullPage: true,
+      type: "png",
+      clip: useGemini ? undefined : { x: 0, y: 0, width: 1920, height: 7500 },
+    });
     await browser.close();
     server.close();
 
@@ -175,9 +180,23 @@ export async function generateReplica(
     if (screenshotPath && replicaScreenshotBuf.length > 0) {
       const replicaB64 = Buffer.from(replicaScreenshotBuf).toString("base64");
 
-      // Read original screenshot
+      // Read original screenshot — for Claude, we may need to resize due to 8000px limit
       const absScreenshotPath = join(outputDir, screenshotPath);
-      const origBuf = readFileSync(absScreenshotPath);
+      let origBuf = readFileSync(absScreenshotPath);
+
+      // Claude has an 8000px image dimension limit — skip refinement if original is too large
+      // (Gemini handles large images fine)
+      if (!useGemini) {
+        // Check PNG dimensions from header (width at bytes 16-19, height at bytes 20-23)
+        if (origBuf.length > 24) {
+          const height = origBuf.readUInt32BE(20);
+          if (height > 7900) {
+            onProgress?.(`Original screenshot too tall for Claude refinement (${height}px > 8000px limit) — skipping`);
+            origBuf = Buffer.alloc(0); // Skip refinement
+          }
+        }
+      }
+
       if (origBuf.length <= 20 * 1024 * 1024) {
         const origB64 = origBuf.toString("base64");
 

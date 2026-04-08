@@ -1,154 +1,218 @@
 ---
 name: website-to-hyperframes
 description: |
-  Capture a website and build a HyperFrames video project from it. Use this skill whenever: (1) a user provides a URL and wants to create a video from it, (2) someone says "website to hyperframes", "capture this site", "turn this into a video", "make a promo from my site", (3) the user wants video components from an existing website, (4) the user shares a link and asks for any kind of video. Even if the user just pastes a URL — this is the skill to use.
+  Capture a website and create a HyperFrames video from it. Use when: (1) a user provides a URL and wants a video, (2) someone says "capture this site", "turn this into a video", "make a promo from my site", (3) the user wants a social ad, product tour, or any video based on an existing website, (4) the user shares a link and asks for any kind of video content. Even if the user just pastes a URL — this is the skill to use.
 ---
 
 # Website to HyperFrames
 
-Capture a website's design (screenshots, colors, fonts, text, animations, assets), then build a clean HyperFrames video project from scratch using that design data.
+Capture a website's design system (colors, fonts, components, assets, text, animations), then create on-brand HyperFrames video compositions from it.
 
 ## How It Works
 
-**Phase 1: Capture** — CLI extracts everything from the website into a data folder  
-**Phase 2: Build** — You read the design brief + screenshots and build compositions from scratch using the `/hyperframes` compose skill
+**Phase 1: Capture** — CLI extracts everything from the website into a project folder
+**Phase 2: Understand** — Read all captured data to understand the brand
+**Phase 3: Create** — Build video compositions using the brand identity
 
-The capture produces a `capture-brief.md` file formatted exactly like a detailed video prompt — with hex colors, font names, exact text, animation timing. You read this brief, look at the screenshots, and build compositions the same way you'd build from a test prompt.
-
-## Execution Rules
+## Execution
 
 Every step has an **OUTPUT GATE**. Print the required output before proceeding.
 
-## Step 1: Capture the website
+### Step 1: Capture the website
 
 ```bash
-npx hyperframes capture --help 2>/dev/null && npx hyperframes capture <URL> -o <project-name> || npx tsx packages/cli/src/cli.ts capture <URL> -o <project-name>
+npx hyperframes capture <URL> -o <project-name>
 ```
 
-**OUTPUT GATE**: Print the capture output (sections, screenshots, assets, fonts).
+If the built CLI isn't available, fall back to:
+
+```bash
+npx tsx packages/cli/src/cli.ts capture <URL> -o <project-name>
+```
+
+Optional flags:
+
+- `--split` — also generate per-section compositions (for using real website HTML as video scenes)
+- No API keys needed — all extraction is local
+
+**OUTPUT GATE**: Print the capture summary (screenshots, assets, sections, fonts).
 
 ✅ Step 1 complete
 
-## Step 2: Read the design brief
+### Step 2: Read ALL captured data
 
-Read these files:
+You MUST read every single file before writing any code. Do not skip any.
 
-1. `<project>/capture-brief.md` — **THE MAIN DESIGN SPEC.** This is your blueprint.
-2. `<project>/visual-style.md` — brand colors, fonts, mood
+1. **Read** `screenshots/full-page.png` — study every section, component, color, font, layout
+2. **Read** `extracted/tokens.json` — exact hex colors, font families, font weights, headings, CTAs, sections, CSS variables
+3. **Read** `extracted/visible-text.txt` — exact text content from every section of the page
+4. **Read** `extracted/assets-catalog.json` — every image, video, font, icon URL with HTML context
+5. **Browse** `assets/svgs/` — open each SVG to identify what it is (company logos, icons, illustrations)
+6. **Browse** `assets/` — check downloaded images and font files
+7. **Read** `extracted/animations.json` — what animations the site uses (for recreation guidance)
 
-**OUTPUT GATE**: Print a summary:
+**OUTPUT GATE**: Print a summary table:
 
 ```
-| Info | Value |
-|------|-------|
-| Sections | [N content sections from the brief] |
-| Colors | [primary hex colors] |
-| Fonts | [font names + local files if any] |
-| Assets | [N images, N SVGs] |
-| Suggested duration | [Ns] |
+| Data | Key Values |
+|------|-----------|
+| Title | [page title] |
+| Colors | [top 5 hex colors and where they're used] |
+| Fonts | [font families + weights] |
+| Sections | [N sections: list headings] |
+| Assets | [N images, N SVGs, N fonts, N videos] |
+| Animations | [N scroll triggers, N web animations] |
 ```
 
 ✅ Step 2 complete
 
-## Step 3: Study each section screenshot
+### Step 3: Create DESIGN.md
 
-For each section in the brief, **READ its screenshot image**. Describe:
+Write a `DESIGN.md` file with these sections:
 
-- Layout (columns, grid, centered, sidebar)
-- Key visual elements (hero image, cards, logo bar, chart)
-- Color usage (dark bg with light text, gradient, etc.)
-- Overall feel (minimal, busy, corporate, playful)
+- **## Overview** — 3-4 sentences: visual identity, design philosophy, overall feel
+- **## Colors** — Brand & neutral colors with exact hex values from tokens.json. Semantic palette.
+- **## Typography** — Every font family with weights and design roles. Sizing hierarchy.
+- **## Elevation** — Depth strategy (borders vs shadows vs glassmorphism).
+- **## Components** — Name every UI component you see in the screenshot with styling details.
+- **## Do's and Don'ts** — Design rules from what the site does and doesn't do.
+- **## Assets** — Map every file in assets/ and URL in assets-catalog.json to WHERE it appears and WHAT it shows.
 
-**OUTPUT GATE**: Print a description table:
+Rules:
 
-```
-| Section | Screenshot | Layout | Key Elements | Mood |
-|---------|-----------|--------|-------------|------|
-| Meet the night shift | section-00.png | Centered hero, dark navy bg | h1, 2 CTAs, agent icons, logo bar | Bold, techy |
-| Keep work moving | section-03.png | ... | ... | ... |
-| ... | ... | ... | ... | ... |
-```
+- Use exact hex values and font names from tokens.json
+- Name components by what you see in the screenshot (Bento Grid, Logo Wall, Pricing Calculator)
+- Use exact strings from visible-text.txt — do NOT fabricate or paraphrase
+- Be specific and factual, not poetic
 
-Decide which sections to include/skip (navbar-only and footer-only sections → skip).
+**OUTPUT GATE**: Print the DESIGN.md section headings and key values from each.
 
 ✅ Step 3 complete
 
-## Step 4: Build the HyperFrames project
+### Step 4: Plan the video
 
-**Invoke `/hyperframes` BEFORE writing any composition code.**
+Before writing any composition code, plan the video structure:
 
-1. Create a new project: `npx hyperframes init <new-project-name>`
-2. For each section you're keeping, build a scene in the composition
-3. Use **exact values from the brief**: hex colors, font names, heading text, CTA text
-4. Use **screenshots as visual reference**: match the layout, spacing, element arrangement
-5. Reference **`<capture-project>/assets/`** for downloaded images and SVGs
-6. Apply GSAP animations using timing from the brief's "Animations" data
+1. What type of video? (social ad, product tour, feature announcement, testimonial, launch video)
+2. What duration? (15s, 30s, 60s)
+3. What format? (landscape 1920×1080, portrait 1080×1920, square 1080×1080)
+4. What scenes? List each scene with: duration, content, background color, key elements, animations
 
-**Key rules for building:**
-
-- **Clean HTML/CSS from scratch** — do NOT copy the 800KB extracted HTML
-- **Match the screenshot** — your composition should look like the screenshot
-- **Use exact brand values** — hex colors from the brief, not approximations
-- **Reference local assets** — `<capture-project>/assets/image-0.jpg`, not remote URLs
-- **Font loading** — use `@font-face` with local font files if listed in the brief, or Google Fonts CDN
-- **Composition size** — each section should be ~5-20KB, not 800KB
-
-**Animation guidance** — read [animation-recreation.md](./references/animation-recreation.md) for converting the source site's animation data to GSAP. The brief lists what animations the original site used per section.
-
-**OUTPUT GATE**: Print what was built:
+**OUTPUT GATE**: Print the scene plan:
 
 ```
-| Scene | Duration | Elements | Animations |
-|-------|----------|----------|-----------|
-| Hero | 5s | h1, 2 CTAs, logo bar | heading slide-up, CTAs stagger, logos marquee |
-| Features | 5s | h2, 3 bento cards | cards stagger entrance, images scale-in |
-| ... | ... | ... | ... |
+| Scene | Duration | Content | Background | Key Elements |
+|-------|----------|---------|-----------|-------------|
+| Hook | 0-4s | Hero heading | #02093a (navy) | h1, 2 CTAs, floating icons |
+| Features | 4-12s | 3 feature cards | #f6f5f4 (light) | Screenshots, stagger entrance |
+| Proof | 12-18s | Testimonial + logos | #ffffff | Quote, company logos, stat |
+| CTA | 18-22s | Brand CTA | #02093a (navy) | Logo, button, URL |
 ```
 
 ✅ Step 4 complete
 
-## Step 5: Lint, validate, preview
+### Step 5: Build the video
+
+**Invoke `/hyperframes-compose` BEFORE writing any composition code.**
+
+Create HyperFrames compositions following these rules:
+
+**Brand fidelity:**
+
+- Use EXACT colors from DESIGN.md (hex values, not generic names)
+- Use EXACT fonts via @font-face with URLs from the assets catalog
+- Use EXACT text from visible-text.txt — do NOT paraphrase or invent
+- Use real asset URLs for images, logos, product screenshots
+- Use SVGs from assets/svgs/ for company logos and icons
+- Follow the do's and don'ts from DESIGN.md
+
+**Animation guidance:**
+
+- Read [animation-recreation.md](./references/animation-recreation.md) for converting source animations to GSAP
+- Read [video-recipes.md](./references/video-recipes.md) for scene patterns and mid-scene activity
+- Every element must DO something — not just appear and sit there
+
+**Scene structure:**
+
+- Each scene = a separate sub-composition in `compositions/`
+- Root `index.html` loads scenes sequentially on the same track
+- Every scene fades in (first 0.3s) and fades out (last 0.3s)
+- Bottom 120px reserved for captions
+
+**OUTPUT GATE**: Print what was built:
+
+```
+| Scene | File | Duration | Elements | Animations |
+|-------|------|----------|----------|-----------|
+| Hook | compositions/scene-hook.html | 4s | h1, CTAs, icons | heading slide-up, CTAs stagger |
+| Features | compositions/scene-features.html | 8s | 3 cards, screenshots | cards stagger, images scale |
+```
+
+✅ Step 5 complete
+
+### Step 6: Lint, validate, preview
 
 ```bash
-npx hyperframes lint <new-project-name>
-npx hyperframes validate <new-project-name>
+npx hyperframes lint
+npx hyperframes validate
+npx hyperframes preview
 ```
 
 Fix ALL errors before previewing.
-
-```bash
-npx hyperframes preview <new-project-name>
-```
-
-**Note:** Use `npx hyperframes preview` (built CLI), not `npx tsx ... preview`.
 
 **OUTPUT GATE**: Print final summary:
 
 ```
 ## Ready
 - Preview: http://localhost:XXXX
-- Scenes: N built from website capture
-- Duration: Ns total
+- Scenes: N
+- Duration: Ns
 - Source: <URL>
-- Next steps: customize, add narration, render to MP4
+- Format: 1920×1080
 ```
 
-✅ Step 5 complete
+✅ Step 6 complete
 
-## Key Rules
+## Adding Narration (Optional)
 
-1. **Brief is your design spec, screenshots are your visual spec.** Read both.
-2. **Build from scratch, don't edit extracted HTML.** Clean 5-20KB compositions, not 800KB HTML files.
-3. **Use exact values.** Hex colors, font names, text content — all from the brief.
-4. **Reference local assets.** Use `assets/image-0.jpg`, not remote CDN URLs.
-5. **Invoke `/hyperframes`** before writing any composition code — it has the guardrails.
-6. **Match the screenshot layout.** Columns, spacing, element positions should feel like the original.
+Read [tts-integration.md](./references/tts-integration.md) for the full narration workflow:
+
+1. Write a conversational narration script (2.5 words/second)
+2. Generate TTS audio via HeyGen, ElevenLabs, or local Kokoro
+3. Transcribe back for word-level timestamps
+4. Sync scene durations to narration segments
+5. Add captions overlay
+
+## Quick Reference
+
+### Video Types
+
+| Type                  | Duration | Scenes                                           | Best For                    |
+| --------------------- | -------- | ------------------------------------------------ | --------------------------- |
+| Social Ad             | 15s      | 4 (hook, feature, proof, CTA)                    | Instagram, TikTok, LinkedIn |
+| Product Tour          | 30s      | 5-6 (hero, features, proof, stats, pricing, CTA) | Website, YouTube            |
+| Feature Announcement  | 15s      | 3 (feature name, demo, CTA)                      | Product Hunt, Twitter       |
+| Testimonial Spotlight | 15s      | 3 (logo, quote, attribution)                     | LinkedIn, case study        |
+| Launch Video          | 60s      | 4 acts (hook, solution, proof, CTA)              | Product Hunt, landing page  |
+
+### Energy Modifiers
+
+- **Energetic**: fast cuts (2-3s), back.out easing, 0.08s stagger
+- **Corporate**: smooth 0.6s transitions, gentle fades, generous holds
+- **Cinematic**: slow power4.out reveals, dramatic scale, long holds
+- **Playful**: bounce easing, colorful accents, rotation pops
+
+### Format
+
+- **Landscape**: 1920×1080 (default)
+- **Portrait**: 1080×1920 (Instagram Stories, TikTok)
+- **Square**: 1080×1080 (Instagram feed)
 
 ## Reference Files
 
-| File                                                            | When to read                                       |
-| --------------------------------------------------------------- | -------------------------------------------------- |
-| [animation-recreation.md](./references/animation-recreation.md) | Step 4 — converting source animations to GSAP      |
-| [section-refinement.md](./references/section-refinement.md)     | Step 4 — tips for building from brief + screenshot |
-| [video-recipes.md](./references/video-recipes.md)               | Building videos — scene patterns                   |
-| [tts-integration.md](./references/tts-integration.md)           | Adding narration                                   |
+| File                                                            | When to read                                                                               |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [animation-recreation.md](./references/animation-recreation.md) | Step 5 — converting source animations to GSAP                                              |
+| [video-recipes.md](./references/video-recipes.md)               | Step 5 — scene patterns, mid-scene activity, product promo/social clip/explainer templates |
+| [section-refinement.md](./references/section-refinement.md)     | Step 5 — building from screenshot + tokens                                                 |
+| [tts-integration.md](./references/tts-integration.md)           | After Step 6 — adding narration and captions                                               |

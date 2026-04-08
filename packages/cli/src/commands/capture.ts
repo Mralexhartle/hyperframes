@@ -4,11 +4,8 @@ import type { Example } from "./_examples.js";
 
 export const examples: Example[] = [
   ["Capture a website", "hyperframes capture https://stripe.com"],
-  [
-    "Capture to a specific directory",
-    "hyperframes capture https://linear.app -o linear-components",
-  ],
-  ["Capture without asset downloads", "hyperframes capture https://vercel.com --skip-assets"],
+  ["Capture to a specific directory", "hyperframes capture https://linear.app -o linear-video"],
+  ["Capture with section compositions", "hyperframes capture https://notion.com --split"],
   ["JSON output for AI agents", "hyperframes capture https://example.com --json"],
 ];
 
@@ -33,14 +30,14 @@ export default defineCommand({
       description: "Skip downloading assets (images, SVGs)",
       default: false,
     },
-    "skip-split": {
+    split: {
       type: "boolean",
-      description: "Skip section splitting (capture only)",
+      description: "Split page into per-section HyperFrames compositions",
       default: false,
     },
     "skip-verify": {
       type: "boolean",
-      description: "Skip section verification",
+      description: "Skip section verification (when using --split)",
       default: false,
     },
     "max-screenshots": {
@@ -97,7 +94,7 @@ export default defineCommand({
           url,
           outputDir,
           skipAssets: args["skip-assets"] as boolean,
-          skipSplit: args["skip-split"] as boolean,
+          skipSplit: !(args.split as boolean),
           skipVerify: args["skip-verify"] as boolean,
           maxScreenshots: args["max-screenshots"]
             ? parseInt(args["max-screenshots"] as string)

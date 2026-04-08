@@ -10,7 +10,7 @@
  * - Stable, renderable HTML that won't crash in Puppeteer
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { extractHtml } from "./htmlExtractor.js";
 // captureScreenshots removed — full-page screenshot replaces per-section shots
@@ -50,7 +50,9 @@ export async function captureWebsite(
   mkdirSync(join(outputDir, "extracted"), { recursive: true });
   mkdirSync(join(outputDir, "screenshots"), { recursive: true });
   mkdirSync(join(outputDir, "assets"), { recursive: true });
-  mkdirSync(join(outputDir, "compositions"), { recursive: true });
+  if (!opts.skipSplit) {
+    mkdirSync(join(outputDir, "compositions"), { recursive: true });
+  }
 
   // Launch browser
   progress("browser", "Launching headless Chrome...");
@@ -342,59 +344,94 @@ export async function captureWebsite(
       /* no fonts dir */
     }
 
-    // Generate DESIGN.md (AI-powered if ANTHROPIC_API_KEY is set)
-    progress("design", "Generating DESIGN.md...");
-    try {
-      const { generateDesignMd } = await import("./designMdGenerator.js");
-      const designMd = await generateDesignMd(
-        url,
-        tokens,
-        animationCatalog,
-        screenshots,
-        assets,
-        fontPaths,
-        outputDir,
-        fullPageScreenshot,
-        catalogedAssets,
-      );
-      writeFileSync(join(outputDir, "DESIGN.md"), designMd, "utf-8");
-      progress("design", "DESIGN.md generated");
-    } catch (err) {
-      warnings.push(`DESIGN.md generation failed: ${err}`);
+    // Save visible text content for AI agent to use
+    if (visibleTextContent) {
+      writeFileSync(join(outputDir, "extracted", "visible-text.txt"), visibleTextContent, "utf-8");
     }
 
-    // Generate lightweight HTML replica (Aura approach — AI rebuilds site as clean HTML)
-    progress("replica", "Generating HTML replica...");
-    try {
-      const { generateReplica, detectImplementationCues } = await import("./replicaGenerator.js");
-      const cues = detectImplementationCues(
-        animationCatalog,
-        Object.keys(tokens.cssVariables).length > 10,
-        tokens.fonts.length > 0,
-        !!animationCatalog?.cssDeclarations?.some(
-          (d) =>
-            d.animation?.name?.toLowerCase().includes("marquee") ||
-            d.animation?.name?.toLowerCase().includes("scroll"),
-        ),
-        (animationCatalog?.summary?.canvases ?? 0) > 0,
-        !tokens.sections.some((s) => {
-          if (!s.backgroundColor) return false;
-          const m = s.backgroundColor.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-          if (m) return (0.299 * +m[1]! + 0.587 * +m[2]! + 0.114 * +m[3]!) / 255 < 0.5;
-          return false;
-        }),
-        detectedLibraries,
+    // Save cataloged assets as JSON for AI agent
+    if (catalogedAssets.length > 0) {
+      writeFileSync(
+        join(outputDir, "extracted", "assets-catalog.json"),
+        JSON.stringify(catalogedAssets, null, 2),
+        "utf-8",
       );
-      await generateReplica(
-        join(outputDir, "DESIGN.md"),
-        fullPageScreenshot,
-        outputDir,
-        (detail) => progress("replica", detail),
-        cues,
-        visibleTextContent,
+    }
+
+    // Save detected libraries
+    if (detectedLibraries.length > 0) {
+      writeFileSync(
+        join(outputDir, "extracted", "detected-libraries.json"),
+        JSON.stringify(detectedLibraries, null, 2),
+        "utf-8",
       );
-    } catch (err) {
-      warnings.push(`Replica generation failed: ${err}`);
+    }
+
+    // AI-powered generation (optional — only when API keys are set)
+    const hasAiKey =
+      process.env.ANTHROPIC_API_KEY ||
+      process.env.CLAUDE_API_KEY ||
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_API_KEY;
+
+    if (hasAiKey) {
+      // Generate DESIGN.md via AI
+      progress("design", "Generating DESIGN.md via AI...");
+      try {
+        const { generateDesignMd } = await import("./designMdGenerator.js");
+        const designMd = await generateDesignMd(
+          url,
+          tokens,
+          animationCatalog,
+          screenshots,
+          assets,
+          fontPaths,
+          outputDir,
+          fullPageScreenshot,
+          catalogedAssets,
+        );
+        writeFileSync(join(outputDir, "DESIGN.md"), designMd, "utf-8");
+        progress("design", "DESIGN.md generated");
+      } catch (err) {
+        warnings.push(`DESIGN.md generation failed: ${err}`);
+      }
+
+      // Generate HTML replica via AI
+      progress("replica", "Generating HTML replica via AI...");
+      try {
+        const { generateReplica, detectImplementationCues } = await import("./replicaGenerator.js");
+        const cues = detectImplementationCues(
+          animationCatalog,
+          Object.keys(tokens.cssVariables).length > 10,
+          tokens.fonts.length > 0,
+          !!animationCatalog?.cssDeclarations?.some(
+            (d) =>
+              d.animation?.name?.toLowerCase().includes("marquee") ||
+              d.animation?.name?.toLowerCase().includes("scroll"),
+          ),
+          (animationCatalog?.summary?.canvases ?? 0) > 0,
+          !tokens.sections.some((s) => {
+            if (!s.backgroundColor) return false;
+            const m = s.backgroundColor.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+            if (m) return (0.299 * +m[1]! + 0.587 * +m[2]! + 0.114 * +m[3]!) / 255 < 0.5;
+            return false;
+          }),
+          detectedLibraries,
+        );
+        await generateReplica(
+          join(outputDir, "DESIGN.md"),
+          fullPageScreenshot,
+          outputDir,
+          (detail) => progress("replica", detail),
+          cues,
+          visibleTextContent,
+        );
+      } catch (err) {
+        warnings.push(`Replica generation failed: ${err}`);
+      }
+    } else {
+      progress("design", "No AI API key — DESIGN.md will be generated by your AI agent");
+      progress("design", "Open this folder in Claude Code or Cursor to get started");
     }
 
     // Split into sections (if not skipped)
@@ -460,6 +497,63 @@ export async function captureWebsite(
       );
     } catch {
       // Non-blocking
+    }
+
+    // Ensure capture output is a valid HyperFrames project (index.html + meta.json)
+    const indexPath = join(outputDir, "index.html");
+    const metaPath = join(outputDir, "meta.json");
+    if (!existsSync(indexPath)) {
+      writeFileSync(
+        indexPath,
+        `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="15" data-width="1920" data-height="1080">
+      <!-- Add your compositions here -->
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
+`,
+        "utf-8",
+      );
+    }
+    if (!existsSync(metaPath)) {
+      const hostname = new URL(url).hostname.replace(/^www\./, "");
+      writeFileSync(
+        metaPath,
+        JSON.stringify({ id: hostname + "-video", name: tokens.title || hostname }, null, 2),
+        "utf-8",
+      );
+    }
+
+    // Generate CLAUDE.md + .cursorrules (AI agent instructions — always, regardless of API keys)
+    try {
+      const { generateAgentPrompt } = await import("./agentPromptGenerator.js");
+      generateAgentPrompt(
+        outputDir,
+        url,
+        tokens,
+        animationCatalog,
+        !!fullPageScreenshot,
+        !!hasAiKey,
+      );
+      progress("agent", "CLAUDE.md generated");
+    } catch (err) {
+      warnings.push(`CLAUDE.md generation failed: ${err}`);
     }
 
     progress("done", "Capture complete");

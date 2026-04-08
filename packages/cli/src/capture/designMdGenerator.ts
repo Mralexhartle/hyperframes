@@ -156,8 +156,17 @@ export async function generateDesignMd(
   const savedSvgs = assets.filter((a) => a.type === "svg" && a.localPath);
   if (savedSvgs.length > 0) {
     assetsSection += "\n### Inline SVGs (saved from page)\n";
+    assetsSection += "These SVGs were extracted from the page DOM. To use them, read the file or embed the SVG code.\n\n";
     for (const svg of savedSvgs) {
-      assetsSection += `- **SVG**: ${svg.localPath}\n`;
+      // Find matching token SVG with label
+      const matchingToken = tokens.svgs.find(
+        (s) =>
+          s.label &&
+          svg.localPath.toLowerCase().includes(s.label.toLowerCase().replace(/[^a-z0-9]/g, "")),
+      );
+      const label = matchingToken?.label || svg.localPath.split("/").pop()?.replace(".svg", "") || "unknown";
+      const isLogo = matchingToken?.isLogo ? " (logo)" : "";
+      assetsSection += `- **${label}${isLogo}**: \`${svg.localPath}\`\n`;
     }
   }
 

@@ -1,13 +1,9 @@
 /**
  * Generate CLAUDE.md (and .cursorrules) for captured website projects.
  *
- * This is the equivalent of Aura.build's auto-generated prompt that tells
- * the AI agent how to use the DESIGN.md and screenshot to create output.
- *
- * The file is placed at the project root so AI agents read it automatically:
- * - Claude Code reads CLAUDE.md
- * - Cursor reads .cursorrules
- * - Other agents typically read README.md or project-root markdown
+ * This file is the playbook the AI agent follows automatically.
+ * When a user says "make me a video", the agent reads this file and
+ * knows the entire workflow: read data → create DESIGN.md → create video.
  */
 
 import { writeFileSync } from "node:fs";
@@ -24,11 +20,7 @@ export function generateAgentPrompt(
   hasDesignMd: boolean,
 ): void {
   const prompt = buildPrompt(url, tokens, animations, hasScreenshot, hasDesignMd);
-
-  // Write CLAUDE.md (Claude Code reads this automatically)
   writeFileSync(join(outputDir, "CLAUDE.md"), prompt, "utf-8");
-
-  // Write .cursorrules (Cursor reads this automatically)
   writeFileSync(join(outputDir, ".cursorrules"), prompt, "utf-8");
 }
 
@@ -40,91 +32,101 @@ function buildPrompt(
   hasDesignMd: boolean,
 ): string {
   const hostname = new URL(url).hostname.replace(/^www\./, "");
-
-  // Detect implementation cues from the source
   const cues = detectImplementationCues(tokens, animations);
 
-  const _screenshotRef = hasScreenshot ? "screenshots/full-page.png" : null;
+  return `# ${tokens.title || hostname} — Website Capture
 
-  // Build the main instruction block
-  let md = `# ${tokens.title || hostname} — Captured Website
+Source: ${url}
 
-This project was captured from [${url}](${url}) using \`hyperframes capture\`.
+## Automatic Workflow
 
-## What's in this project
+When the user asks you to create a video, make an ad, or do anything with this captured website, follow these steps IN ORDER. Do not skip any step.
 
-${hasDesignMd ? `- **DESIGN.md** — Complete design system (colors, typography, elevation, components, do's/don'ts, and every asset URL with its HTML context). **READ THIS FIRST.**` : ""}
-${hasScreenshot ? `- **screenshots/full-page.png** — Full-page screenshot of the live website. **READ THIS IMAGE** as your primary visual reference.` : ""}
-- **compositions/** — Extracted page sections as editable HyperFrames HTML compositions (CSS-purged, prettified, AI-readable).
-- **assets/** — Downloaded fonts, logos, images, and favicon.
-- **extracted/** — Raw HTML, CSS, and animation data from the source page.
+### Phase 1: Read everything
 
-## How to use this capture
+Before writing ANY code, you MUST read ALL of these files:
 
+1. ${hasScreenshot ? "**Read** `screenshots/full-page.png` — this is the website's visual design. Study every section." : "No screenshot available."}
+2. **Read** \`extracted/tokens.json\` — colors, fonts, headings, CTAs, page sections, CSS variables.
+3. **Read** \`extracted/visible-text.txt\` — the exact text content from every section of the page.
+4. **Read** \`extracted/assets-catalog.json\` — every image, video, font, icon URL with the HTML context where it was found.
+5. **Browse** \`assets/svgs/\` — open each SVG file to see what it is (company logos, brand icons, illustrations).
+6. **Browse** \`assets/\` — check downloaded images and fonts.
+${hasDesignMd ? "7. **Read** `DESIGN.md` — the pre-generated design system reference." : ""}
+
+Do NOT start writing compositions until you have read ALL of the above.
+
+### Phase 2: Create DESIGN.md${hasDesignMd ? " (already done)" : ""}
+
+${
+  hasDesignMd
+    ? "A DESIGN.md already exists. Read it and use it as your brand reference."
+    : `Write a \`DESIGN.md\` file with these sections:
+
+**## Overview** — 3-4 sentences describing the visual identity, design philosophy, and overall feel.
+**## Colors** — Brand & neutral colors with exact hex values from tokens.json. Semantic palette for feature-specific colors.
+**## Typography** — Every font family with weights and design roles. Complete sizing hierarchy from tokens.json headings.
+**## Elevation** — How the site creates depth (borders vs shadows vs glassmorphism vs flat color shifts).
+**## Components** — Name every UI component you see in the screenshot (Bento Grid, Logo Wall, Pricing Calculator, etc.) with their styling approach.
+**## Do's and Don'ts** — Design rules derived from what the site does and doesn't do.
+**## Assets** — Map every file in assets/ and URL in assets-catalog.json to WHERE it appears on the page and WHAT it shows.
+
+Be specific and factual. Use exact hex values and font names from tokens.json. Name components by what you see in the screenshot. Do NOT fabricate or paraphrase any text — use exact strings from visible-text.txt.`
+}
+
+### Phase 3: Create the video
+
+Now use \`/hyperframes-compose\` skill and create HyperFrames compositions.
+
+Rules for on-brand videos:
+- Use EXACT colors from the DESIGN.md (hex values, not generic Tailwind colors)
+- Use EXACT fonts via @font-face with URLs from the assets catalog
+- Use EXACT text from the website (visible-text.txt) — do NOT paraphrase or invent content
+- Use real asset URLs for images, logos, product screenshots
+- Use the SVGs from assets/svgs/ for company logos and icons
+- Follow the do's and don'ts from DESIGN.md
+
+After creating compositions, run:
+\`\`\`bash
+npx hyperframes lint
+npx hyperframes validate
+npx hyperframes preview
+\`\`\`
+
+${
+  cues.length > 0
+    ? `## Detected source patterns
+
+${cues.map((c) => `- ${c}`).join("\n")}
+`
+    : ""
+}
+## Quick start prompts
+
+If the user doesn't specify what they want, suggest these options:
+
+**15-Second Social Ad:**
+> Scene 1 (0-3s): Bold hook from the hero heading on brand dark background.
+> Scene 2 (3-8s): 2-3 key features with product screenshots, staggered entrance.
+> Scene 3 (8-12s): Social proof — testimonial quote, company logos, counter-animated stat.
+> Scene 4 (12-15s): CTA with brand logo, accent color glow, fade to black.
+
+**30-Second Product Tour:**
+> Walk through the website top-to-bottom: Hero (5s) → Features (7s) → Social proof (6s) → Stats (5s) → Pricing (4s) → CTA (3s).
+
+**Feature Announcement (15s):**
+> Pick the newest feature. Name + icon (4s) → Product screenshot demo (6s) → Benefit + CTA (5s).
+
+**Testimonial Spotlight (15s):**
+> Company logo (3s) → Quote word-by-word in serif font (8s) → Attribution + brand logo (4s).
+
+### Modifiers
+- **Energetic**: fast cuts, back.out easing, 0.08s stagger
+- **Corporate**: smooth 0.6s transitions, gentle fades
+- **Cinematic**: slow power4.out reveals, dramatic scale
+- **Portrait (9:16)**: 1080×1920 canvas for Instagram Stories/TikTok
+- **Square (1:1)**: 1080×1080 canvas for Instagram feed
 `;
-
-  if (hasScreenshot && hasDesignMd) {
-    // BOTH screenshot and DESIGN.md available (best case — like Aura's Notion capture)
-    md += `Treat the **full-page screenshot** as the primary visual reference. Use the **DESIGN.md** as the design-system and asset inventory reference. Use the **compositions/** as ready-made building blocks that can be used as-is or remixed.
-
-If DESIGN.md conflicts with the screenshot on colors, surfaces, layout, or composition, **follow the screenshot**. Use DESIGN.md to preserve exact font families, font weights, typographic tone, asset URLs, and design tokens.
-
-`;
-  } else if (hasDesignMd) {
-    // Only DESIGN.md (screenshot failed — like Aura's Soulscape capture)
-    md += `Screenshot capture was not available. Use the **DESIGN.md** as both the design-system reference and the structural guide. Use the **compositions/** as the primary structural reference for the page layout and content.
-
-Use the DESIGN.md to preserve exact design-system choices, asset references, colors, typography, and component patterns. Do not invent new design patterns — follow what's documented.
-
-`;
-  } else {
-    md += `Use the **compositions/** as the primary reference for design and structure. Reference **assets/** for fonts, logos, and images.
-
-`;
-  }
-
-  // Common instructions
-  md += `Match the original texts, names, numbers, and brand references from the source site. Do not replace the captured design with generic defaults or a different house style.
-
-`;
-
-  // Detected implementation cues
-  if (cues.length > 0) {
-    md += `## Detected source implementation cues
-
-These patterns were detected in the source and should be preserved:
-
-`;
-    for (const cue of cues) {
-      md += `- ${cue}\n`;
-    }
-    md += "\n";
-  }
-
-  // HyperFrames-specific instructions
-  md += `## Creating video compositions
-
-This capture is designed for use with **HyperFrames** — an HTML-to-video framework. When creating video compositions:
-
-1. Use \`/hyperframes-compose\` skill before writing any composition HTML
-2. Reference the DESIGN.md for exact colors, fonts, and component styling
-3. Use compositions from \`compositions/\` as background footage or extract individual components to remix
-4. Reference assets by their URLs from the DESIGN.md Assets section
-5. After creating or editing compositions, run \`npx hyperframes lint\` and \`npx hyperframes validate\`
-
-### Quick start prompts
-
-**15-second social ad:**
-> Create a 15s social ad video using this captured website's design system. Use the DESIGN.md for brand colors, typography, and component styling. Create 4 scenes: Hook (4s), Features (5s), Social Proof (3s), CTA (3s).
-
-**30-second product tour:**
-> Create a 30s product tour video. Walk through the main sections of the captured website, highlighting key features. Use the exact screenshots and component patterns from the capture.
-
-**Component remix video:**
-> Extract individual UI components from the captured compositions and remix them into a new narrative. Change the text, rearrange the layout, combine elements from different sections.
-`;
-
-  return md;
 }
 
 function detectImplementationCues(
@@ -133,49 +135,37 @@ function detectImplementationCues(
 ): string[] {
   const cues: string[] = [];
 
-  // CSS custom properties
   if (Object.keys(tokens.cssVariables).length > 10) {
     cues.push(
-      "The source uses CSS custom properties extensively. Preserve these design tokens for backgrounds, text, buttons, and spacing instead of using hardcoded values.",
+      "CSS custom properties used extensively — preserve design tokens for colors, spacing, and typography.",
     );
   }
 
-  // Typography
   if (tokens.fonts.length > 0) {
     cues.push(
-      `Typography is explicitly defined in the source (${tokens.fonts.join(", ")}). Match the original font families, weights, and headline/body hierarchy instead of defaulting to a system stack.`,
+      `Typography: ${tokens.fonts.join(", ")}. Match these exact font families and weights.`,
     );
   }
 
-  // Animations
   if (animations?.summary) {
     if (animations.summary.scrollTargets > 20) {
-      cues.push(
-        `Scroll-triggered animations are present in the source (${animations.summary.scrollTargets} IntersectionObserver targets). Preserve scroll reveal behavior.`,
-      );
+      cues.push(`${animations.summary.scrollTargets} scroll-triggered animations detected.`);
     }
     if (animations.summary.webAnimations > 5) {
-      cues.push(
-        `Web Animations API is used extensively (${animations.summary.webAnimations} active animations). Preserve entrance and interaction animations.`,
-      );
+      cues.push(`${animations.summary.webAnimations} active Web Animations detected.`);
     }
     if (animations.summary.canvases > 0) {
-      cues.push(
-        `Canvas/WebGL elements detected (${animations.summary.canvases}). The source may use shader effects or 3D rendering.`,
-      );
+      cues.push(`${animations.summary.canvases} Canvas/WebGL elements detected.`);
     }
   }
 
-  // Marquee detection (from CSS or animation data)
   const hasMarquee = animations?.cssDeclarations?.some(
     (d) =>
       d.animation?.name?.toLowerCase().includes("marquee") ||
       d.animation?.name?.toLowerCase().includes("scroll"),
   );
   if (hasMarquee) {
-    cues.push(
-      "Marquee-style motion is present in the source. Preserve continuous horizontal scrolling behavior instead of replacing with a static section.",
-    );
+    cues.push("Marquee/ticker animation present — preserve continuous scrolling behavior.");
   }
 
   return cues;

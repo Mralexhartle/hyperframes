@@ -50,3 +50,15 @@ my-video/
 packages/studio/data/
 .desloppify/
 .worktrees/
+
+# Playwright MCP browser cache
+.playwright-mcp/
+
+# Installed skills (user-specific)
+.agents/
+.claude/skills/
+skills-lock.json
+
+# Test/demo captures
+notion-promo/
+notion-com-capture/

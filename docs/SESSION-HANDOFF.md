@@ -1,175 +1,132 @@
-# Session Handoff — Website Capture & DESIGN.md System
+# Session Handoff — Website Capture & Video Creation Pipeline
 
-> Last updated: 2026-04-07 (end of marathon session)
+> Last updated: 2026-04-08
 > Branch: `feat/website-capture-design-md`
-> Key commit: d60a9f8
+> Latest commit: b0308cf
 
-## What Was Built This Session
+## START HERE
 
-### Core Pipeline: `hyperframes capture <url>`
+Before doing ANYTHING, read these in order:
 
-A complete website-to-video pipeline that produces AI-agent-ready output:
+1. **This file** — understand what was built and what needs validation
+2. **`Hyperframes-100-Test-Prompts-v3.pdf`** and **`Hyperframes-Evaluation-Guide.pdf`** — understand what GOOD HyperFrames output looks like (check ~/Downloads/ or root)
+3. **`skills/website-to-hyperframes/SKILL.md`** — the skill that drives the workflow (WAS REWRITTEN but NOT VALIDATED)
+4. **`skills/website-to-hyperframes/references/`** — 4 reference files (PRE-EXISTING, may be outdated)
+5. **Templates at `templates/`** — see how real HyperFrames projects are structured
 
+## What Was Built
+
+### Core: `hyperframes capture <url>`
+
+Extracts everything from a website into an AI-agent-ready project folder:
+
+```bash
+# Default (no API key needed):
+hyperframes capture https://stripe.com -o stripe-video
+
+# With AI-generated DESIGN.md + replica:
+GEMINI_API_KEY="..." hyperframes capture https://stripe.com -o stripe-video
+
+# With per-section compositions:
+hyperframes capture https://stripe.com -o stripe-video --split
 ```
-hyperframes capture https://stripe.com -o /tmp/stripe
-```
-
-**Pipeline steps (in order):**
-1. Launch headless Chrome (Puppeteer)
-2. Catalog animations (Web Animations API, CSS, IntersectionObserver, CDP)
-3. Extract HTML & CSS
-4. Extract design tokens (colors, fonts, headings, CTAs, sections, CSS variables)
-5. Catalog assets with HTML contexts (img[src], css url(), link[rel=preload], video[src], etc.)
-6. Detect JS libraries (GSAP, Three.js, ScrollTrigger, etc. via globals + script URLs)
-7. Extract ALL visible text in DOM order
-8. Extract inline SVGs (up to 50, 10KB each)
-9. **Full-page screenshot via Playwright** (not Puppeteer — Playwright doesn't resize viewport, preserving fixed/sticky layouts)
-10. Download assets (fonts, images, SVGs, favicon)
-11. **AI-generated DESIGN.md** via Gemini 3.1 Pro or Claude Sonnet (screenshot + tokens → rich design system prose + programmatic asset catalog)
-12. **AI-generated replica.html** — clean single-file Tailwind CSS recreation of the website
-13. **Refinement pass** — screenshots replica, compares to original, asks AI to fix differences
-14. Generate CLAUDE.md + .cursorrules (AI agent instructions)
-15. *(Optional)* Split into section compositions, verify, CSS purge, HTML prettify
 
 **Output files:**
-- `DESIGN.md` — AI-written design system (colors, typography, elevation, components, do's/don'ts) + programmatic asset catalog with HTML contexts
-- `replica.html` — Clean Tailwind CSS recreation (~30-56KB, single file)
-- `screenshots/full-page.png` — Full-page website screenshot
-- `screenshots/replica-screenshot.png` — Screenshot of the replica (for comparison)
-- `CLAUDE.md` + `.cursorrules` — AI agent instructions (auto-read by Claude Code/Cursor)
-- `assets/` — Downloaded fonts, images, SVGs, favicon
-- `assets/svgs/` — Extracted inline SVGs from the page
-- `extracted/` — Raw HTML, CSS, animation data, tokens.json
-- `compositions/` — *(if split enabled)* Per-section HTML compositions (CSS-purged, prettified)
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` / `.cursorrules` | AI agent instructions (auto-read) |
+| `screenshots/full-page.png` | Full-page screenshot (via Playwright) |
+| `extracted/tokens.json` | Colors, fonts, headings, CTAs, sections, CSS vars |
+| `extracted/visible-text.txt` | All visible text in DOM order |
+| `extracted/assets-catalog.json` | Every asset URL with HTML context |
+| `extracted/animations.json` | Animation catalog |
+| `assets/` | Downloaded fonts, images, favicon |
+| `assets/svgs/` | Extracted inline SVGs |
+| `index.html` + `meta.json` | Valid HyperFrames project skeleton |
+| `DESIGN.md` | *(if API key set)* AI-generated design system |
+| `replica.html` | *(if API key set)* Clean Tailwind recreation |
 
-### Key Files
-
+### Pipeline files:
 | File | Purpose |
 |------|---------|
 | `packages/cli/src/capture/index.ts` | Pipeline orchestrator |
-| `packages/cli/src/capture/designMdGenerator.ts` | AI-powered DESIGN.md generation (Gemini or Claude) |
-| `packages/cli/src/capture/replicaGenerator.ts` | AI-powered HTML replica + refinement loop |
-| `packages/cli/src/capture/assetCataloger.ts` | Comprehensive asset extraction with HTML contexts |
-| `packages/cli/src/capture/screenshotCapture.ts` | Full-page screenshot (Playwright) |
-| `packages/cli/src/capture/cssPurger.ts` | PurgeCSS + Prettier for compositions |
-| `packages/cli/src/capture/agentPromptGenerator.ts` | CLAUDE.md/.cursorrules generation |
-| `packages/cli/src/capture/tokenExtractor.ts` | Design token extraction (colors, fonts, headings, SVGs) |
-| `packages/cli/src/capture/animationCataloger.ts` | Animation detection (4 techniques) |
-| `packages/cli/src/capture/assetDownloader.ts` | Asset downloading + inline SVG saving |
-| `packages/cli/src/capture/briefGenerator.ts` | Legacy (replaced by DESIGN.md, kept for reference) |
-| `packages/cli/src/commands/capture.ts` | CLI command definition |
+| `packages/cli/src/capture/tokenExtractor.ts` | Design tokens |
+| `packages/cli/src/capture/animationCataloger.ts` | Animations |
+| `packages/cli/src/capture/assetCataloger.ts` | Asset URLs with contexts |
+| `packages/cli/src/capture/assetDownloader.ts` | Download assets + save SVGs |
+| `packages/cli/src/capture/screenshotCapture.ts` | Playwright full-page screenshot |
+| `packages/cli/src/capture/agentPromptGenerator.ts` | CLAUDE.md generation |
+| `packages/cli/src/capture/designMdGenerator.ts` | AI DESIGN.md (optional) |
+| `packages/cli/src/capture/replicaGenerator.ts` | AI replica + refinement (optional) |
+| `packages/cli/src/capture/cssPurger.ts` | CSS purge for compositions |
+| `packages/cli/src/capture/htmlExtractor.ts` | Raw HTML extraction |
+| `packages/cli/src/capture/types.ts` | TypeScript types |
+| `packages/cli/src/commands/capture.ts` | CLI command |
 
-### Research Documentation
-
+### Research:
 | File | Contents |
 |------|----------|
-| `docs/research/aura-build-and-design-systems.md` | Complete Aura.build analysis, DESIGN.md format, prompt builder |
-| `docs/research/aura-prompt-comparison.md` | Side-by-side comparison of Aura's with/without screenshot prompts |
-| `docs/research/aura-examples/stripe-DESIGN.md` | Aura's Stripe DESIGN.md for comparison |
-| `docs/research/reverse-engineered-aura-system-prompt.md` | **Reverse-engineered Aura system instructions** based on output analysis |
+| `docs/research/aura-build-and-design-systems.md` | Aura.build analysis |
+| `docs/research/reverse-engineered-aura-system-prompt.md` | Aura system instructions |
+| `docs/research/aura-prompt-comparison.md` | Aura prompt variants |
+| `docs/research/aura-examples/stripe-DESIGN.md` | Aura's Stripe output |
+| `docs/research/video-prompt-catalog.md` | Video prompt library |
 
-## Known Issues & Gaps
+## CRITICAL: What Needs Validation
 
-### Screenshot
-- Puppeteer `fullPage:true` breaks complex sites (mesh gradients, position:fixed layers) — solved by using Playwright instead
-- Chrome 16,384px height limit — pages taller than this get clipped at the bottom
-- Stripe's hero wave gradient still shows artifacts in some captures
+### 1. The website-to-hyperframes skill
 
-### Replica Quality
-- Gemini 3.1 Pro produces better replicas than Claude Sonnet for visual-to-code
-- Company logos in "logo walls" often rendered as text instead of images because the original site uses inline SVGs (not `<img>` tags) — our extractor now saves them to `assets/svgs/` but the AI can't access local files during generation
-- Refinement pass sometimes rewrites Tailwind to vanilla CSS (fixed with explicit rules in refinement prompt)
-- Complex animations (WebGL gradients, Three.js scenes) not reproduced — AI generates static alternatives
+The SKILL.md was **completely rewritten** to match the new capture pipeline, but it has **NOT been tested end-to-end**. The 6-step workflow needs validation:
 
-### DESIGN.md
-- Comparable to Aura's quality for most sections
-- Asset catalog includes HTML contexts (img[src], css url(), link[rel=preload], etc.)
-- Deduplicates srcset resolution variants
-- Filters tracking pixels and CSS fragment references
-- Inline SVGs now saved but listed as local paths (not URLs accessible to external AI)
+1. Does Step 1 (capture) work reliably?
+2. Does Step 2 (read all data) actually happen — does the AI read every file?
+3. Does Step 3 (create DESIGN.md) produce good output when the AI writes it vs the API?
+4. Does Step 4 (plan video) produce sensible scene plans?
+5. Does Step 5 (build compositions) follow HyperFrames rules correctly?
+6. Does Step 6 (lint/validate/preview) catch issues?
 
-### Compositions (Optional Path)
-- CSS purge reduces captured compositions by 87% (7.2MB → 918KB)
-- HTML prettify makes them AI-readable (one-tag-per-line)
-- But compositions may be unnecessary — replica.html serves the same purpose more cleanly
+### 2. The skill references
 
-## Environment Variables
+These 4 files were PRE-EXISTING (not written this session):
+- `references/animation-recreation.md` — converting source animations to GSAP
+- `references/video-recipes.md` — scene patterns, product promo, social clip templates
+- `references/section-refinement.md` — building from screenshot + tokens (UPDATED this session)
+- `references/tts-integration.md` — adding narration and captions
+
+**Question: are these helpful or do they confuse the AI?** Need to:
+- Read each one critically
+- Check if they contradict the SKILL.md
+- Check if they reference old files (capture-brief.md, visual-style.md)
+- Decide: keep, update, or remove each
+
+### 3. HyperFrames best practices
+
+This session focused on CAPTURE but didn't deeply study how HyperFrames creates the best videos. Before testing the full workflow, read:
+- Test prompts PDF (what good prompts look like)
+- Evaluation guide (what good output looks like)
+- Showcase HTML (real examples)
+- Templates in `templates/` directory
+- Git history for successful HyperFrames projects
+
+### 4. SVG usage in replicas
+
+Inline SVGs are extracted and saved to `assets/svgs/` but the AI replica generator can't use them (local paths, not URLs). The local AI agent (Claude Code) CAN read them. This needs testing with the actual workflow.
+
+## Environment
 
 | Variable | Purpose |
 |----------|---------|
-| `GEMINI_API_KEY` | Google Gemini API (for DESIGN.md and replica generation) |
-| `ANTHROPIC_API_KEY` | Claude API (fallback for DESIGN.md and replica) |
-| `CLAUDE_API_KEY` | Alternative Claude API key name |
+| `GEMINI_API_KEY` | Gemini 3.1 Pro (optional) |
+| `ANTHROPIC_API_KEY` | Claude Sonnet (optional fallback) |
 
-Gemini is preferred when set. Falls back to Claude. If neither is set, DESIGN.md uses a structured template (no AI prose) and replica is skipped.
+Model IDs: `gemini-3.1-pro-preview`, `claude-sonnet-4-20250514`
 
-## Model IDs
-- Gemini: `gemini-3.1-pro-preview` (NOT gemini-2.5-flash)
-- Claude: `claude-sonnet-4-20250514`
-
-## What's Next
-
-### Priority 1: HyperFrames Video Creation Workflow
-The whole point was to create VIDEOS from captured websites. The current output (DESIGN.md + screenshot + replica.html) gives an AI agent everything it needs to create on-brand video compositions. But we need:
-
-1. **A prompt/skill that bridges DESIGN.md → HyperFrames compositions** — the AI reads the DESIGN.md, understands the brand, then creates video compositions following HyperFrames rules (GSAP timelines, data-* attributes, clip visibility)
-2. **Use-case library** — pre-built prompts for common video types:
-   - 15s social media ad
-   - 30s product tour
-   - Feature highlight reel
-   - Testimonial spotlight
-   - Competitor comparison
-   - Customer case study
-3. **Prompt builder** — interactive prompt construction (like Aura's but for video)
-
-### Priority 2: SVG Logo Fix
-Inline SVGs are saved locally but the AI can't access them during generation. Options:
-- Embed SVG code directly in DESIGN.md (bloats the file)
-- Upload to a temp CDN during capture
-- Accept this limitation — the local AI agent (Claude Code) CAN read them
-
-### Priority 3: Web Shader Extractor Integration
-141K websites use Three.js. Stripe, Linear, Vercel all have WebGL. The lixiaolin94/skills shader extractor could capture these effects. Research done, implementation deferred.
-
-### Priority 4: Prompt Builder UI
-Could live in HyperFrames Studio. Categories (from Aura research):
-- Scene types: Hero, Features, Stats, Testimonial, CTA, Comparison
-- Duration: 15s, 30s, 60s
-- Style: Energetic, Corporate, Cinematic, Minimal
-- Transitions: Wipe, Fade, Slide, Scale
-- Animation: Stagger, Counter, Reveal, Float
-
-## Dependencies Added
-- `purgecss` — CSS tree-shaking for compositions
-- `prettier` — HTML prettification
-- `@anthropic-ai/sdk` — Claude API
-- `@google/genai` — Gemini API
-- `playwright` — Full-page screenshots (better than Puppeteer for this)
-
-## How to Test
-
-```bash
-# Capture with Gemini (recommended)
-GEMINI_API_KEY="your-key" npx tsx packages/cli/src/cli.ts capture https://notion.com -o /tmp/test --skip-split
-
-# Capture with Claude (fallback)
-ANTHROPIC_API_KEY="your-key" npx tsx packages/cli/src/cli.ts capture https://notion.com -o /tmp/test --skip-split
-
-# With compositions (full pipeline)
-GEMINI_API_KEY="your-key" npx tsx packages/cli/src/cli.ts capture https://notion.com -o /tmp/test
-
-# Serve and view replica
-python3 -m http.server 3334 --directory /tmp/test
-open http://localhost:3334/replica.html
-```
-
-## User Preferences (from memory)
+## User Preferences
 
 - DESIGN.md must be AI-generated prose, not template filling
-- Always verify by reading outputs, comparing to references
-- Don't hide problems — show them honestly
+- Always verify by actually reading outputs
 - Research thoroughly before implementing
-- Match Aura.build quality as the benchmark
-- Don't add HyperFrames-specific sections to DESIGN.md (keep it universal)
-- Full-page screenshot only (no per-section screenshots)
-- Gemini 3.1 Pro preferred over Claude for visual-to-code tasks
+- Match Aura.build quality as benchmark
+- AI API calls should be optional — the user's AI agent is enough
+- Don't add unnecessary complexity
+- Test everything end-to-end before declaring it done
