@@ -101,7 +101,19 @@ export function syncRuntimeMedia(params: {
         }
       }
       if (params.playing && el.paused) {
-        void el.play().catch(() => {});
+        if (el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+          void el.play().catch(() => {});
+        } else {
+          // Media not yet buffered — start loading and play once ready.
+          if (el.preload !== "auto") el.preload = "auto";
+          const onCanPlay = () => {
+            el.removeEventListener("canplay", onCanPlay);
+            if (!el.paused) return; // already playing
+            void el.play().catch(() => {});
+          };
+          el.addEventListener("canplay", onCanPlay, { once: true });
+          el.load();
+        }
       } else if (!params.playing && !el.paused) {
         el.pause();
       }

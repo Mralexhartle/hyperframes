@@ -171,10 +171,20 @@ describe("syncRuntimeMedia", () => {
     document.body.innerHTML = "";
   });
 
-  it("plays active clip when playing", () => {
+  it("plays active clip when playing and buffered", () => {
     const clip = createMockClip({ start: 0, end: 10 });
+    Object.defineProperty(clip.el, "readyState", { value: 4, writable: true });
     syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
     expect(clip.el.play).toHaveBeenCalled();
+  });
+
+  it("defers play on unbuffered media until canplay fires", () => {
+    const clip = createMockClip({ start: 0, end: 10 });
+    Object.defineProperty(clip.el, "readyState", { value: 0, writable: true });
+    const addEventSpy = vi.spyOn(clip.el, "addEventListener");
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
+    expect(clip.el.play).not.toHaveBeenCalled();
+    expect(addEventSpy).toHaveBeenCalledWith("canplay", expect.any(Function), { once: true });
   });
 
   it("pauses active clip when not playing", () => {
