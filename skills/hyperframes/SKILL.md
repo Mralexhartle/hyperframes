@@ -100,7 +100,7 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 
 **No `repeat: -1`:** Infinite-repeat timelines break the capture engine. Calculate the exact repeat count from composition duration: `repeat: Math.ceil(duration / cycleDuration) - 1`.
 
-**Synchronous timeline construction:** Never build timelines inside `async`/`await`, `setTimeout`, or Promises. The capture engine reads `window.__timelines` synchronously after page load. If you need fonts loaded first, use a synchronous `document.fonts.load()` call or rely on `font-display: block` — the engine waits for the page `load` event.
+**Synchronous timeline construction:** Never build timelines inside `async`/`await`, `setTimeout`, or Promises. The capture engine reads `window.__timelines` synchronously after page load. Fonts are embedded by the compiler, so they're available immediately — no need to wait for font loading.
 
 **Never do:**
 
@@ -116,8 +116,7 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 
 ## Typography and Assets
 
-- Load fonts via `<link>` tags with `display=block` in `<head>`, NOT via CSS `@import` — `@import` is async and may not complete before the first frame capture
-- Use `font-display: block` for `@font-face` declarations
+- **Fonts:** Just write the `font-family` you want in CSS — the compiler embeds supported fonts automatically via `@font-face` with inline data URIs. No `<link>` tags or `@import` needed. If a font isn't in the supported set, the compiler warns and you should add it to `deterministicFonts.ts`.
 - Add `crossorigin="anonymous"` to external media
 - **Minimum font sizes for rendered video (1080p at DPR 1):**
   - Body/label text: 20px minimum (landscape), 18px minimum (portrait)
@@ -148,7 +147,7 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 - [ ] No `repeat: -1` on any tween or nested timeline
 - [ ] No text below 16px (data labels, footnotes) or 20px (body text)
 - [ ] No full-screen linear dark gradients (use radial or solid + localized glow)
-- [ ] Fonts loaded via `<link>` with `display=block`, not CSS `@import`
+- [ ] Font families declared in CSS (compiler embeds them automatically)
 - [ ] 100% deterministic
 - [ ] Each composition includes GSAP script tag
 - [ ] `npx hyperframes lint` and `npx hyperframes validate` both pass
@@ -161,6 +160,8 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 - **[references/tts.md](references/tts.md)** — Text-to-speech with Kokoro-82M. Voice selection, speed tuning, TTS+captions workflow. Read when generating narration or voiceover.
 - **[references/audio-reactive.md](references/audio-reactive.md)** — Audio-reactive animation: map frequency bands and amplitude to GSAP properties. Read when visuals should respond to music, voice, or sound.
 - **[references/marker-highlight.md](references/marker-highlight.md)** — Animated text highlighting via canvas overlays: marker pen, circle, burst, scribble, sketchout. Read when adding visual emphasis to text.
+- **[references/fonts.md](references/fonts.md)** — Typography: typographic tension and contrast principles, font pairing theory, case studies from SSENSE/Acne/Stripe/Fly.io/Collins, failure modes, runtime font discovery. Read when picking and pairing typefaces.
+- **[references/motion-principles.md](references/motion-principles.md)** — Motion design principles: easing as emotion, timing as weight, choreography as hierarchy, scene pacing, ambient motion, anti-patterns. Read when choreographing GSAP animations.
 - **[house-style.md](house-style.md)** — Default motion, sizing, and color palettes when no style is specified.
 - **[patterns.md](patterns.md)** — PiP, title cards, slide show patterns.
 - **[data-in-motion.md](data-in-motion.md)** — Data, stats, and infographic patterns.
