@@ -307,6 +307,10 @@ void main() {
 }
 ```
 
+### Rain on Glass
+
+Foggy glass with falling rain drops that refract the scene. Fog builds first, rain follows, drops and trails cut through the fog. **Requires WebGL 2** (`textureLod`, NPOT mipmaps). Large shader — see [shader-rain.md](./shader-rain.md) for full code, setup differences, and tuning parameters.
+
 ### Light Leak (shader)
 
 Beer-Lambert exponential falloff + ACES tone mapping + directional flare streak. More physically accurate than the CSS overlay version.
