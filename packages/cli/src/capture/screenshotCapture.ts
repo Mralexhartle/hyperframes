@@ -110,11 +110,21 @@ export async function captureFullPageScreenshot(
 
   try {
     const { chromium } = await import("playwright");
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({
+      headless: true,
+      args: ["--disable-blink-features=AutomationControlled"],
+    });
     const context = await browser.newContext({
       viewport: { width: 1920, height: 1080 },
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     });
     const pwPage = await context.newPage();
+
+    // Mask automation signals
+    await pwPage.addInitScript(() => {
+      Object.defineProperty(navigator, "webdriver", { get: () => false });
+    });
 
     await pwPage.goto(url, { waitUntil: "networkidle", timeout: 60000 });
 
@@ -150,6 +160,21 @@ export async function captureFullPageScreenshot(
     const filename = "full-page.png";
     const filePath = join(screenshotsDir, filename);
     await pwPage.screenshot({ path: filePath, fullPage: true, type: "png" });
+
+    // Multi-scroll-position viewport screenshots (captures scroll-driven animation states)
+    try {
+      const scrollHeight = await pwPage.evaluate(() => document.body.scrollHeight);
+      const positions = [0, 0.25, 0.5, 0.75, 1.0];
+      for (let i = 0; i < positions.length; i++) {
+        const y = Math.floor(scrollHeight * positions[i]!);
+        await pwPage.evaluate((scrollY: number) => window.scrollTo(0, scrollY), y);
+        await pwPage.waitForTimeout(400); // Wait for scroll-triggered animations to settle
+        const scrollFile = join(screenshotsDir, `scroll-${Math.round(positions[i]! * 100)}.png`);
+        await pwPage.screenshot({ path: scrollFile, fullPage: false, type: "png" });
+      }
+    } catch {
+      /* scroll screenshots are optional — don't fail the capture */
+    }
 
     await browser.close();
     return `screenshots/${filename}`;

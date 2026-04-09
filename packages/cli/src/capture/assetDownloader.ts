@@ -1,19 +1,26 @@
 /**
- * Download assets (SVGs, images, favicon) from extracted tokens.
+ * Download assets (SVGs, images, favicon, video posters) from extracted tokens + asset catalog.
+ *
+ * Single-pass approach: uses the asset catalog (which already deduplicates srcset variants
+ * and keeps the highest resolution) as the primary source for images. This avoids downloading
+ * the same image twice at different resolutions.
  */
 
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join, extname } from "node:path";
 import type { DesignTokens, DownloadedAsset } from "./types.js";
+import type { CatalogedAsset } from "./assetCataloger.js";
 
 export async function downloadAssets(
   tokens: DesignTokens,
   outputDir: string,
+  catalogedAssets?: CatalogedAsset[],
 ): Promise<DownloadedAsset[]> {
   const assetsDir = join(outputDir, "assets");
   mkdirSync(assetsDir, { recursive: true });
 
   const assets: DownloadedAsset[] = [];
+  const downloadedUrls = new Set<string>();
 
   // 1. ALL inline SVGs — save as files (logos get priority naming)
   mkdirSync(join(outputDir, "assets", "svgs"), { recursive: true });
@@ -42,42 +49,84 @@ export async function downloadAssets(
       if (buffer) {
         writeFileSync(join(outputDir, localPath), buffer);
         assets.push({ url: icon.href, localPath, type: "favicon" });
-        break; // Only need one favicon
+        break;
       }
     } catch {
       /* skip */
     }
   }
 
-  // 3. Key images (hero, large product images) — download first 5
-  const importantImages = tokens.images
-    .filter((img) => img.width > 400 && img.src.startsWith("http"))
-    .slice(0, 5);
+  // 3. Images — use the catalog as the single source of truth (highest resolution, deduplicated)
+  //    If no catalog available, fall back to tokens.images
+  const imageUrls: { url: string; isPoster: boolean }[] = [];
 
-  for (let i = 0; i < importantImages.length; i++) {
-    const img = importantImages[i];
+  if (catalogedAssets && catalogedAssets.length > 0) {
+    // Use catalog — already deduplicated with highest-res srcset variants
+    for (const a of catalogedAssets) {
+      if (a.type !== "Image") continue;
+      if (!a.url.startsWith("http")) continue;
+      // Skip junk
+      if (a.url.includes("pixel") || a.url.includes("beacon") || a.url.includes("analytics"))
+        continue;
+      if (a.url.includes("/favicon")) continue;
+      // Only download images from meaningful contexts
+      const hasGoodContext = a.contexts.some(
+        (c) =>
+          c === "img[src]" ||
+          c === "img[srcset]" ||
+          c === "video[poster]" ||
+          c === "source[srcset]" ||
+          c === "data-src",
+      );
+      if (!hasGoodContext) continue;
+      const isPoster = a.contexts.includes("video[poster]");
+      imageUrls.push({ url: a.url, isPoster });
+    }
+  } else {
+    // Fallback: use tokens.images
+    for (const img of tokens.images) {
+      if (img.width > 200 && img.src.startsWith("http")) {
+        imageUrls.push({ url: img.src, isPoster: false });
+      }
+    }
+  }
+
+  // Download up to 25 images, skipping duplicates and tiny files
+  let imgIdx = 0;
+  for (const { url, isPoster } of imageUrls) {
+    if (imgIdx >= 25) break;
+    const normalized = normalizeUrl(url);
+    if (downloadedUrls.has(normalized)) continue;
+
     try {
-      const url = new URL(img.src);
-      const ext = extname(url.pathname) || ".jpg";
-      const name = `image-${i}${ext}`;
+      const parsedUrl = new URL(url);
+      const pathExt = extname(parsedUrl.pathname);
+      const ext = pathExt && pathExt.length <= 5 ? pathExt : ".jpg";
+      const prefix = isPoster ? "poster" : "image";
+      const name = `${prefix}-${imgIdx}${ext}`;
       const localPath = `assets/${name}`;
-      const buffer = await fetchBuffer(img.src);
-      if (buffer) {
-        writeFileSync(join(outputDir, localPath), buffer);
-        assets.push({ url: img.src, localPath, type: "image" });
-      }
+
+      const buffer = await fetchBuffer(url);
+      if (!buffer) continue;
+      // Skip tiny images (tracking pixels, 1x1 spacers, thumbnails < 10KB)
+      if (buffer.length < 10000) continue;
+
+      writeFileSync(join(outputDir, localPath), buffer);
+      assets.push({ url, localPath, type: "image" });
+      downloadedUrls.add(normalized);
+      imgIdx++;
     } catch {
       /* skip */
     }
   }
 
-  // 4. OG image
-  if (tokens.ogImage) {
+  // 4. OG image (if not already downloaded)
+  if (tokens.ogImage && !downloadedUrls.has(normalizeUrl(tokens.ogImage))) {
     try {
       const ext = extname(new URL(tokens.ogImage).pathname) || ".jpg";
       const localPath = `assets/og-image${ext}`;
       const buffer = await fetchBuffer(tokens.ogImage);
-      if (buffer) {
+      if (buffer && buffer.length > 5000) {
         writeFileSync(join(outputDir, localPath), buffer);
         assets.push({ url: tokens.ogImage, localPath, type: "image" });
       }
@@ -87,6 +136,22 @@ export async function downloadAssets(
   }
 
   return assets;
+}
+
+/** Normalize URL for deduplication — unwrap Next.js image proxy, strip w/q params */
+function normalizeUrl(u: string): string {
+  try {
+    const parsed = new URL(u);
+    if (parsed.pathname.includes("_next/image") && parsed.searchParams.has("url")) {
+      return decodeURIComponent(parsed.searchParams.get("url")!);
+    }
+    parsed.searchParams.delete("w");
+    parsed.searchParams.delete("q");
+    parsed.searchParams.delete("dpr");
+    return parsed.toString();
+  } catch {
+    return u;
+  }
 }
 
 /**

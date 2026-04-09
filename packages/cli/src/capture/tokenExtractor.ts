@@ -49,13 +49,36 @@ const EXTRACT_SCRIPT = `(() => {
     if (family && ["serif","sans-serif","monospace","cursive"].indexOf(family) === -1) fontSet[family] = true;
   }
 
-  // 4. Colors
+  // 4. Colors — sample broadly across the page
   var colorSet = {};
-  var colorSamples = [document.body, document.querySelector("header"), document.querySelector("nav"), document.querySelector("main"), document.querySelector("h1"), document.querySelector("a"), document.querySelector("button")].filter(Boolean);
-  for (var ci = 0; ci < colorSamples.length; ci++) {
-    var cs = getComputedStyle(colorSamples[ci]);
-    if (cs.backgroundColor && cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent") colorSet[cs.backgroundColor] = true;
-    if (cs.color) colorSet[cs.color] = true;
+  function addColor(c) {
+    if (!c || c === "rgba(0, 0, 0, 0)" || c === "transparent" || c === "inherit" || c === "initial") return;
+    colorSet[c] = (colorSet[c] || 0) + 1;
+  }
+  // Sample all sections, headings, buttons, links, and elements with explicit backgrounds
+  var colorCandidates = Array.from(document.querySelectorAll(
+    "body, header, nav, main, footer, section, " +
+    "h1, h2, h3, h4, h5, h6, " +
+    "a, button, [role='button'], " +
+    "[class*='hero'], [class*='cta'], [class*='btn'], [class*='card'], " +
+    "[class*='badge'], [class*='tag'], [class*='accent'], [class*='highlight']"
+  )).slice(0, 200);
+  for (var ci = 0; ci < colorCandidates.length; ci++) {
+    try {
+      var cs = getComputedStyle(colorCandidates[ci]);
+      addColor(cs.backgroundColor);
+      addColor(cs.color);
+      addColor(cs.borderColor);
+    } catch(e) {}
+  }
+  // Resolve CSS custom properties from :root to actual color values
+  var rootStyle = getComputedStyle(document.documentElement);
+  var rootProps = Object.keys(cssVariables);
+  for (var ri = 0; ri < rootProps.length; ri++) {
+    var val = rootStyle.getPropertyValue(rootProps[ri]).trim();
+    if (val && (val.startsWith("#") || val.startsWith("rgb") || val.startsWith("hsl"))) {
+      addColor(val);
+    }
   }
 
   // 5. Headings
@@ -127,7 +150,7 @@ const EXTRACT_SCRIPT = `(() => {
 
   return {
     title: title, description: description, ogImage: ogImage,
-    cssVariables: cssVariables, fonts: Object.keys(fontSet), colors: Object.keys(colorSet).slice(0, 12),
+    cssVariables: cssVariables, fonts: Object.keys(fontSet), colors: Object.keys(colorSet).sort(function(a,b) { return colorSet[b] - colorSet[a]; }).slice(0, 20),
     headings: headings, paragraphs: paragraphs, ctas: ctas,
     svgs: svgs, images: images, icons: icons, sections: filtered
   };

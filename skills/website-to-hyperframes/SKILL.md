@@ -50,7 +50,9 @@ You MUST read every single file before writing any code. Do not skip any.
 4. **Read and VIEW (actually view and see how and what is it)** `extracted/assets-catalog.json` — every image, video, font, icon URL with HTML context
 5. **Browse and VIEW (actually view and see how and what is it)** `assets/svgs/` — open each SVG to identify what it is (company logos, icons, illustrations)
 6. **Browse and VIEW (actually view and see how and what is it)** `assets/` — check downloaded images and font files
-7. **Read and ANALYZE** `extracted/animations.json` — what animations the site uses (for recreation guidance)
+7. **Read and ANALYZE** `extracted/animations.json` — what animations the site uses (named animations, scroll triggers, canvas count)
+8. **If exists, read** `extracted/lottie-manifest.json` — Lottie animations found on the site. **VIEW each preview image** at `assets/lottie/previews/` to actually SEE what the animation looks like (the names are often useless). Do NOT read the raw JSON files — they are machine data. Just reference them by path when embedding.
+9. **If exists, read** `extracted/shaders.json` — WebGL shader source code captured from the site
 
 **Confirm:** Print the site title, top colors, fonts, number of sections, number of assets.
 
@@ -142,11 +144,13 @@ Notion's visual identity is characterized by a "Digital Paper" aesthetic—clean
 
 You are now a creative director with 20 years of experience making content for YouTube, Instagram, and TikTok. You have unlimited creative freedom. Your job is to design a video that stops the scroll, holds attention, and drives action.
 
-Look at the screenshot, the text, the brand personality. Ask yourself:
+LOOK AND VIEW the screenshot, the text, the brand personality, every available assets and every URL from assets-catalog.json. Ask yourself:
 
 - What's the ONE thing that makes this product interesting?
 - What hook would make someone stop scrolling in the first 2 seconds?
 - What visual sequence tells the story without needing explanation?
+- What animations, trasitions, motions would be great to have given capabilities of HyperFrames?
+- What assets/images/svgs/videos/URLs I want to use?
 - What ending makes them want to click?
 
 Don't think about code yet. Think about storytelling, pacing, and emotion.
@@ -164,6 +168,8 @@ Every good video has a voice. Write the voiceover script BEFORE finalizing scene
 - Numbers become words: "135+" → "more than a hundred thirty five", "$1.9T" → "nearly two trillion dollars" and etc.
 - End with a casual CTA: "Check it out at stripe dot com" not "Get started at stripe.com"
 
+**Your opening line is the most important sentence in the video.** It must create tension, curiosity, or surprise. Find the most surprising number, the most impressive claim, or the most provocative fact — and lead with that.
+
 Save the script as `narration-script.txt`.
 
 #### Then plan the scenes around it
@@ -180,11 +186,11 @@ Keep it short — 15-20 seconds for ads, 20-30 for demos unless USER request spe
 
 **Confirm:** Print your scene plan:
 
-| Scene    | Duration | What viewer sees        | What viewer feels | Narration              |
-| -------- | -------- | ----------------------- | ----------------- | ---------------------- |
-| Hook     | 0-3s     | Hero heading on dark bg | Curiosity         | "So this is Linear..." |
-| Features | 3-10s    | Product UI screenshots  | "I need this"     | "Purpose-built for..." |
-| ...      | ...      | ...                     | ...               | ...                    |
+| Scene    | Duration | What viewer sees       | What viewer feels | Assets to use                              | Narration                |
+| -------- | -------- | ---------------------- | ----------------- | ------------------------------------------ | ------------------------ |
+| Hook     | 0-3s     | Hero gradient wave     | Curiosity         | canvas-0.png, stripe-logo.svg              | "Nearly two trillion..." |
+| Features | 3-10s    | Product UI screenshots | "I need this"     | image-1.jpg, image-3.jpg, remote bento URL | "Purpose-built for..."   |
+| ...      | ...      | ...                    | ...               | ...                                        | ...                      |
 
 If the user explicitly says "no narration" or "no voiceover", skip the script and plan scenes with visual-only timing.
 
@@ -215,10 +221,33 @@ Before writing a single line of HTML, produce the voiceover and get word-level t
 
 #### Then: build the compositions
 
-Now invoke `/hyperframes-compose`. Read the entire skill — every rule, every pattern, every anti-pattern. This is your technical bible. Also read:
+Now invoke `/hyperframes-compose`. Read the entire skill — every rule, every pattern, every anti-pattern, examples, guides - everything. This is your technical bible. Also read:
 
 - [animation-recreation.md](./references/animation-recreation.md) — converting source animations to GSAP
 - [video-recipes.md](./references/video-recipes.md) — scene patterns, mid-scene activity, how to keep things alive
+
+**IMPORTANT. Before writing ANY HTML, create an asset plan for each scene.** List every file from assets/ and every URL from assets-catalog.json that you'll embed. If a scene uses zero captured assets, explain why.
+
+```
+Scene 1:
+- Background: assets/canvas-0.png (hero WebGL capture) OR assets/image-0.png (hero image)
+- Logo: assets/svgs/stripe-logo.svg (inline SVG)
+- Remote: https://example.com/product-screenshot.jpg (from assets-catalog.json)
+- Font: assets/fonts/Sohne.woff2
+
+Scene 2:
+- Image: assets/image-1.jpg (product UI screenshot)
+- Remote: https://example.com/bento-card.png (from assets-catalog.json)
+- SVGs: assets/svgs/logo-3.svg through logo-8.svg (customer logos)
+```
+
+**Remote URLs from assets-catalog.json work directly in compositions:**
+
+```html
+<img src="https://soulscapefilm.com/mentor/john_gaeta.png" crossorigin="anonymous" />
+```
+
+These load in preview and render. Don't limit yourself to local files — product screenshots, headshots, hero images from the catalog are all usable.
 
 Build each scene as a separate sub-composition in `compositions/`. Follow these non-negotiable rules:
 
@@ -229,11 +258,63 @@ Build each scene as a separate sub-composition in `compositions/`. Follow these 
 - Real product screenshots, SVG logos from assets/svgs/ (IDEALLY AS MANY AS APPROPRIATE)
 - If the capture has an asset for something, USE IT!!!
 
+**How to reference assets in compositions** (compositions live in `compositions/`, assets in `assets/`):
+
+```html
+<!-- Local image (use ../ because compositions/ is one level deep) -->
+<img src="../assets/image-0.png" crossorigin="anonymous" />
+
+<!-- Local SVG (inline for animation, or as img) -->
+<img src="../assets/svgs/logo-0.svg" />
+
+<!-- Local font -->
+<style>
+  @font-face {
+    font-family: "BrandFont";
+    src: url("../assets/fonts/FontName.woff2") format("woff2");
+    font-weight: 400;
+    font-display: block;
+  }
+</style>
+
+<!-- Remote image from assets-catalog.json -->
+<img src="https://example.com/product-screenshot.jpg" crossorigin="anonymous" />
+
+<!-- Lottie animation (from lottie-manifest.json) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+<div id="anim" style="width:400px;height:400px;"></div>
+<script>
+  lottie.loadAnimation({
+    container: document.getElementById("anim"),
+    renderer: "svg",
+    loop: false,
+    autoplay: false,
+    path: "../assets/lottie/animation-0.json",
+  });
+</script>
+```
+
 **Make it move:**
 
 - Every element must DO something — not just appear and sit there
 - Entrances, mid-scene activity, exits. Read the mid-scene activity table in video-recipes.md.
 - Never use `repeat: -1` — calculate exact repeats from scene duration
+
+**Beyond GSAP — HyperFrames also supports Lottie, Three.js, CSS animations, and Web Animations API.** Embedding patterns for all of these are shown in the "How to reference assets" block above. For canvas/WebGL backgrounds, use the `hf-seek` event:
+
+```html
+<canvas id="bg-canvas" width="1920" height="1080"></canvas>
+<script>
+  var ctx = document.getElementById("bg-canvas").getContext("2d");
+  window.addEventListener("hf-seek", function (e) {
+    var time = e.detail.time;
+    // Draw frame at this time — must be deterministic
+    drawBackground(ctx, time);
+  });
+</script>
+```
+
+If `extracted/shaders.json` exists, you can reference the captured GLSL source code to recreate similar WebGL visual effects.
 
 **Wire up the audio:**
 

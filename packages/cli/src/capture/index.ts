@@ -96,16 +96,81 @@ export async function captureWebsite(
     await setupAnimationCapture(page1);
     const { cdp, animations: cdpAnims } = await startCdpAnimationCapture(page1);
 
-    // Patch WebGL to preserve drawing buffer — allows canvas.toDataURL() later
+    // Patch WebGL to preserve drawing buffer + capture shader source code
     await page1.evaluateOnNewDocument(`
       var origGetContext = HTMLCanvasElement.prototype.getContext;
+      window.__capturedShaders = [];
+      window.__capturedLottieData = [];
       HTMLCanvasElement.prototype.getContext = function(type, attrs) {
         if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') {
           attrs = Object.assign({}, attrs || {}, { preserveDrawingBuffer: true });
         }
-        return origGetContext.call(this, type, attrs);
+        var ctx = origGetContext.call(this, type, attrs);
+        // Hook gl.shaderSource to capture all GLSL code
+        if (ctx && (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl')) {
+          if (ctx.shaderSource && !ctx.__hfHooked) {
+            var origShaderSource = ctx.shaderSource.bind(ctx);
+            ctx.shaderSource = function(shader, source) {
+              try {
+                var shaderType = ctx.getShaderParameter(shader, ctx.SHADER_TYPE);
+                window.__capturedShaders.push({
+                  type: shaderType === ctx.VERTEX_SHADER ? 'vertex' : 'fragment',
+                  source: source.slice(0, 5000)
+                });
+              } catch(e) {}
+              return origShaderSource(shader, source);
+            };
+            ctx.__hfHooked = true;
+          }
+        }
+        return ctx;
       };
     `);
+
+    // Intercept network responses to detect Lottie JSON files
+    const discoveredLotties: Array<{
+      url: string;
+      data?: unknown;
+      dimensions?: { w: number; h: number };
+      frameRate?: number;
+    }> = [];
+    page1.on("response", async (response) => {
+      try {
+        const responseUrl = response.url();
+        const contentType = response.headers()["content-type"] || "";
+        const isJsonUrl = responseUrl.endsWith(".json");
+        const isLottieUrl = responseUrl.endsWith(".lottie");
+        const isJson =
+          contentType.includes("application/json") || contentType.includes("text/plain");
+
+        if (isLottieUrl) {
+          discoveredLotties.push({ url: responseUrl });
+          return;
+        }
+
+        if (isJsonUrl || isJson) {
+          const buffer = await response.buffer();
+          if (buffer.length < 100 || buffer.length > 5_000_000) return; // Skip tiny or huge
+          const text = buffer.toString("utf-8");
+          const json = JSON.parse(text);
+          // Validate Lottie structure: must have version, in/out points, layers, dimensions, framerate
+          if (
+            json &&
+            typeof json === "object" &&
+            ["v", "ip", "op", "layers", "w", "h", "fr"].every((k: string) => k in json)
+          ) {
+            discoveredLotties.push({
+              url: responseUrl,
+              data: json,
+              dimensions: { w: json.w, h: json.h },
+              frameRate: json.fr,
+            });
+          }
+        }
+      } catch {
+        /* not JSON or parse error — skip */
+      }
+    });
 
     await page1.goto(url, { waitUntil: "networkidle0", timeout });
     await new Promise((r) => setTimeout(r, settleTime));
@@ -155,7 +220,7 @@ export async function captureWebsite(
           },
         });
         const buffer = Buffer.from(result.data, "base64");
-        if (buffer.length > 1000) {
+        if (buffer.length > 5000) {
           const filename = `canvas-${canvasCount}.png`;
           writeFileSync(join(outputDir, "assets", filename), buffer);
           canvasCount++;
@@ -170,6 +235,212 @@ export async function captureWebsite(
     await new Promise((r) => setTimeout(r, 300));
     if (canvasCount > 0) {
       progress("canvas", `${canvasCount} canvas screenshots saved`);
+    }
+
+    // Save discovered Lottie animations
+    // Also scan DOM for Lottie web components not caught by network interception
+    try {
+      const domLotties = await page1.evaluate(`(() => {
+        var urls = [];
+        document.querySelectorAll('dotlottie-wc, lottie-player, dotlottie-player').forEach(function(el) {
+          var src = el.getAttribute('src');
+          if (src) urls.push(src);
+        });
+        // Also check lottie-web registered animations
+        if (window.lottie && window.lottie.getRegisteredAnimations) {
+          window.lottie.getRegisteredAnimations().forEach(function(anim) {
+            if (anim.path) urls.push(anim.path);
+          });
+        }
+        return urls;
+      })()`);
+      if (Array.isArray(domLotties)) {
+        for (const lottieUrl of domLotties) {
+          if (
+            typeof lottieUrl === "string" &&
+            !discoveredLotties.some((l) => l.url === lottieUrl)
+          ) {
+            discoveredLotties.push({ url: lottieUrl });
+          }
+        }
+      }
+    } catch {
+      /* DOM scan failed — non-critical */
+    }
+
+    if (discoveredLotties.length > 0) {
+      const lottieDir = join(outputDir, "assets", "lottie");
+      mkdirSync(lottieDir, { recursive: true });
+      let savedCount = 0;
+      const savedHashes = new Set<string>(); // Deduplicate by content
+
+      for (let li = 0; li < discoveredLotties.length && li < 10; li++) {
+        const lottieItem = discoveredLotties[li]!;
+        try {
+          let jsonData: string | undefined;
+
+          if (lottieItem.data) {
+            // Already have the JSON data from network interception
+            jsonData = JSON.stringify(lottieItem.data);
+          } else if (lottieItem.url) {
+            // Download the file
+            const res = await fetch(lottieItem.url, {
+              signal: AbortSignal.timeout(10000),
+              headers: { "User-Agent": "HyperFrames/1.0" },
+            });
+            if (!res.ok) continue;
+            const buf = Buffer.from(await res.arrayBuffer());
+
+            if (lottieItem.url.endsWith(".lottie")) {
+              // dotLottie is a ZIP — extract the animation JSON
+              try {
+                const AdmZip = (await import("adm-zip")).default;
+                const zip = new AdmZip(buf);
+                const entries = zip.getEntries();
+                // Look for animation JSON in both v1 (animations/) and v2 (a/) paths
+                const animEntry = entries.find(
+                  (e) =>
+                    (e.entryName.startsWith("a/") || e.entryName.startsWith("animations/")) &&
+                    e.entryName.endsWith(".json"),
+                );
+                if (animEntry) {
+                  jsonData = animEntry.getData().toString("utf-8");
+                }
+              } catch {
+                // adm-zip not available or extraction failed — save raw .lottie
+                const hash = buf.toString("base64").slice(0, 100);
+                if (savedHashes.has(hash)) continue;
+                savedHashes.add(hash);
+                writeFileSync(join(lottieDir, `animation-${savedCount}.lottie`), buf);
+                savedCount++;
+                continue;
+              }
+            } else {
+              // Plain JSON file
+              jsonData = buf.toString("utf-8");
+            }
+          }
+
+          if (jsonData) {
+            // Deduplicate by content hash (first 100 chars of stringified JSON)
+            const hash = jsonData.slice(0, 200);
+            if (savedHashes.has(hash)) continue;
+            savedHashes.add(hash);
+
+            // Validate it's actually Lottie
+            try {
+              const parsed = JSON.parse(jsonData);
+              if (!parsed.layers || !parsed.w) continue;
+            } catch {
+              continue;
+            }
+
+            writeFileSync(join(lottieDir, `animation-${savedCount}.json`), jsonData, "utf-8");
+            savedCount++;
+          }
+        } catch {
+          /* skip */
+        }
+      }
+      // Generate manifest + preview thumbnails so the agent can SEE what each animation is
+      if (savedCount > 0) {
+        const manifest: Array<{
+          file: string;
+          preview: string;
+          name: string;
+          width: number;
+          height: number;
+          duration: number;
+          frameRate: number;
+          layers: number;
+        }> = [];
+        const { readdirSync, readFileSync: readFs } = await import("node:fs");
+        const previewDir = join(lottieDir, "previews");
+        mkdirSync(previewDir, { recursive: true });
+
+        for (const file of readdirSync(lottieDir)) {
+          if (!file.endsWith(".json")) continue;
+          try {
+            const raw = JSON.parse(readFs(join(lottieDir, file), "utf-8"));
+            const fr = raw.fr || 30;
+            const dur = ((raw.op || 0) - (raw.ip || 0)) / fr;
+            const previewName = file.replace(".json", "-preview.png");
+
+            // Render a mid-frame thumbnail using Puppeteer + lottie-web
+            try {
+              const previewPage = await chromeBrowser.newPage();
+              await previewPage.setViewport({ width: 400, height: 400 });
+              const animJson = readFs(join(lottieDir, file), "utf-8");
+              const midFrame = Math.floor(((raw.op || 0) - (raw.ip || 0)) * 0.3);
+              await previewPage.setContent(
+                `<!DOCTYPE html>
+<html><head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+<style>*{margin:0;padding:0;background:transparent}#c{width:400px;height:400px}</style>
+</head><body><div id="c"></div><script>
+var a=lottie.loadAnimation({container:document.getElementById('c'),renderer:'svg',loop:false,autoplay:false,animationData:${animJson}});
+a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window.__READY=true});
+</script></body></html>`,
+                { waitUntil: "networkidle0", timeout: 10000 },
+              );
+              await previewPage
+                .waitForFunction(() => (window as any).__READY === true, { timeout: 5000 })
+                .catch(() => {});
+              await previewPage.screenshot({
+                path: join(previewDir, previewName),
+                type: "png",
+                omitBackground: true,
+              });
+              await previewPage.close();
+            } catch {
+              /* preview rendering failed — non-critical */
+            }
+
+            manifest.push({
+              file: `assets/lottie/${file}`,
+              preview: `assets/lottie/previews/${previewName}`,
+              name: raw.nm || file,
+              width: raw.w || 0,
+              height: raw.h || 0,
+              duration: Math.round(dur * 10) / 10,
+              frameRate: fr,
+              layers: (raw.layers || []).length,
+            });
+          } catch {
+            /* skip */
+          }
+        }
+        if (manifest.length > 0) {
+          writeFileSync(
+            join(outputDir, "extracted", "lottie-manifest.json"),
+            JSON.stringify(manifest, null, 2),
+            "utf-8",
+          );
+        }
+        progress("lottie", `${savedCount} Lottie animation(s) saved`);
+      }
+    }
+
+    // Save captured WebGL shaders
+    try {
+      const shaders = await page1.evaluate(`window.__capturedShaders || []`);
+      if (Array.isArray(shaders) && shaders.length > 0) {
+        // Deduplicate shaders by source content
+        const seen = new Set<string>();
+        const unique = (shaders as Array<{ type: string; source: string }>).filter((s) => {
+          if (seen.has(s.source)) return false;
+          seen.add(s.source);
+          return true;
+        });
+        writeFileSync(
+          join(outputDir, "extracted", "shaders.json"),
+          JSON.stringify(unique, null, 2),
+          "utf-8",
+        );
+        progress("shaders", `${unique.length} WebGL shader(s) captured`);
+      }
+    } catch {
+      /* shader extraction failed — non-critical */
     }
 
     // Extract HTML + CSS (this scrolls the page for lazy loading)
@@ -251,33 +522,93 @@ export async function captureWebsite(
       warnings.push(`Asset cataloging failed: ${err}`);
     }
 
-    // Detect JS libraries via globals and script URLs (Wappalyzer-style)
+    // Detect JS libraries via globals, DOM fingerprints, and script URLs
     let detectedLibraries: string[] = [];
     try {
       detectedLibraries = (await page1.evaluate(`(() => {
         var libs = [];
-        if (typeof window.gsap !== 'undefined' || typeof window.TweenMax !== 'undefined') libs.push('GSAP');
-        if (typeof window.ScrollTrigger !== 'undefined' || typeof window.gsap?.plugins?.scrollTrigger !== 'undefined') libs.push('ScrollTrigger');
-        if (typeof window.THREE !== 'undefined') libs.push('Three.js');
-        if (typeof window.PIXI !== 'undefined') libs.push('PixiJS');
-        if (typeof window.BABYLON !== 'undefined') libs.push('Babylon.js');
-        if (typeof window.Lottie !== 'undefined' || typeof window.lottie !== 'undefined') libs.push('Lottie');
-        if (typeof window.__NEXT_DATA__ !== 'undefined') libs.push('Next.js');
-        if (typeof window.__NUXT__ !== 'undefined') libs.push('Nuxt');
-        // Also check script src URLs
+        function add(name) { if (libs.indexOf(name) === -1) libs.push(name); }
+
+        // 1. Window globals (works for CDN-loaded / non-bundled libraries)
+        if (typeof window.gsap !== 'undefined' || typeof window.TweenMax !== 'undefined') add('GSAP');
+        if (typeof window.ScrollTrigger !== 'undefined') add('GSAP ScrollTrigger');
+        if (typeof window.THREE !== 'undefined') add('Three.js');
+        if (typeof window.PIXI !== 'undefined') add('PixiJS');
+        if (typeof window.BABYLON !== 'undefined') add('Babylon.js');
+        if (typeof window.Lottie !== 'undefined' || typeof window.lottie !== 'undefined') add('Lottie');
+        if (typeof window.__NEXT_DATA__ !== 'undefined') add('Next.js');
+        if (typeof window.__NUXT__ !== 'undefined') add('Nuxt');
+        if (typeof window.Webflow !== 'undefined') add('Webflow');
+
+        // 2. DOM fingerprints (survive bundling — most reliable for modern sites)
+        // Three.js sets data-engine on every canvas it creates
+        var threeCanvas = document.querySelector('canvas[data-engine*="three"]');
+        if (threeCanvas) add('Three.js (' + (threeCanvas.getAttribute('data-engine') || '') + ')');
+        // Babylon.js also sets data-engine
+        var babylonCanvas = document.querySelector('canvas[data-engine*="Babylon"]');
+        if (babylonCanvas) add('Babylon.js');
+        // Lottie web components
+        if (document.querySelector('dotlottie-wc, lottie-player, dotlottie-player')) add('Lottie');
+        // Rive
+        if (document.querySelector('canvas[class*="rive"], rive-canvas')) add('Rive');
+        // React/Next.js
+        if (document.getElementById('__next')) add('Next.js');
+        if (document.getElementById('__nuxt')) add('Nuxt');
+        if (document.querySelector('[data-reactroot], [data-react-helmet]')) add('React');
+        // Svelte
+        if (document.querySelector('[class*="svelte-"]')) add('Svelte');
+        // Tailwind (utility class detection)
+        if (document.querySelector('[class*="flex "], [class*="grid "], [class*="px-"], [class*="py-"]')) add('Tailwind CSS');
+        // Framer Motion
+        if (document.querySelector('[style*="--framer-"], [data-framer-component-type]')) add('Framer Motion');
+
+        // 3. Script URL patterns
         document.querySelectorAll('script[src]').forEach(function(s) {
           var src = s.src.toLowerCase();
-          if (src.includes('gsap') || src.includes('tweenmax')) { if (libs.indexOf('GSAP') === -1) libs.push('GSAP'); }
-          if (src.includes('scrolltrigger')) { if (libs.indexOf('ScrollTrigger') === -1) libs.push('ScrollTrigger'); }
-          if (src.includes('three')) { if (libs.indexOf('Three.js') === -1) libs.push('Three.js'); }
-          if (src.includes('pixi')) { if (libs.indexOf('PixiJS') === -1) libs.push('PixiJS'); }
-          if (src.includes('lottie')) { if (libs.indexOf('Lottie') === -1) libs.push('Lottie'); }
-          if (src.includes('framer-motion') || src.includes('motion')) { if (libs.indexOf('Framer Motion') === -1) libs.push('Framer Motion'); }
+          if (src.includes('gsap') || src.includes('tweenmax') || src.includes('greensock')) add('GSAP');
+          if (src.includes('scrolltrigger')) add('GSAP ScrollTrigger');
+          if (src.includes('three.module') || src.includes('three.min')) add('Three.js');
+          if (src.includes('pixi')) add('PixiJS');
+          if (src.includes('lottie') || src.includes('bodymovin')) add('Lottie');
+          if (src.includes('framer-motion')) add('Framer Motion');
+          if (src.includes('anime.min') || src.includes('animejs')) add('Anime.js');
+          if (src.includes('matter.min') || src.includes('matter-js')) add('Matter.js');
+          if (src.includes('lenis')) add('Lenis (smooth scroll)');
         });
+
         return libs;
       })()`)) as string[];
     } catch {
       // Non-blocking
+    }
+
+    // 4. Shader fingerprinting — infer WebGL framework from captured GLSL
+    try {
+      const capturedShaders = await page1.evaluate(`window.__capturedShaders || []`);
+      if (Array.isArray(capturedShaders) && capturedShaders.length > 0) {
+        const allSource = (capturedShaders as Array<{ source: string }>)
+          .map((s) => s.source)
+          .join("\n");
+        const add = (name: string) => {
+          if (!detectedLibraries.includes(name)) detectedLibraries.push(name);
+        };
+        add("WebGL");
+        // Three.js shader fingerprints (built-in uniforms that survive bundling)
+        if (allSource.includes("modelViewMatrix") && allSource.includes("projectionMatrix"))
+          add("Three.js (confirmed via shaders)");
+        // PixiJS shader fingerprints
+        else if (
+          allSource.includes("vTextureCoord") &&
+          allSource.includes("uSampler") &&
+          !allSource.includes("modelViewMatrix")
+        )
+          add("PixiJS (confirmed via shaders)");
+        // Babylon.js shader fingerprints
+        else if (allSource.includes("viewProjection") && allSource.includes("world"))
+          add("Babylon.js (confirmed via shaders)");
+      }
+    } catch {
+      /* non-blocking */
     }
 
     // Extract all visible text in DOM order
@@ -313,23 +644,54 @@ export async function captureWebsite(
     // Download fonts and rewrite URLs to local paths
     extracted.headHtml = await downloadAndRewriteFonts(extracted.headHtml, outputDir);
 
-    // Save extracted data
-    writeFileSync(join(outputDir, "extracted", "full-head.html"), extracted.headHtml, "utf-8");
-    writeFileSync(join(outputDir, "extracted", "full-body.html"), extracted.bodyHtml, "utf-8");
-    writeFileSync(join(outputDir, "extracted", "cssom.css"), extracted.cssomRules, "utf-8");
+    // Save extracted data (full HTML/CSS only needed for --split; skip to keep capture folder clean)
+    if (!opts.skipSplit) {
+      writeFileSync(join(outputDir, "extracted", "full-head.html"), extracted.headHtml, "utf-8");
+      writeFileSync(join(outputDir, "extracted", "full-body.html"), extracted.bodyHtml, "utf-8");
+      writeFileSync(join(outputDir, "extracted", "cssom.css"), extracted.cssomRules, "utf-8");
+    }
 
-    // Save animation catalog
-    writeFileSync(
-      join(outputDir, "extracted", "animations.json"),
-      JSON.stringify(animationCatalog, null, 2),
-      "utf-8",
-    );
+    // Save animation catalog — lean version for the agent (not 745 raw CSS declarations)
+    if (animationCatalog) {
+      // Extract just what's useful: counts, named animations, a few representative keyframed entries
+      const uniqueAnimNames = new Set<string>();
+      for (const d of animationCatalog.cssDeclarations || []) {
+        if (d.animation?.name) uniqueAnimNames.add(d.animation.name);
+      }
 
-    // Download assets
+      // Keep up to 10 Web Animations that have actual keyframe data (most useful for recreation)
+      const representativeAnims = (animationCatalog.webAnimations || [])
+        .filter((a) => a.keyframes && a.keyframes.length > 0)
+        .slice(0, 10);
+
+      const leanCatalog = {
+        summary: animationCatalog.summary,
+        namedAnimations: Array.from(uniqueAnimNames),
+        scrollTriggeredElements: (animationCatalog.scrollTargets || []).length,
+        representativeAnimations: representativeAnims,
+      };
+
+      writeFileSync(
+        join(outputDir, "extracted", "animations.json"),
+        JSON.stringify(leanCatalog, null, 2),
+        "utf-8",
+      );
+
+      // Full raw catalog only when --split is used
+      if (!opts.skipSplit) {
+        writeFileSync(
+          join(outputDir, "extracted", "animations-raw.json"),
+          JSON.stringify(animationCatalog, null, 2),
+          "utf-8",
+        );
+      }
+    }
+
+    // Download assets — single pass using the catalog for best image quality
     let assets: CaptureResult["assets"] = [];
     if (!skipAssets) {
       progress("assets", "Downloading assets...");
-      assets = await downloadAssets(tokens, outputDir);
+      assets = await downloadAssets(tokens, outputDir, catalogedAssets);
     }
 
     // Collect font file paths (used by DESIGN.md generator)
@@ -460,6 +822,8 @@ export async function captureWebsite(
         animationCatalog,
         !!fullPageScreenshot,
         true, // DESIGN.md is always generated
+        discoveredLotties.length > 0,
+        existsSync(join(outputDir, "extracted", "shaders.json")),
       );
     } catch {
       // Non-blocking
@@ -516,6 +880,8 @@ export async function captureWebsite(
         animationCatalog,
         !!fullPageScreenshot,
         !!hasAiKey,
+        discoveredLotties.length > 0,
+        existsSync(join(outputDir, "extracted", "shaders.json")),
       );
       progress("agent", "CLAUDE.md generated");
     } catch (err) {

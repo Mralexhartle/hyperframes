@@ -66,6 +66,12 @@ export async function catalogAssets(page: Page): Promise<CatalogedAsset[]> {
       }
     });
 
+    // ── Lazy-loaded images: data-src, data-lazy-src, data-original ──
+    document.querySelectorAll('img[data-src], img[data-lazy-src], img[data-original], [data-background-image]').forEach(function(el) {
+      var dataSrc = el.getAttribute('data-src') || el.getAttribute('data-lazy-src') || el.getAttribute('data-original') || el.getAttribute('data-background-image');
+      if (dataSrc) add(dataSrc, 'Image', 'data-src', el.alt || el.getAttribute('aria-label') || null);
+    });
+
     // ── Picture sources: <source srcset="..."> ──
     document.querySelectorAll('source[srcset]').forEach(function(src) {
       src.srcset.split(',').forEach(function(entry) {
