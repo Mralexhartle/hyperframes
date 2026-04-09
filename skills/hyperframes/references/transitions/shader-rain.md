@@ -2,7 +2,7 @@
 
 Rain drops fall on a glass window that fogs up, then clears to reveal the incoming scene. Fog starts first, rain follows ~1.5s later, scene blends behind the fog, then both clear. Drops and trails cut through the fog showing sharp refracted scene underneath.
 
-**Requires WebGL 2** for `textureLod` (NPOT mipmap blur). No noise library needed — uses Dave Hoskins hash functions.
+**Requires WebGL 2** for `textureLod` (NPOT mipmap blur). Uses IQ-style dot-product hashes.
 
 ## Setup differences from standard shader transitions
 
@@ -63,72 +63,75 @@ vec3 sceneLod(vec2 uv, float lod) {
   return col;
 }
 
-// --- Hash (Dave Hoskins) ---
-vec3 N13(float p) {
-  vec3 p3 = fract(vec3(p) * vec3(.1031, .11369, .13787));
-  p3 += dot(p3, p3.yzx + 19.19);
-  return fract(vec3((p3.x + p3.y) * p3.z, (p3.x + p3.z) * p3.y, (p3.y + p3.z) * p3.x));
+// --- Hashing (IQ-style dot-product) ---
+vec2 h2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+  return fract(sin(p) * 43758.5453);
 }
-float N(float t) { return fract(sin(t * 12345.564) * 7658.76); }
-float Saw(float b, float t) { return smoothstep(0., b, t) * smoothstep(1., b, t); }
+vec3 h3(vec2 p) {
+  vec3 q = vec3(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)), dot(p, vec2(419.2, 371.9)));
+  return fract(sin(q) * 43758.5453);
+}
+float h1(float n) { return fract(n * 17.0 * fract(n * .3183099)); }
 
 // --- Falling drop with trail ---
-vec2 DropLayer2(vec2 uv, float t) {
+vec2 rainLayer(vec2 uv, float t) {
   vec2 UV = uv;
-  uv.y += t * 0.75;
-  vec2 a = vec2(6., 1.);
-  vec2 grid = a * 2.;
+  uv.y += t * .65;
+  // Grid: 5:1.3 aspect, row-offset stagger
+  vec2 aspect = vec2(5., 1.3);
+  vec2 grid = aspect * 2.;
   vec2 id = floor(uv * grid);
-  float colShift = N(id.x);
-  uv.y += colShift;
+  float rowOff = h1(id.y * 31.7);
+  uv.x += rowOff;
   id = floor(uv * grid);
-  vec3 n = N13(id.x * 35.2 + id.y * 2376.1);
-  vec2 st = fract(uv * grid) - vec2(.5, 0);
-  float x = n.x - .5;
-  float y = UV.y * 20.;
-  float wiggle = sin(y + sin(y));
-  x += wiggle * (.5 - abs(x)) * (n.z - .5);
-  x *= .7;
-  float ti = fract(t + n.z);
-  y = (Saw(.85, ti) - .5) * .9 + .5;
-  vec2 p = vec2(x, y);
-  float d = length((st - p) * a.yx);
-  float mainDrop = smoothstep(.4, .0, d);
-  float r = sqrt(smoothstep(1., y, st.y));
-  float cd = abs(st.x - x);
-  float trail = smoothstep(.23 * r, .15 * r * r, cd);
-  float trailFront = smoothstep(-.02, .02, st.y - y);
-  trail *= trailFront * r * r;
-  y = UV.y;
-  float trail2 = smoothstep(.2 * r, .0, cd);
-  float droplets = max(0., (sin(y * (1. - y) * 120.) - st.y)) * trail2 * trailFront * n.z;
-  y = fract(y * 10.) + (st.y - .5);
-  float dd = length(st - vec2(x, y));
-  droplets = smoothstep(.3, 0., dd);
-  float m = mainDrop + droplets * r * trailFront;
-  return vec2(m, trail);
+  vec3 rnd = h3(id);
+  vec2 cell = fract(uv * grid) - vec2(.5, 0.);
+  // Drop x with cosine sway
+  float dx = (rnd.x - .5) * .65;
+  float sway = cos(UV.y * 12. + cos(UV.y * 5.3 + 1.7));
+  dx += sway * (.45 - abs(dx)) * (rnd.z - .5) * .6;
+  // Drop timing: smoothstep cubic
+  float phase = fract(t + rnd.z);
+  float dy = phase * phase * (3.0 - 2.0 * phase);
+  dy = dy * .88 + .06;
+  // Drop shape
+  float dist = length((cell - vec2(dx, dy)) * aspect.yx);
+  float drop = smoothstep(.38, 0., dist);
+  // Trail: exponential taper
+  float ahead = smoothstep(-.015, .015, cell.y - dy);
+  float fade = exp(-3.0 * max(0., cell.y - dy));
+  float trailW = smoothstep(.22 * fade, .13 * fade, abs(cell.x - dx));
+  trailW *= ahead * fade;
+  // Micro-droplets along trail
+  float microY = fract(UV.y * 9.) + (cell.y - .5);
+  float microD = length(cell - vec2(dx, microY));
+  float micro = smoothstep(.28, 0., microD);
+  float coverage = drop + micro * fade * ahead;
+  return vec2(coverage, trailW);
 }
 
 // --- Static condensation droplets ---
-float StaticDrops(vec2 uv, float t) {
-  uv *= 40.;
+float condensation(vec2 uv, float t) {
+  uv *= 35.;
   vec2 id = floor(uv);
   uv = fract(uv) - .5;
-  vec3 n = N13(id.x * 107.45 + id.y * 3543.654);
-  vec2 p = (n.xy - .5) * .7;
-  float d = length(uv - p);
-  float fade = Saw(.025, fract(t + n.z));
-  return smoothstep(.3, 0., d) * fract(n.z * 10.) * fade;
+  vec2 rnd = h2(id);
+  vec2 pos = (rnd - .5) * .65;
+  float d = length(uv - pos);
+  float pulse = sin(3.14159 * fract(t + rnd.x * rnd.y));
+  pulse *= pulse;
+  return smoothstep(.28, 0., d) * fract(rnd.x * 7.) * pulse;
 }
 
 // --- Composite all drop layers ---
-vec2 Drops(vec2 uv, float t, float l0, float l1, float l2) {
-  float s = StaticDrops(uv, t) * l0;
-  vec2 m1 = DropLayer2(uv, t) * l1;
-  vec2 m2 = DropLayer2(uv * 1.85, t) * l2;
-  float c = s + m1.x + m2.x;
-  c = smoothstep(.3, 1., c);
-  return vec2(c, max(m1.y * l0, m2.y * l1));
+vec2 rain(vec2 uv, float t, float l0, float l1, float l2) {
+  float s = condensation(uv, t) * l0;
+  vec2 d1 = rainLayer(uv, t) * l1;
+  vec2 d2 = rainLayer(uv * 1.7, t) * l2;
+  float total = s + d1.x + d2.x;
+  total = smoothstep(.25, 1., total);
+  return vec2(total, max(d1.y * l0, d2.y * l1));
 }
 
 void main() {
@@ -150,7 +153,7 @@ void main() {
   float l2 = smoothstep(.0, .5, rainAmount);
 
   // Drops + trails, normals via screen-space derivatives
-  vec2 c = Drops(uv, t, sd, l1, l2);
+  vec2 c = rain(uv, t, sd, l1, l2);
   vec2 n = vec2(dFdx(c.x), dFdy(c.x));
 
   // Single lookup: refraction + variable blur combined
