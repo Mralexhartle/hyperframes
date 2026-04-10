@@ -119,11 +119,38 @@ export class SnapdomFrameSource implements FrameSource {
     return new Promise((resolve, reject) => {
       const start = Date.now();
       const poll = () => {
-        const win = iframe.contentWindow as (Window & { __hf?: HfProtocol }) | null;
+        const win = iframe.contentWindow as (Window & {
+          __hf?: HfProtocol;
+          __player?: { renderSeek: (t: number) => void; getDuration: () => number };
+          __playerReady?: boolean;
+        }) | null;
+
+        // Check for __hf protocol (direct or CLI-compiled compositions)
         if (win?.__hf && typeof win.__hf.seek === "function" && win.__hf.duration > 0) {
           resolve(win.__hf);
           return;
         }
+
+        // Fallback: bridge __player → __hf (studio preview compositions)
+        // The studio runtime exposes __player instead of __hf
+        if (win?.__player && typeof win.__player.renderSeek === "function" && win.__playerReady) {
+          const player = win.__player;
+          const getDeclaredDuration = () => {
+            const root = iframe.contentDocument?.querySelector("[data-composition-id]");
+            if (!root) return 0;
+            const d = Number(root.getAttribute("data-duration"));
+            return Number.isFinite(d) && d > 0 ? d : 0;
+          };
+          resolve({
+            get duration() {
+              const d = player.getDuration();
+              return d > 0 ? d : getDeclaredDuration();
+            },
+            seek: (t: number) => player.renderSeek(t),
+          });
+          return;
+        }
+
         if (Date.now() - start > timeoutMs) {
           reject(new Error("Timed out waiting for window.__hf protocol"));
           return;
