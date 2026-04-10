@@ -10,6 +10,7 @@ import type { HfMediaElement } from "../types.js";
 
 interface VideoTrack {
   element: HfMediaElement;
+  originalEl: HTMLVideoElement;
   video: HTMLVideoElement;
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
@@ -67,7 +68,7 @@ export class VideoFrameInjector {
       // Insert canvas as sibling
       videoEl.parentElement?.insertBefore(canvas, videoEl.nextSibling);
 
-      this.tracks.push({ element, video, canvas, ctx });
+      this.tracks.push({ element, originalEl: videoEl, video, canvas, ctx });
     }
   }
 
@@ -94,6 +95,15 @@ export class VideoFrameInjector {
           setTimeout(resolve, 100); // safety timeout
         });
       }
+
+      // Recompute canvas position from the original element (handles GSAP animations)
+      const rect = track.originalEl.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      canvas.style.left = `${rect.left}px`;
+      canvas.style.top = `${rect.top}px`;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
 
       // Draw the current video frame onto the canvas
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);

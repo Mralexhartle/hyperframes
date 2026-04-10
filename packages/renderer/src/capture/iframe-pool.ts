@@ -55,13 +55,18 @@ export class IframePool {
     return { duration: first.duration, media: first.media };
   }
 
-  async captureAll(frameTimes: number[], onFrame: (frame: CapturedFrame) => void): Promise<void> {
+  async captureAll(
+    frameTimes: number[],
+    onFrame: (frame: CapturedFrame) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
     const ranges = distributeFrames(frameTimes.length, this.sources.length);
 
     await Promise.all(
       ranges.map(async (range, workerIdx) => {
         const source = this.sources[workerIdx]!;
         for (let i = range.start; i <= range.end; i++) {
+          if (signal?.aborted) return;
           const time = frameTimes[i]!;
           const bitmap = await source.capture(time);
           onFrame({ bitmap, index: i, time });

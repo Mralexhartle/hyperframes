@@ -11,6 +11,7 @@ import { Encoder } from "./encoding/encoder.js";
 import { SnapdomFrameSource } from "./sources/snapdom.js";
 import { mixAudio } from "./audio/mixer.js";
 import { generateFrameTimes } from "./utils/timing.js";
+import { ProgressTracker } from "./utils/progress.js";
 import { isSupported } from "./compat.js";
 import type { RenderConfig, RenderProgress, RenderResult, AudioSource } from "./types.js";
 
@@ -46,6 +47,7 @@ export class HyperframesRenderer {
   private cancelled = false;
   private pool: IframePool | null = null;
   private encoder: Encoder | null = null;
+  private abortController: AbortController | null = null;
 
   constructor(config: RenderConfig) {
     this.config = config;
@@ -53,6 +55,7 @@ export class HyperframesRenderer {
 
   cancel(): void {
     this.cancelled = true;
+    this.abortController?.abort();
   }
 
   async render(): Promise<RenderResult> {
@@ -108,6 +111,21 @@ export class HyperframesRenderer {
       throw new Error("Composition has zero duration — nothing to render");
     }
 
+    const progressTracker = new ProgressTracker(totalFrames);
+    const abortController = new AbortController();
+    this.abortController = abortController;
+
+    // ── Pre-compute audio sources (needed for hasAudio flag) ─────────────────
+    const audioSources: AudioSource[] = media
+      .filter((m) => m.hasAudio === true)
+      .map((m) => ({
+        src: m.src,
+        startTime: m.startTime,
+        endTime: m.endTime,
+        mediaOffset: m.mediaOffset,
+        volume: m.volume,
+      }));
+
     // ── Step 3: Initialise encoder ────────────────────────────────────────────
     const encoder = new Encoder({
       width,
@@ -116,6 +134,7 @@ export class HyperframesRenderer {
       codec,
       bitrate,
       format,
+      hasAudio: audioSources.length > 0,
       workerUrl: this.config.workerUrl,
       onFrameEncoded: (index) => {
         const encodingProgress = (index + 1) / totalFrames;
@@ -155,25 +174,33 @@ export class HyperframesRenderer {
       }
     };
 
-    await pool.captureAll(frameTimes, ({ bitmap, index }) => {
-      if (this.cancelled) {
-        bitmap.close();
-        return;
-      }
+    await pool.captureAll(
+      frameTimes,
+      ({ bitmap, index }) => {
+        if (this.cancelled) {
+          bitmap.close();
+          return;
+        }
 
-      reorderBuffer.set(index, bitmap);
-      capturedCount++;
+        reorderBuffer.set(index, bitmap);
+        capturedCount++;
 
-      const captureProgress = capturedCount / totalFrames;
-      report({
-        stage: "capturing",
-        progress: 0.05 + captureProgress * 0.05,
-        currentFrame: capturedCount,
-        totalFrames,
-      });
+        progressTracker.recordFrame(capturedCount, performance.now() - captureStart);
 
-      flushBuffer();
-    });
+        const captureProgress = capturedCount / totalFrames;
+        report({
+          stage: "capturing",
+          progress: 0.05 + captureProgress * 0.05,
+          currentFrame: capturedCount,
+          totalFrames,
+          estimatedTimeRemaining: progressTracker.estimateTimeRemaining(),
+          captureRate: progressTracker.captureRate(),
+        });
+
+        flushBuffer();
+      },
+      abortController.signal,
+    );
 
     // Flush any remaining buffered frames
     flushBuffer();
@@ -189,16 +216,6 @@ export class HyperframesRenderer {
     const audioStart = performance.now();
 
     report({ stage: "mixing-audio", progress: 0.7 });
-
-    const audioSources: AudioSource[] = media
-      .filter((m) => m.hasAudio === true)
-      .map((m) => ({
-        src: m.src,
-        startTime: m.startTime,
-        endTime: m.endTime,
-        mediaOffset: m.mediaOffset,
-        volume: m.volume,
-      }));
 
     if (audioSources.length > 0) {
       const mixResult = await mixAudio({

@@ -14,6 +14,7 @@ export interface EncoderOptions {
   codec: string;
   bitrate: number;
   format: "mp4" | "webm";
+  hasAudio?: boolean;
   onFrameEncoded?: (index: number) => void;
   workerUrl?: URL | string;
 }
@@ -56,6 +57,7 @@ export class Encoder {
           codec: this.options.codec,
           bitrate: this.options.bitrate,
           format: this.options.format,
+          hasAudio: this.options.hasAudio ?? false,
         },
       };
       this.worker!.postMessage(msg);

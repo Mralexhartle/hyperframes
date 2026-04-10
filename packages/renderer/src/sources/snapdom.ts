@@ -94,9 +94,7 @@ export class SnapdomFrameSource implements FrameSource {
       throw new Error("iframe has no document");
     }
 
-    const canvas = await snapdom.toCanvas(doc.documentElement, {
-      width: this.config.width,
-      height: this.config.height,
+    const canvas = await snapdom.toCanvas(doc.body, {
       scale: this.config.devicePixelRatio ?? 1,
     });
 

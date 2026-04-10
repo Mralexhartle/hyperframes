@@ -15,6 +15,7 @@ export type WorkerInMessage =
         codec: string;
         bitrate: number;
         format: "mp4" | "webm";
+        hasAudio: boolean;
       };
     }
   | {

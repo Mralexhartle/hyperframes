@@ -43,8 +43,10 @@ async function handleInit(config: WorkerInMessage & { type: "init" }): Promise<v
   videoSource = new EncodedVideoPacketSource(mbVideoCodec);
   output.addVideoTrack(videoSource, { frameRate: fps });
 
-  audioSource = new AudioSampleSource({ codec: "aac", bitrate: 128_000 });
-  output.addAudioTrack(audioSource);
+  if (config.config.hasAudio) {
+    audioSource = new AudioSampleSource({ codec: "aac", bitrate: 128_000 });
+    output.addAudioTrack(audioSource);
+  }
 
   const encoderConfig: VideoEncoderConfig = {
     codec,
@@ -109,7 +111,7 @@ async function handleSetAudio(msg: WorkerInMessage & { type: "set-audio" }): Pro
 }
 
 async function handleFinalize(): Promise<void> {
-  if (!encoder || !output || !target || !videoSource || !audioSource) {
+  if (!encoder || !output || !target || !videoSource) {
     post({ type: "error", message: "Cannot finalize — not initialized" });
     return;
   }
@@ -117,7 +119,7 @@ async function handleFinalize(): Promise<void> {
   await encoder.flush();
   encoder.close();
   videoSource.close();
-  audioSource.close();
+  if (audioSource) audioSource.close();
   await output.finalize();
 
   const buffer = target.buffer;
