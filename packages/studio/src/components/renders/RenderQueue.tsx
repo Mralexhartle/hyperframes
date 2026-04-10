@@ -9,24 +9,32 @@ interface RenderQueueProps {
   onClearCompleted: () => void;
   onStartRender: (format: "mp4" | "webm" | "mov") => void;
   isRendering: boolean;
+  onStartBrowserRender?: (format: "mp4" | "webm") => void;
+  isBrowserRendering?: boolean;
+  browserJob?: RenderJob | null;
 }
 
 function FormatExportButton({
   onStartRender,
   isRendering,
+  onStartBrowserRender,
+  isBrowserRendering,
 }: {
   onStartRender: (format: "mp4" | "webm" | "mov") => void;
   isRendering: boolean;
+  onStartBrowserRender?: (format: "mp4" | "webm") => void;
+  isBrowserRendering?: boolean;
 }) {
   const [format, setFormat] = useState<"mp4" | "webm" | "mov">("mp4");
+  const anyRendering = isRendering || isBrowserRendering;
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-1.5">
       <select
         value={format}
         onChange={(e) => setFormat(e.target.value as "mp4" | "webm" | "mov")}
-        disabled={isRendering}
-        className="h-5 px-1 text-[10px] rounded-l bg-neutral-800 border border-neutral-700 text-neutral-300 outline-none disabled:opacity-50"
+        disabled={anyRendering}
+        className="h-5 px-1 text-[10px] rounded bg-neutral-800 border border-neutral-700 text-neutral-300 outline-none disabled:opacity-50"
       >
         <option value="mp4">MP4</option>
         <option value="mov">MOV</option>
@@ -34,11 +42,22 @@ function FormatExportButton({
       </select>
       <button
         onClick={() => onStartRender(format)}
-        disabled={isRendering}
-        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-r bg-studio-accent text-[#09090B] hover:brightness-110 transition-colors disabled:opacity-50"
+        disabled={anyRendering}
+        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded bg-studio-accent text-[#09090B] hover:brightness-110 transition-colors disabled:opacity-50"
       >
         {isRendering ? "Rendering..." : "Export"}
       </button>
+      {onStartBrowserRender && (
+        <button
+          onClick={() =>
+            onStartBrowserRender(format === "mov" ? "mp4" : (format as "mp4" | "webm"))
+          }
+          disabled={anyRendering}
+          className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded bg-teal-600 text-white hover:bg-teal-500 transition-colors disabled:opacity-50"
+        >
+          {isBrowserRendering ? "Exporting..." : "Browser"}
+        </button>
+      )}
     </div>
   );
 }
@@ -50,8 +69,14 @@ export const RenderQueue = memo(function RenderQueue({
   onClearCompleted,
   onStartRender,
   isRendering,
+  onStartBrowserRender,
+  isBrowserRendering,
+  browserJob,
 }: RenderQueueProps) {
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Merge server jobs with the browser render job for display
+  const allJobs = browserJob ? [...jobs, browserJob] : jobs;
 
   // Auto-scroll to bottom when new jobs are added.
   // Runs in an effect to avoid side effects during the render phase.
@@ -59,9 +84,9 @@ export const RenderQueue = memo(function RenderQueue({
     if (listRef.current) {
       listRef.current.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
     }
-  }, [jobs.length]);
+  }, [allJobs.length]);
 
-  const completedCount = jobs.filter((j) => j.status !== "rendering").length;
+  const completedCount = allJobs.filter((j) => j.status !== "rendering").length;
 
   return (
     <div className="flex flex-col h-full">
@@ -76,13 +101,18 @@ export const RenderQueue = memo(function RenderQueue({
               Clear
             </button>
           )}
-          <FormatExportButton onStartRender={onStartRender} isRendering={isRendering} />
+          <FormatExportButton
+            onStartRender={onStartRender}
+            isRendering={isRendering}
+            onStartBrowserRender={onStartBrowserRender}
+            isBrowserRendering={isBrowserRendering}
+          />
         </div>
       </div>
 
       {/* Job list */}
       <div ref={listRef} className="flex-1 overflow-y-auto">
-        {jobs.length === 0 ? (
+        {allJobs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full px-4 gap-2">
             <svg
               width="20"
@@ -112,7 +142,7 @@ export const RenderQueue = memo(function RenderQueue({
             <p className="text-[10px] text-neutral-600 text-center">No renders yet</p>
           </div>
         ) : (
-          jobs.map((job) => (
+          allJobs.map((job) => (
             <RenderQueueItem
               key={job.id}
               job={job}

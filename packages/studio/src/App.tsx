@@ -5,6 +5,7 @@ import { SourceEditor } from "./components/editor/SourceEditor";
 import { LeftSidebar } from "./components/sidebar/LeftSidebar";
 import { RenderQueue } from "./components/renders/RenderQueue";
 import { useRenderQueue } from "./components/renders/useRenderQueue";
+import { useBrowserRender } from "./components/renders/useBrowserRender";
 import { CompositionThumbnail, VideoThumbnail } from "./player";
 import { AudioWaveform } from "./player/components/AudioWaveform";
 import type { TimelineElement } from "./player";
@@ -56,6 +57,7 @@ export function StudioApp() {
   const [fileTree, setFileTree] = useState<string[]>([]);
   const [compIdToSrc, setCompIdToSrc] = useState<Map<string, string>>(new Map());
   const renderQueue = useRenderQueue(projectId);
+  const browserRender = useBrowserRender(projectId);
   const captionEditMode = useCaptionStore((s) => s.isEditMode);
   const captionHasSelection = useCaptionStore((s) => s.selectedSegmentIds.size > 0);
   const captionSync = useCaptionSync(projectId);
@@ -895,6 +897,9 @@ export function StudioApp() {
                   onClearCompleted={renderQueue.clearCompleted}
                   onStartRender={(format) => renderQueue.startRender(30, "standard", format)}
                   isRendering={renderQueue.isRendering}
+                  onStartBrowserRender={browserRender.startBrowserRender}
+                  isBrowserRendering={browserRender.isRendering}
+                  browserJob={browserRender.job}
                 />
               )}
             </div>
