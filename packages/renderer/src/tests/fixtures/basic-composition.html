@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; }
+    body { width: 1920px; height: 1080px; background: #1a1a2e; }
+    .box {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 200px; height: 200px;
+      background: #e94560;
+      border-radius: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box"></div>
+  <script>
+    // Minimal __hf protocol — 2 second static composition
+    window.__hf = {
+      duration: 2,
+      seek: function(time) {
+        // Static composition — no animation to seek
+      },
+      media: [],
+    };
+  </script>
+</body>
+</html>
