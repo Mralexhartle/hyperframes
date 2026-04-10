@@ -11,12 +11,18 @@ export function isSupported(): boolean {
   );
 }
 
-export function detectBestFrameSource(): "draw-element-image" | "snapdom" {
+export function detectBestFrameSource(): "draw-element-image" | "tab-capture" | "snapdom" {
   if (
     typeof CanvasRenderingContext2D !== "undefined" &&
     "drawElementImage" in CanvasRenderingContext2D.prototype
   ) {
     return "draw-element-image";
+  }
+  if (
+    typeof navigator?.mediaDevices?.getDisplayMedia === "function" &&
+    typeof ImageCapture !== "undefined"
+  ) {
+    return "tab-capture";
   }
   return "snapdom";
 }

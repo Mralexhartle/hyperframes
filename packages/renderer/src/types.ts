@@ -89,7 +89,7 @@ export interface RenderConfig {
   bitrate?: number;
   concurrency?: number;
   onProgress?: (progress: RenderProgress) => void;
-  frameSource?: "snapdom" | "draw-element-image";
+  frameSource?: "tab-capture" | "snapdom" | "draw-element-image";
   workerUrl?: URL | string;
 }
 

@@ -12,6 +12,11 @@ import type { RenderConfig, RenderResult } from "./types.js";
 export { isSupported, detectBestFrameSource } from "./compat.js";
 export { HyperframesRenderer, CancelledError } from "./renderer.js";
 export { SnapdomFrameSource } from "./sources/snapdom.js";
+export { TabCaptureFrameSource, isTabCaptureSupported } from "./sources/tab-capture.js";
+export {
+  DrawElementImageFrameSource,
+  isDrawElementImageSupported,
+} from "./sources/draw-element-image.js";
 
 export type {
   RenderConfig,

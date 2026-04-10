@@ -9,11 +9,23 @@
 import { calculateConcurrency, IframePool } from "./capture/iframe-pool.js";
 import { Encoder } from "./encoding/encoder.js";
 import { SnapdomFrameSource } from "./sources/snapdom.js";
+import { TabCaptureFrameSource, isTabCaptureSupported } from "./sources/tab-capture.js";
+import {
+  DrawElementImageFrameSource,
+  isDrawElementImageSupported,
+} from "./sources/draw-element-image.js";
 import { mixAudio } from "./audio/mixer.js";
 import { generateFrameTimes } from "./utils/timing.js";
 import { ProgressTracker } from "./utils/progress.js";
-import { isSupported } from "./compat.js";
-import type { RenderConfig, RenderProgress, RenderResult, AudioSource } from "./types.js";
+import { isSupported, detectBestFrameSource } from "./compat.js";
+import type {
+  FrameSource,
+  RenderConfig,
+  RenderProgress,
+  RenderResult,
+  AudioSource,
+  HfMediaElement,
+} from "./types.js";
 
 // ── Codec mapping ─────────────────────────────────────────────────────────────
 
@@ -46,6 +58,7 @@ export class HyperframesRenderer {
   private config: RenderConfig;
   private cancelled = false;
   private pool: IframePool | null = null;
+  private tabCapture: TabCaptureFrameSource | null = null;
   private encoder: Encoder | null = null;
   private abortController: AbortController | null = null;
 
@@ -87,18 +100,58 @@ export class HyperframesRenderer {
 
     this.throwIfCancelled();
 
-    // ── Step 1: Initialise iframe pool + frame sources ────────────────────────
-    const pool = new IframePool();
-    this.pool = pool;
+    // ── Step 1: Initialise frame source ────────────────────────────────────────
+    const selectedSource = this.config.frameSource ?? detectBestFrameSource();
+    const useDrawElement = selectedSource === "draw-element-image" && isDrawElementImageSupported();
+    const useTabCapture =
+      !useDrawElement && selectedSource === "tab-capture" && isTabCaptureSupported();
+    // Single-source modes bypass the iframe pool (drawElementImage / tab-capture)
+    const useSingleSource = useDrawElement || useTabCapture;
+    let singleSource: FrameSource | null = null;
 
-    const { duration, media } = await pool.init({
-      compositionUrl: this.config.composition,
-      width,
-      height,
-      devicePixelRatio,
-      concurrency,
-      createFrameSource: () => new SnapdomFrameSource(),
-    });
+    let duration: number;
+    let media: HfMediaElement[];
+
+    if (useDrawElement) {
+      // drawElementImage mode: pixel-perfect via html-in-canvas API
+      const source = new DrawElementImageFrameSource();
+      singleSource = source;
+      await source.init({
+        compositionUrl: this.config.composition,
+        width,
+        height,
+        devicePixelRatio,
+      });
+      duration = source.duration;
+      media = source.media;
+    } else if (useTabCapture) {
+      // Tab capture mode: single iframe, pixel-perfect via getDisplayMedia
+      const source = new TabCaptureFrameSource();
+      this.tabCapture = source;
+      singleSource = source;
+      await source.init({
+        compositionUrl: this.config.composition,
+        width,
+        height,
+        devicePixelRatio,
+      });
+      duration = source.duration;
+      media = source.media;
+    } else {
+      // Iframe pool mode: parallel capture via SnapDOM
+      const pool = new IframePool();
+      this.pool = pool;
+      const result = await pool.init({
+        compositionUrl: this.config.composition,
+        width,
+        height,
+        devicePixelRatio,
+        concurrency,
+        createFrameSource: () => new SnapdomFrameSource(),
+      });
+      duration = result.duration;
+      media = result.media;
+    }
 
     this.throwIfCancelled();
 
@@ -107,7 +160,8 @@ export class HyperframesRenderer {
     const totalFrames = frameTimes.length;
 
     if (totalFrames === 0) {
-      await pool.dispose();
+      if (this.pool) await this.pool.dispose();
+      if (this.tabCapture) await this.tabCapture.dispose();
       throw new Error("Composition has zero duration — nothing to render");
     }
 
@@ -174,41 +228,65 @@ export class HyperframesRenderer {
       }
     };
 
-    await pool.captureAll(
-      frameTimes,
-      ({ bitmap, index }) => {
-        if (this.cancelled) {
-          bitmap.close();
-          return;
-        }
-
-        reorderBuffer.set(index, bitmap);
+    if (useSingleSource && singleSource) {
+      // Single-source mode (drawElementImage or tab-capture): sequential, no reorder
+      for (let i = 0; i < totalFrames; i++) {
+        if (this.cancelled) break;
+        const bitmap = await singleSource.capture(frameTimes[i]!);
+        const timestamp = Math.round(i * frameDuration * 1_000_000);
+        encoder.sendFrame(bitmap, i, timestamp);
         capturedCount++;
-
         progressTracker.recordFrame(capturedCount, performance.now() - captureStart);
-
-        const captureProgress = capturedCount / totalFrames;
         report({
           stage: "capturing",
-          progress: 0.05 + captureProgress * 0.05,
+          progress: 0.05 + (capturedCount / totalFrames) * 0.05,
           currentFrame: capturedCount,
           totalFrames,
           estimatedTimeRemaining: progressTracker.estimateTimeRemaining(),
           captureRate: progressTracker.captureRate(),
         });
-
-        flushBuffer();
-      },
-      abortController.signal,
-    );
-
-    // Flush any remaining buffered frames
-    flushBuffer();
+      }
+    } else if (this.pool) {
+      // Iframe pool mode: parallel capture with reorder buffer
+      await this.pool.captureAll(
+        frameTimes,
+        ({ bitmap, index }) => {
+          if (this.cancelled) {
+            bitmap.close();
+            return;
+          }
+          reorderBuffer.set(index, bitmap);
+          capturedCount++;
+          progressTracker.recordFrame(capturedCount, performance.now() - captureStart);
+          report({
+            stage: "capturing",
+            progress: 0.05 + (capturedCount / totalFrames) * 0.05,
+            currentFrame: capturedCount,
+            totalFrames,
+            estimatedTimeRemaining: progressTracker.estimateTimeRemaining(),
+            captureRate: progressTracker.captureRate(),
+          });
+          flushBuffer();
+        },
+        abortController.signal,
+      );
+      flushBuffer();
+    }
 
     const captureMs = performance.now() - captureStart;
 
-    await pool.dispose();
-    this.pool = null;
+    // Dispose capture resources
+    if (singleSource) {
+      await singleSource.dispose();
+    }
+    if (this.tabCapture) {
+      await this.tabCapture.dispose();
+      this.tabCapture = null;
+    }
+    if (this.pool) {
+      await this.pool.dispose();
+      this.pool = null;
+    }
 
     this.throwIfCancelled();
 
@@ -269,6 +347,7 @@ export class HyperframesRenderer {
   private throwIfCancelled(): void {
     if (this.cancelled) {
       this.pool?.dispose().catch(() => {});
+      this.tabCapture?.dispose().catch(() => {});
       this.encoder?.dispose();
       throw new CancelledError();
     }
