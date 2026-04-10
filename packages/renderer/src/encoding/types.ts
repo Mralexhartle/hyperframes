@@ -36,5 +36,4 @@ export type WorkerOutMessage =
   | { type: "ready" }
   | { type: "frame-encoded"; index: number }
   | { type: "done"; blob: Blob }
-  | { type: "error"; message: string }
-  | { type: "progress"; framesEncoded: number };
+  | { type: "error"; message: string };

@@ -24,6 +24,7 @@ let encoder: VideoEncoder | null = null;
 let target: BufferTarget | null = null;
 let isFirstPacket = true;
 let framesEncoded = 0;
+let outputFormat: "mp4" | "webm" = "mp4";
 
 function post(msg: WorkerOutMessage, transfer?: Transferable[]): void {
   self.postMessage(msg, { transfer: transfer ?? [] });
@@ -32,6 +33,7 @@ function post(msg: WorkerOutMessage, transfer?: Transferable[]): void {
 async function handleInit(config: WorkerInMessage & { type: "init" }): Promise<void> {
   const { width, height, fps, codec, bitrate, format } = config.config;
 
+  outputFormat = format;
   target = new BufferTarget();
   const formatObj = format === "webm" ? new WebMOutputFormat() : new Mp4OutputFormat();
   output = new Output({ format: formatObj, target });
@@ -94,9 +96,9 @@ async function handleFrame(msg: WorkerInMessage & { type: "frame" }): Promise<vo
 async function handleSetAudio(msg: WorkerInMessage & { type: "set-audio" }): Promise<void> {
   if (!audioSource) return;
 
-  const interleaved = interleaveChannels(msg.channelData);
+  const planar = concatPlanarChannels(msg.channelData);
   const sample = new AudioSample({
-    data: interleaved,
+    data: planar,
     format: "f32-planar",
     numberOfChannels: msg.channelData.length,
     sampleRate: msg.sampleRate,
@@ -124,21 +126,19 @@ async function handleFinalize(): Promise<void> {
     return;
   }
 
-  const blob = new Blob([buffer], { type: "video/mp4" });
+  const mimeType = outputFormat === "webm" ? "video/webm" : "video/mp4";
+  const blob = new Blob([buffer], { type: mimeType });
   post({ type: "done", blob });
 }
 
-function interleaveChannels(channels: Float32Array[]): Float32Array {
+function concatPlanarChannels(channels: Float32Array[]): Float32Array {
   if (channels.length === 1) return channels[0]!;
-  const length = channels[0]!.length * channels.length;
-  const result = new Float32Array(length);
-  const numChannels = channels.length;
-  const samplesPerChannel = channels[0]!.length;
-  for (let ch = 0; ch < numChannels; ch++) {
-    const channelData = channels[ch]!;
-    for (let i = 0; i < samplesPerChannel; i++) {
-      result[i * numChannels + ch] = channelData[i]!;
-    }
+  const totalLength = channels.reduce((sum, ch) => sum + ch.length, 0);
+  const result = new Float32Array(totalLength);
+  let offset = 0;
+  for (const ch of channels) {
+    result.set(ch, offset);
+    offset += ch.length;
   }
   return result;
 }

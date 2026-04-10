@@ -11,6 +11,7 @@ import { Encoder } from "./encoding/encoder.js";
 import { SnapdomFrameSource } from "./sources/snapdom.js";
 import { mixAudio } from "./audio/mixer.js";
 import { generateFrameTimes } from "./utils/timing.js";
+import { isSupported } from "./compat.js";
 import type { RenderConfig, RenderProgress, RenderResult, AudioSource } from "./types.js";
 
 // ── Codec mapping ─────────────────────────────────────────────────────────────
@@ -55,6 +56,12 @@ export class HyperframesRenderer {
   }
 
   async render(): Promise<RenderResult> {
+    if (!isSupported()) {
+      throw new Error(
+        "Client-side rendering not supported. Requires WebCodecs (Chrome 94+, Firefox 130+, Safari 26+).",
+      );
+    }
+
     const totalStart = performance.now();
     this.cancelled = false;
 
@@ -183,7 +190,7 @@ export class HyperframesRenderer {
     report({ stage: "mixing-audio", progress: 0.7 });
 
     const audioSources: AudioSource[] = media
-      .filter((m) => m.hasAudio !== false)
+      .filter((m) => m.hasAudio === true)
       .map((m) => ({
         src: m.src,
         startTime: m.startTime,
@@ -229,7 +236,7 @@ export class HyperframesRenderer {
     return {
       blob,
       mimeType,
-      durationMs: duration * 1000,
+      durationMs: totalMs,
       perf: {
         captureMs,
         encodeMs,
