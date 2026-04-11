@@ -95,14 +95,29 @@ export class SnapdomFrameSource implements FrameSource {
 
     this.hf.seek(time);
 
-    // Force synchronous reflow so GSAP's CSS changes are committed before
-    // SnapDOM clones the DOM. Without this, computed styles can be stale
-    // and cause visible jumps in animated text/transforms.
+    // Yield first so the runtime can propagate the seek to sub-composition
+    // timelines (they run in nested iframes with their own GSAP instances).
+    await new Promise<void>((r) => setTimeout(r, 4));
+
+    // Force synchronous reflow on the main iframe AND all sub-composition
+    // iframes. Without this, GSAP transform values (x, y, scale) in
+    // sub-compositions can be stale, causing position jumps between frames.
     const doc = this.iframe.contentDocument!;
     void doc.documentElement.offsetHeight;
+    const subIframes = doc.querySelectorAll("iframe");
+    for (const sub of subIframes) {
+      try {
+        const subDoc = (sub as HTMLIFrameElement).contentDocument;
+        if (subDoc?.documentElement) {
+          void subDoc.documentElement.offsetHeight;
+        }
+      } catch {
+        // cross-origin — skip
+      }
+    }
 
-    // Yield for sub-composition syncs and GSAP nested timeline updates to settle.
-    await new Promise<void>((r) => setTimeout(r, 4));
+    // Second yield after reflow to let any reflow-triggered updates complete
+    await new Promise<void>((r) => setTimeout(r, 2));
 
     if (this.videoInjector) {
       await this.videoInjector.injectFrame(time);
