@@ -64,6 +64,9 @@ export function useBrowserRender(projectId: string | null) {
           `/api/projects/${projectId}/renders/upload?format=${format}&durationMs=${durationMs}`,
           { method: "POST", body: result.blob },
         );
+        if (!uploadRes.ok) {
+          throw new Error(`Failed to save render: ${uploadRes.status}`);
+        }
         const uploadData = await uploadRes.json();
 
         setJob((prev) =>

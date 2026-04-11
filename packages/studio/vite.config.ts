@@ -355,13 +355,13 @@ function devProjectApi(): Plugin {
           // Strip /api prefix — shared module routes are relative
           url.pathname = url.pathname.slice(4);
 
-          // Read body for non-GET/HEAD
-          let body: string | undefined;
+          // Read body for non-GET/HEAD — as Buffer to preserve binary data (video uploads)
+          let body: Buffer | undefined;
           if (req.method !== "GET" && req.method !== "HEAD") {
-            body = await new Promise<string>((resolve) => {
-              let data = "";
-              req.on("data", (chunk: Buffer) => (data += chunk.toString()));
-              req.on("end", () => resolve(data));
+            body = await new Promise<Buffer>((resolve) => {
+              const chunks: Buffer[] = [];
+              req.on("data", (chunk: Buffer) => chunks.push(chunk));
+              req.on("end", () => resolve(Buffer.concat(chunks)));
             });
           }
 
@@ -373,7 +373,7 @@ function devProjectApi(): Plugin {
           const fetchReq = new Request(url.toString(), {
             method: req.method,
             headers,
-            body,
+            body: body ?? undefined,
           });
 
           const response = await api.fetch(fetchReq);
