@@ -68,6 +68,12 @@ export class SnapdomFrameSource implements FrameSource {
     this._duration = hf.duration;
     this._media = hf.media ?? [];
 
+    // Discover media elements: prefer hf.media, fall back to DOM scan
+    // (the __player → __hf bridge doesn't expose media, so we must scan)
+    if (this._media.length === 0) {
+      this._media = this.discoverMediaElements(this.iframe!.contentDocument!);
+    }
+
     const videoMedia = this._media.filter((m) => {
       const el = this.iframe!.contentDocument?.getElementById(m.elementId);
       return el?.tagName === "VIDEO";
@@ -76,6 +82,10 @@ export class SnapdomFrameSource implements FrameSource {
       this.videoInjector = new VideoFrameInjector();
       await this.videoInjector.init(videoMedia, this.iframe!.contentDocument!);
     }
+
+    // Warmup: seek to 0 and wait for fonts, Lottie, sub-compositions to settle.
+    // Without this, the first few frames capture before external resources load.
+    await this.warmup();
   }
 
   async capture(time: number): Promise<ImageBitmap> {
@@ -85,15 +95,20 @@ export class SnapdomFrameSource implements FrameSource {
 
     this.hf.seek(time);
 
-    // Wait for seek to take effect — one rAF cycle for layout + paint
-    await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    // Force synchronous reflow so GSAP's CSS changes are committed before
+    // SnapDOM clones the DOM. Without this, computed styles can be stale
+    // and cause visible jumps in animated text/transforms.
+    const doc = this.iframe.contentDocument!;
+    void doc.documentElement.offsetHeight;
+
+    // Yield once so any async side-effects (sub-composition syncs) settle.
+    await new Promise<void>((r) => setTimeout(r, 0));
 
     if (this.videoInjector) {
       await this.videoInjector.injectFrame(time);
     }
 
-    const doc = this.iframe.contentDocument;
-    if (!doc?.documentElement) {
+    if (!doc.documentElement) {
       throw new Error("iframe has no document");
     }
 
@@ -118,15 +133,81 @@ export class SnapdomFrameSource implements FrameSource {
     this._media = [];
   }
 
+  /**
+   * Scan the iframe DOM for <video> and <audio> elements with data-start/data-duration
+   * attributes and build HfMediaElement descriptors. Used as fallback when
+   * hf.media is not available (e.g. __player bridge).
+   */
+  private discoverMediaElements(doc: Document): HfMediaElement[] {
+    const elements = doc.querySelectorAll(
+      "video[data-start][data-duration], audio[data-start][data-duration]",
+    );
+    const baseUrl = doc.baseURI || this.config?.compositionUrl || "";
+    const result: HfMediaElement[] = [];
+    for (const el of elements) {
+      const mediaEl = el as HTMLVideoElement | HTMLAudioElement;
+      const id = mediaEl.id;
+      if (!id) continue;
+      // Resolve src against the composition's base URL so fetch() works from the main page
+      const rawSrc = mediaEl.getAttribute("src") ?? "";
+      const src = rawSrc ? new URL(rawSrc, baseUrl).href : "";
+      const startTime = Number(mediaEl.getAttribute("data-start") ?? 0);
+      const duration = Number(mediaEl.getAttribute("data-duration") ?? 0);
+      const mediaOffset = Number(mediaEl.getAttribute("data-media-offset") ?? 0);
+      const volume = Number(mediaEl.getAttribute("data-volume") ?? 1);
+      const isVideo = mediaEl.tagName === "VIDEO";
+      const isMuted = isVideo && (mediaEl as HTMLVideoElement).muted;
+      result.push({
+        elementId: id,
+        src,
+        startTime,
+        endTime: startTime + duration,
+        mediaOffset,
+        volume,
+        // Audio elements always have audio; video elements only if not muted
+        hasAudio: isVideo ? !isMuted : true,
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Warmup: seek to time 0 and wait for external resources (fonts, Lottie,
+   * CDN scripts, sub-composition iframes) to fully load and settle.
+   * Without this, the first frames capture before everything is ready.
+   */
+  private async warmup(): Promise<void> {
+    if (!this.iframe || !this.hf) return;
+
+    this.hf.seek(0);
+
+    // Wait for fonts to load inside the iframe
+    const iframeDoc = this.iframe.contentDocument;
+    if (iframeDoc?.fonts) {
+      try {
+        await Promise.race([iframeDoc.fonts.ready, new Promise<void>((r) => setTimeout(r, 3000))]);
+      } catch {
+        // fonts.ready not available — continue
+      }
+    }
+
+    // Let GSAP, Lottie, and layout settle — multiple event loop ticks
+    for (let i = 0; i < 5; i++) {
+      await new Promise<void>((r) => setTimeout(r, 0));
+    }
+  }
+
   private waitForHfProtocol(iframe: HTMLIFrameElement, timeoutMs = 10_000): Promise<HfProtocol> {
     return new Promise((resolve, reject) => {
       const start = Date.now();
       const poll = () => {
-        const win = iframe.contentWindow as (Window & {
-          __hf?: HfProtocol;
-          __player?: { renderSeek: (t: number) => void; getDuration: () => number };
-          __playerReady?: boolean;
-        }) | null;
+        const win = iframe.contentWindow as
+          | (Window & {
+              __hf?: HfProtocol;
+              __player?: { renderSeek: (t: number) => void; getDuration: () => number };
+              __playerReady?: boolean;
+            })
+          | null;
 
         // Check for __hf protocol (direct or CLI-compiled compositions)
         if (win?.__hf && typeof win.__hf.seek === "function" && win.__hf.duration > 0) {

@@ -181,6 +181,10 @@ export class HyperframesRenderer {
       }));
 
     // ── Step 3: Initialise encoder ────────────────────────────────────────────
+    // Track encoding separately — we only surface encoding progress after capture finishes
+    let encodedCount = 0;
+    let captureFinished = false;
+
     const encoder = new Encoder({
       width,
       height,
@@ -191,13 +195,17 @@ export class HyperframesRenderer {
       hasAudio: audioSources.length > 0,
       workerUrl: this.config.workerUrl,
       onFrameEncoded: (index) => {
-        const encodingProgress = (index + 1) / totalFrames;
-        report({
-          stage: "encoding",
-          progress: 0.1 + encodingProgress * 0.6,
-          currentFrame: index + 1,
-          totalFrames,
-        });
+        encodedCount = index + 1;
+        // Only report encoding progress after capture is done to avoid
+        // interleaved progress jumps (capture 5%→10% vs encoding 10%→70%)
+        if (captureFinished) {
+          report({
+            stage: "encoding",
+            progress: 0.5 + (encodedCount / totalFrames) * 0.2,
+            currentFrame: encodedCount,
+            totalFrames,
+          });
+        }
       },
     });
     this.encoder = encoder;
@@ -239,7 +247,7 @@ export class HyperframesRenderer {
         progressTracker.recordFrame(capturedCount, performance.now() - captureStart);
         report({
           stage: "capturing",
-          progress: 0.05 + (capturedCount / totalFrames) * 0.05,
+          progress: 0.05 + (capturedCount / totalFrames) * 0.45,
           currentFrame: capturedCount,
           totalFrames,
           estimatedTimeRemaining: progressTracker.estimateTimeRemaining(),
@@ -260,7 +268,7 @@ export class HyperframesRenderer {
           progressTracker.recordFrame(capturedCount, performance.now() - captureStart);
           report({
             stage: "capturing",
-            progress: 0.05 + (capturedCount / totalFrames) * 0.05,
+            progress: 0.05 + (capturedCount / totalFrames) * 0.45,
             currentFrame: capturedCount,
             totalFrames,
             estimatedTimeRemaining: progressTracker.estimateTimeRemaining(),
@@ -271,6 +279,17 @@ export class HyperframesRenderer {
         abortController.signal,
       );
       flushBuffer();
+    }
+
+    captureFinished = true;
+    // Flush any remaining encoding progress now that capture is done
+    if (encodedCount < totalFrames) {
+      report({
+        stage: "encoding",
+        progress: 0.5 + (encodedCount / totalFrames) * 0.2,
+        currentFrame: encodedCount,
+        totalFrames,
+      });
     }
 
     const captureMs = performance.now() - captureStart;
