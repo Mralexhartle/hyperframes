@@ -231,21 +231,26 @@ export const compositionRules: Array<(ctx: LintContext) => HyperframeLintFinding
   },
 
   // root_composition_missing_html_wrapper
-  ({ rawSource, options }) => {
+  ({ rawSource, rootTag, options }) => {
     const findings: HyperframeLintFinding[] = [];
     if (options.isSubComposition) return findings;
     const trimmed = rawSource.trimStart().toLowerCase();
+    // Compositions inside <template> are caught by standalone_composition_wrapped_in_template
+    if (trimmed.startsWith("<template")) return findings;
     const hasDoctype = trimmed.startsWith("<!doctype") || trimmed.startsWith("<html");
     const hasComposition = rawSource.includes("data-composition-id");
     if (hasComposition && !hasDoctype) {
       findings.push({
         code: "root_composition_missing_html_wrapper",
-        severity: "warning",
+        severity: "error",
         message:
-          "Composition is missing <!DOCTYPE html> and <html> wrapper. " +
-          "The bundler and preview expect a complete HTML document for index.html files.",
+          "Composition starts with a bare element instead of a proper HTML document. " +
+          "An index.html that contains data-composition-id but no <!DOCTYPE html>, <html>, or <body> " +
+          "is a fragment — browsers quirks-mode it, the preview server cannot load it, and " +
+          "the bundler will fail to inject runtime scripts.",
         fixHint:
           'Wrap the composition in <!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>...</body></html>.',
+        snippet: rootTag ? truncateSnippet(rootTag.raw) : undefined,
       });
     }
     return findings;
