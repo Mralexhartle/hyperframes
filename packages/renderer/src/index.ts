@@ -9,7 +9,7 @@
 import { HyperframesRenderer } from "./renderer.js";
 import type { RenderConfig, RenderResult } from "./types.js";
 
-export { isSupported, detectBestFrameSource } from "./compat.js";
+export { isSupported, isTurboSupported, detectBestFrameSource } from "./compat.js";
 export { HyperframesRenderer, CancelledError } from "./renderer.js";
 export { SnapdomFrameSource } from "./sources/snapdom.js";
 export { TabCaptureFrameSource, isTabCaptureSupported } from "./sources/tab-capture.js";

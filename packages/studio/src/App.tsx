@@ -900,6 +900,8 @@ export function StudioApp() {
                   onStartBrowserRender={browserRender.startBrowserRender}
                   isBrowserRendering={browserRender.isRendering}
                   browserJob={browserRender.job}
+                  turboEnabled={browserRender.turboEnabled}
+                  onTurboToggle={browserRender.setTurboEnabled}
                 />
               )}
             </div>

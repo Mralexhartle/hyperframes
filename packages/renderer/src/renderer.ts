@@ -7,6 +7,7 @@
  */
 
 import { calculateConcurrency, IframePool } from "./capture/iframe-pool.js";
+import { TurboPool, calculateTurboConcurrency } from "./capture/turbo-pool.js";
 import { Encoder } from "./encoding/encoder.js";
 import { SnapdomFrameSource } from "./sources/snapdom.js";
 import { TabCaptureFrameSource, isTabCaptureSupported } from "./sources/tab-capture.js";
@@ -58,6 +59,7 @@ export class HyperframesRenderer {
   private config: RenderConfig;
   private cancelled = false;
   private pool: IframePool | null = null;
+  private turboPool: TurboPool | null = null;
   private tabCapture: TabCaptureFrameSource | null = null;
   private encoder: Encoder | null = null;
   private abortController: AbortController | null = null;
@@ -137,6 +139,46 @@ export class HyperframesRenderer {
       });
       duration = source.duration;
       media = source.media;
+    } else if (this.config.turbo && this.config.turboWorkerUrl) {
+      // Turbo mode: multi-tab parallel capture via separate renderer processes
+      const turbo = new TurboPool();
+      if (!turbo.supported) {
+        throw new Error("Turbo render requires BroadcastChannel support");
+      }
+      this.turboPool = turbo;
+      const turboConcurrency = calculateTurboConcurrency();
+      try {
+        const result = await turbo.init({
+          compositionUrl: this.config.composition,
+          width,
+          height,
+          devicePixelRatio,
+          concurrency: turboConcurrency,
+          turboWorkerUrl: this.config.turboWorkerUrl,
+        });
+        duration = result.duration;
+        media = result.media;
+      } catch (err) {
+        // Popup blocked — fall back to normal iframe pool
+        if (err instanceof Error && err.message === "POPUP_BLOCKED") {
+          console.warn("[Renderer] Turbo mode failed (popup blocked), falling back to normal mode");
+          this.turboPool = null;
+          const pool = new IframePool();
+          this.pool = pool;
+          const result = await pool.init({
+            compositionUrl: this.config.composition,
+            width,
+            height,
+            devicePixelRatio,
+            concurrency,
+            createFrameSource: () => new SnapdomFrameSource(),
+          });
+          duration = result.duration;
+          media = result.media;
+        } else {
+          throw err;
+        }
+      }
     } else {
       // Iframe pool mode: parallel capture via SnapDOM
       const pool = new IframePool();
@@ -254,6 +296,31 @@ export class HyperframesRenderer {
           captureRate: progressTracker.captureRate(),
         });
       }
+    } else if (this.turboPool) {
+      // Turbo mode: multi-tab parallel capture with reorder buffer
+      await this.turboPool.captureAll(
+        frameTimes,
+        ({ bitmap, index }) => {
+          if (this.cancelled) {
+            bitmap.close();
+            return;
+          }
+          reorderBuffer.set(index, bitmap);
+          capturedCount++;
+          progressTracker.recordFrame(capturedCount, performance.now() - captureStart);
+          report({
+            stage: "capturing",
+            progress: 0.05 + (capturedCount / totalFrames) * 0.45,
+            currentFrame: capturedCount,
+            totalFrames,
+            estimatedTimeRemaining: progressTracker.estimateTimeRemaining(),
+            captureRate: progressTracker.captureRate(),
+          });
+          flushBuffer();
+        },
+        abortController.signal,
+      );
+      flushBuffer();
     } else if (this.pool) {
       // Iframe pool mode: parallel capture with reorder buffer
       await this.pool.captureAll(
@@ -305,6 +372,10 @@ export class HyperframesRenderer {
     if (this.pool) {
       await this.pool.dispose();
       this.pool = null;
+    }
+    if (this.turboPool) {
+      await this.turboPool.dispose();
+      this.turboPool = null;
     }
 
     this.throwIfCancelled();
@@ -366,6 +437,7 @@ export class HyperframesRenderer {
   private throwIfCancelled(): void {
     if (this.cancelled) {
       this.pool?.dispose().catch(() => {});
+      this.turboPool?.dispose().catch(() => {});
       this.tabCapture?.dispose().catch(() => {});
       this.encoder?.dispose();
       throw new CancelledError();

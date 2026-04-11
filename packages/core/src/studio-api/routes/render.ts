@@ -216,6 +216,50 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
     });
   });
 
+  // Upload a browser-rendered video (client-side renderer posts the blob here)
+  api.post("/projects/:id/renders/upload", async (c) => {
+    const project = await adapter.resolveProject(c.req.param("id"));
+    if (!project) return c.json({ error: "not found" }, 404);
+
+    const rendersDir = adapter.rendersDir(project);
+    if (!existsSync(rendersDir)) mkdirSync(rendersDir, { recursive: true });
+
+    const body = await c.req.arrayBuffer();
+    if (!body || body.byteLength === 0) {
+      return c.json({ error: "empty body" }, 400);
+    }
+
+    const format = c.req.query("format") ?? "mp4";
+    const now = new Date();
+    const datePart = now.toISOString().slice(0, 10);
+    const timePart = now.toTimeString().slice(0, 8).replace(/:/g, "-");
+    const jobId = `${project.id}_browser_${datePart}_${timePart}`;
+    const ext = format === "webm" ? ".webm" : ".mp4";
+    const outputPath = join(rendersDir, `${jobId}${ext}`);
+
+    const { writeFileSync: writeFile } = await import("node:fs");
+    writeFile(outputPath, Buffer.from(body));
+    writeFile(
+      outputPath.replace(/\.(mp4|webm)$/, ".meta.json"),
+      JSON.stringify({
+        status: "complete",
+        source: "browser",
+        durationMs: Number(c.req.query("durationMs") ?? 0),
+      }),
+    );
+
+    // Register in job store so it shows in the renders list
+    renderJobs.set(jobId, {
+      id: jobId,
+      status: "complete",
+      progress: 100,
+      outputPath,
+      createdAt: Date.now(),
+    } as RenderJobState & { createdAt: number });
+
+    return c.json({ jobId, filename: `${jobId}${ext}`, size: body.byteLength });
+  });
+
   // List renders
   api.get("/projects/:id/renders", async (c) => {
     const project = await adapter.resolveProject(c.req.param("id"));

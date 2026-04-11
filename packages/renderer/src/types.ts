@@ -91,6 +91,10 @@ export interface RenderConfig {
   onProgress?: (progress: RenderProgress) => void;
   frameSource?: "tab-capture" | "snapdom" | "draw-element-image";
   workerUrl?: URL | string;
+  /** Enable turbo mode: opens multiple browser tabs for parallel capture. */
+  turbo?: boolean;
+  /** URL to the turbo-worker.html page (required when turbo=true). */
+  turboWorkerUrl?: string;
 }
 
 export interface RenderProgress {

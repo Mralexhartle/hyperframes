@@ -11,6 +11,12 @@ export function isSupported(): boolean {
   );
 }
 
+export function isTurboSupported(): boolean {
+  return (
+    typeof BroadcastChannel !== "undefined" && typeof window?.open === "function" && isSupported()
+  );
+}
+
 export function detectBestFrameSource(): "draw-element-image" | "tab-capture" | "snapdom" {
   if (
     typeof CanvasRenderingContext2D !== "undefined" &&

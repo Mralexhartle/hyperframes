@@ -4,6 +4,7 @@ import type { RenderJob } from "./useRenderQueue";
 export function useBrowserRender(projectId: string | null) {
   const [isRendering, setIsRendering] = useState(false);
   const [job, setJob] = useState<RenderJob | null>(null);
+  const [turboEnabled, setTurboEnabled] = useState(false);
 
   const startBrowserRender = useCallback(
     async (format: "mp4" | "webm" = "mp4") => {
@@ -12,22 +13,25 @@ export function useBrowserRender(projectId: string | null) {
 
       const jobId = crypto.randomUUID();
       const startTime = Date.now();
+      const mode = turboEnabled ? "turbo" : "browser";
       setJob({
         id: jobId,
         status: "rendering",
         progress: 0,
         stage: "initializing",
-        filename: `browser-export.${format}`,
+        filename: `${mode}-export.${format}`,
         createdAt: startTime,
       });
 
       try {
-        const { render, isSupported } = await import("@hyperframes/renderer");
+        const { render, isSupported, isTurboSupported } = await import("@hyperframes/renderer");
         if (!isSupported()) {
           throw new Error(
             "Browser does not support WebCodecs. Use Chrome 94+, Firefox 130+, or Safari 26+.",
           );
         }
+
+        const useTurbo = turboEnabled && isTurboSupported();
 
         const result = await render({
           composition: `/api/projects/${projectId}/preview`,
@@ -37,6 +41,10 @@ export function useBrowserRender(projectId: string | null) {
           frameSource: "snapdom",
           concurrency: 1,
           workerUrl: "/node_modules/@hyperframes/renderer/dist/worker.bundle.js",
+          turbo: useTurbo,
+          turboWorkerUrl: useTurbo
+            ? "/node_modules/@hyperframes/renderer/dist/turbo-worker.html"
+            : undefined,
           onProgress: (p) => {
             setJob((prev) =>
               prev
@@ -50,13 +58,13 @@ export function useBrowserRender(projectId: string | null) {
           },
         });
 
-        // Trigger download
-        const url = URL.createObjectURL(result.blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `export.${format}`;
-        a.click();
-        URL.revokeObjectURL(url);
+        // Save to project renders directory (same as server-side renders)
+        const durationMs = Date.now() - startTime;
+        const uploadRes = await fetch(
+          `/api/projects/${projectId}/renders/upload?format=${format}&durationMs=${durationMs}`,
+          { method: "POST", body: result.blob },
+        );
+        const uploadData = await uploadRes.json();
 
         setJob((prev) =>
           prev
@@ -64,7 +72,8 @@ export function useBrowserRender(projectId: string | null) {
                 ...prev,
                 status: "complete",
                 progress: 100,
-                durationMs: Date.now() - startTime,
+                durationMs,
+                filename: uploadData.filename ?? `export.${format}`,
               }
             : prev,
         );
@@ -82,8 +91,8 @@ export function useBrowserRender(projectId: string | null) {
         setIsRendering(false);
       }
     },
-    [projectId, isRendering],
+    [projectId, isRendering, turboEnabled],
   );
 
-  return { isRendering, job, startBrowserRender };
+  return { isRendering, job, startBrowserRender, turboEnabled, setTurboEnabled };
 }

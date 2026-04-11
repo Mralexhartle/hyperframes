@@ -12,6 +12,8 @@ interface RenderQueueProps {
   onStartBrowserRender?: (format: "mp4" | "webm") => void;
   isBrowserRendering?: boolean;
   browserJob?: RenderJob | null;
+  turboEnabled?: boolean;
+  onTurboToggle?: (enabled: boolean) => void;
 }
 
 function FormatExportButton({
@@ -19,11 +21,15 @@ function FormatExportButton({
   isRendering,
   onStartBrowserRender,
   isBrowserRendering,
+  turboEnabled,
+  onTurboToggle,
 }: {
   onStartRender: (format: "mp4" | "webm" | "mov") => void;
   isRendering: boolean;
   onStartBrowserRender?: (format: "mp4" | "webm") => void;
   isBrowserRendering?: boolean;
+  turboEnabled?: boolean;
+  onTurboToggle?: (enabled: boolean) => void;
 }) {
   const [format, setFormat] = useState<"mp4" | "webm" | "mov">("mp4");
   const anyRendering = isRendering || isBrowserRendering;
@@ -58,6 +64,20 @@ function FormatExportButton({
           {isBrowserRendering ? "Exporting..." : "Browser"}
         </button>
       )}
+      {onTurboToggle && (
+        <button
+          onClick={() => onTurboToggle(!turboEnabled)}
+          disabled={anyRendering}
+          title={turboEnabled ? "Turbo: ON (multi-tab parallel)" : "Turbo: OFF (single tab)"}
+          className={`flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold rounded transition-colors disabled:opacity-50 ${
+            turboEnabled
+              ? "bg-amber-500 text-black hover:bg-amber-400"
+              : "bg-neutral-700 text-neutral-400 hover:bg-neutral-600"
+          }`}
+        >
+          &#x26A1; {turboEnabled ? "Turbo" : "Turbo"}
+        </button>
+      )}
     </div>
   );
 }
@@ -72,6 +92,8 @@ export const RenderQueue = memo(function RenderQueue({
   onStartBrowserRender,
   isBrowserRendering,
   browserJob,
+  turboEnabled,
+  onTurboToggle,
 }: RenderQueueProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -106,6 +128,8 @@ export const RenderQueue = memo(function RenderQueue({
             isRendering={isRendering}
             onStartBrowserRender={onStartBrowserRender}
             isBrowserRendering={isBrowserRendering}
+            turboEnabled={turboEnabled}
+            onTurboToggle={onTurboToggle}
           />
         </div>
       </div>
