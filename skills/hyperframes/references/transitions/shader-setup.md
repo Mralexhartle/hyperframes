@@ -1,6 +1,10 @@
 # Shader Transition Setup
 
-Complete boilerplate for WebGL shader transitions in HyperFrames. Read this when implementing a shader transition — copy the setup code, then plug in the fragment shader from the catalog.
+Complete boilerplate for WebGL shader transitions in HyperFrames. Copy the setup code, then plug in the fragment shader from the catalog.
+
+**Rendering model:** DOM scenes play normally with GSAP animations. The WebGL canvas is hidden (`display:none`) between transitions. When a transition starts, `beginTrans` uses html2canvas to capture the outgoing scene with full content, and the incoming scene with `.scene-content` hidden (background + decorative elements only). This prevents un-animated content from flashing during the transition. When the transition ends, `endTrans` hides the canvas and reveals the incoming DOM scene — GSAP entrance animations then play on live elements.
+
+**Shader-compatible CSS:** Compositions using shader transitions must follow the rules in transitions.md § "Shader-Compatible CSS Rules" — no `transparent` in gradients, no gradient backgrounds on sub-4px elements, no `var()` on captured elements, `data-no-capture` on uncapturable decoratives.
 
 ## HTML
 
@@ -14,270 +18,14 @@ Complete boilerplate for WebGL shader transitions in HyperFrames. Read this when
 </canvas>
 ```
 
-## WebGL Init + Scene Capture
-
-Handles images, video, shapes, and text. Supports `object-fit: cover` on images and live video re-upload during transitions.
+## WebGL Init
 
 ```js
 var sceneTextures = {};
-var sceneHasVideo = {}; // tracks which scenes have live video
 var glCanvas = document.getElementById("gl-canvas");
 var gl = glCanvas.getContext("webgl", { preserveDrawingBuffer: true });
 gl.viewport(0, 0, 1920, 1080);
 gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-
-// Wait for all media to load before capturing
-function waitForMedia() {
-  return new Promise(function (resolve) {
-    var promises = [];
-    document.querySelectorAll("img").forEach(function (img) {
-      if (!img.complete)
-        promises.push(
-          new Promise(function (r) {
-            img.onload = r;
-            img.onerror = r;
-          }),
-        );
-    });
-    document.querySelectorAll("video").forEach(function (vid) {
-      if (vid.readyState < 2)
-        promises.push(
-          new Promise(function (r) {
-            vid.addEventListener("loadeddata", r, { once: true });
-          }),
-        );
-    });
-    Promise.all(promises).then(resolve);
-  });
-}
-
-function captureScene(sceneId) {
-  return new Promise(function (resolve) {
-    var scene = document.getElementById(sceneId);
-    var origOpacity = scene.style.opacity;
-    var origZ = scene.style.zIndex;
-    scene.style.opacity = "1";
-    scene.style.zIndex = "999";
-
-    if (scene.querySelector("video")) sceneHasVideo[sceneId] = scene.querySelector("video");
-
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        var c = document.createElement("canvas");
-        c.width = 1920;
-        c.height = 1080;
-        var ctx = c.getContext("2d");
-
-        ctx.fillStyle = window.getComputedStyle(scene).backgroundColor;
-        ctx.fillRect(0, 0, 1920, 1080);
-
-        var sr = scene.getBoundingClientRect();
-        var els = scene.querySelectorAll("*");
-        for (var i = 0; i < els.length; i++) {
-          var el = els[i];
-          var cs = window.getComputedStyle(el);
-          if (cs.display === "none" || cs.visibility === "hidden") continue;
-          var r = el.getBoundingClientRect();
-          if (r.width < 1 || r.height < 1) continue;
-          var x = r.left - sr.left,
-            y = r.top - sr.top,
-            w = r.width,
-            h = r.height;
-
-          ctx.save();
-          ctx.globalAlpha = parseFloat(cs.opacity) || 1;
-
-          // <img> elements (with object-fit: cover support)
-          if (el.tagName === "IMG" && el.complete && el.naturalWidth > 0) {
-            try {
-              if (cs.objectFit === "cover") {
-                var iR = el.naturalWidth / el.naturalHeight,
-                  bR = w / h;
-                var sx = 0,
-                  sy = 0,
-                  sw = el.naturalWidth,
-                  sh = el.naturalHeight;
-                if (iR > bR) {
-                  sw = sh * bR;
-                  sx = (el.naturalWidth - sw) / 2;
-                } else {
-                  sh = sw / bR;
-                  sy = (el.naturalHeight - sh) / 2;
-                }
-                ctx.drawImage(el, sx, sy, sw, sh, x, y, w, h);
-              } else {
-                ctx.drawImage(el, x, y, w, h);
-              }
-            } catch (e) {}
-            ctx.restore();
-            continue;
-          }
-
-          // <video> elements (grabs current frame)
-          if (el.tagName === "VIDEO" && el.readyState >= 2) {
-            try {
-              var vR = el.videoWidth / el.videoHeight,
-                bR2 = w / h;
-              var vx = 0,
-                vy = 0,
-                vw = el.videoWidth,
-                vh = el.videoHeight;
-              if (vR > bR2) {
-                vw = vh * bR2;
-                vx = (el.videoWidth - vw) / 2;
-              } else {
-                vh = vw / bR2;
-                vy = (el.videoHeight - vh) / 2;
-              }
-              ctx.drawImage(el, vx, vy, vw, vh, x, y, w, h);
-            } catch (e) {}
-            ctx.restore();
-            continue;
-          }
-
-          // Background color
-          var bg = cs.backgroundColor;
-          if (bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent") {
-            ctx.fillStyle = bg;
-            var br = parseInt(cs.borderRadius) || 0;
-            if (br >= Math.min(w, h) / 2 - 1 && Math.abs(w - h) < 4) {
-              ctx.beginPath();
-              ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) / 2, 0, Math.PI * 2);
-              ctx.fill();
-            } else if (br > 0) {
-              ctx.beginPath();
-              ctx.moveTo(x + br, y);
-              ctx.arcTo(x + w, y, x + w, y + h, br);
-              ctx.arcTo(x + w, y + h, x, y + h, br);
-              ctx.arcTo(x, y + h, x, y, br);
-              ctx.arcTo(x, y, x + w, y, br);
-              ctx.closePath();
-              ctx.fill();
-            } else {
-              ctx.fillRect(x, y, w, h);
-            }
-          }
-
-          // Text (leaf nodes only, with text-shadow)
-          var hasChildEls = el.querySelector("div, span, img, video");
-          var text = "";
-          for (var j = 0; j < el.childNodes.length; j++)
-            if (el.childNodes[j].nodeType === 3) text += el.childNodes[j].textContent;
-          text = text.trim();
-          if (text && !hasChildEls) {
-            ctx.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
-            ctx.fillStyle = cs.color;
-            if (cs.letterSpacing && cs.letterSpacing !== "normal")
-              ctx.letterSpacing = cs.letterSpacing;
-            var shadow = cs.textShadow;
-            if (shadow && shadow !== "none") {
-              var sp = shadow.match(/rgba?\([^)]+\)\s+(-?\d+)px\s+(-?\d+)px\s+(-?\d+)px/);
-              if (sp) {
-                ctx.shadowColor = shadow.match(/rgba?\([^)]+\)/)[0];
-                ctx.shadowOffsetX = parseFloat(sp[1]);
-                ctx.shadowOffsetY = parseFloat(sp[2]);
-                ctx.shadowBlur = parseFloat(sp[3]);
-              }
-            }
-            if (cs.textAlign === "center" || w > 1800) {
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              ctx.fillText(text, x + w / 2, y + h / 2);
-            } else {
-              ctx.textAlign = "left";
-              ctx.textBaseline = "middle";
-              ctx.fillText(text, x, y + h / 2);
-            }
-          }
-          ctx.restore();
-        }
-
-        scene.style.opacity = origOpacity;
-        scene.style.zIndex = origZ;
-
-        var tex = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
-        sceneTextures[sceneId] = tex;
-        resolve();
-      });
-    });
-  });
-}
-
-// Re-capture video scenes every frame (call in updateTrans and during holds)
-function recaptureVideoScene(sceneId) {
-  var video = sceneHasVideo[sceneId];
-  if (!video || video.readyState < 2) return;
-  var scene = document.getElementById(sceneId);
-  var c = document.createElement("canvas");
-  c.width = 1920;
-  c.height = 1080;
-  var ctx = c.getContext("2d");
-  ctx.fillStyle = window.getComputedStyle(scene).backgroundColor;
-  ctx.fillRect(0, 0, 1920, 1080);
-  var sr = scene.getBoundingClientRect();
-  var els = scene.querySelectorAll("*");
-  for (var i = 0; i < els.length; i++) {
-    var el = els[i],
-      cs = window.getComputedStyle(el);
-    if (cs.display === "none") continue;
-    var r = el.getBoundingClientRect();
-    if (r.width < 1) continue;
-    var x = r.left - sr.left,
-      y = r.top - sr.top,
-      w = r.width,
-      h = r.height;
-    ctx.save();
-    ctx.globalAlpha = parseFloat(cs.opacity) || 1;
-    if (el.tagName === "VIDEO" && el.readyState >= 2) {
-      try {
-        var vR = el.videoWidth / el.videoHeight,
-          bR = w / h;
-        var sx = 0,
-          sy = 0,
-          sw = el.videoWidth,
-          sh = el.videoHeight;
-        if (vR > bR) {
-          sw = sh * bR;
-          sx = (el.videoWidth - sw) / 2;
-        } else {
-          sh = sw / bR;
-          sy = (el.videoHeight - sh) / 2;
-        }
-        ctx.drawImage(el, sx, sy, sw, sh, x, y, w, h);
-      } catch (e) {}
-    } else if (el.tagName === "IMG" && el.complete) {
-      try {
-        ctx.drawImage(el, x, y, w, h);
-      } catch (e) {}
-    } else {
-      var bg = cs.backgroundColor;
-      if (bg && bg !== "rgba(0, 0, 0, 0)") {
-        ctx.fillStyle = bg;
-        ctx.fillRect(x, y, w, h);
-      }
-      var txt = "";
-      for (var j = 0; j < el.childNodes.length; j++)
-        if (el.childNodes[j].nodeType === 3) txt += el.childNodes[j].textContent;
-      txt = txt.trim();
-      if (txt && !el.querySelector("div,span,img,video")) {
-        ctx.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
-        ctx.fillStyle = cs.color;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        ctx.fillText(txt, x, y + h / 2);
-      }
-    }
-    ctx.restore();
-  }
-  gl.bindTexture(gl.TEXTURE_2D, sceneTextures[sceneId]);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
-}
 ```
 
 ## Shader Compilation + Shared Constants
@@ -352,7 +100,54 @@ var CP = "vec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d){" + "return a+b*cos(
 
 ## Render + State Machine
 
+DOM scenes play normally with GSAP animations during holds. The canvas is only visible during shader transitions — hidden the rest of the time. Capture uses html2canvas (loaded from CDN alongside GSAP).
+
+Add this script tag alongside GSAP:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+```
+
 ```js
+// Patch createPattern for html2canvas bug with 0-dimension elements
+var _origCP = CanvasRenderingContext2D.prototype.createPattern;
+CanvasRenderingContext2D.prototype.createPattern = function (img, rep) {
+  if (img && (img.width === 0 || img.height === 0)) return null;
+  return _origCP.call(this, img, rep);
+};
+
+function uploadTexture(sceneId, canvas) {
+  if (!sceneTextures[sceneId]) {
+    var tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    sceneTextures[sceneId] = tex;
+  }
+  gl.bindTexture(gl.TEXTURE_2D, sceneTextures[sceneId]);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+}
+
+// BG_COLOR must match your composition's background color (e.g. "#0a0a1a").
+// html2canvas backgroundColor: null means transparent, which renders as black
+// in WebGL textures. Always pass the explicit color.
+var BG_COLOR = "#000"; // ← set to your composition's background
+
+function captureScene(sceneEl) {
+  return html2canvas(sceneEl, {
+    width: 1920,
+    height: 1080,
+    scale: 1,
+    backgroundColor: BG_COLOR,
+    logging: false,
+    ignoreElements: function (el) {
+      return el.tagName === "CANVAS" || el.hasAttribute("data-no-capture");
+    },
+  });
+}
+
 function renderShader(prog, texFrom, texTo, progress) {
   gl.useProgram(prog);
   gl.activeTexture(gl.TEXTURE0);
@@ -370,8 +165,6 @@ function renderShader(prog, texFrom, texTo, progress) {
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
-var progPass = mkProg(H + "void main(){gl_FragColor=texture2D(u_from,v_uv);}");
-
 var trans = {
   active: false,
   prog: null,
@@ -381,83 +174,109 @@ var trans = {
 };
 
 function beginTrans(prog, fromId, toId) {
-  trans.prog = prog;
-  trans.fromId = fromId;
-  trans.toId = toId;
-  trans.progress = 0;
-  trans.active = true;
+  if (!gl) return;
+  var fromScene = document.getElementById(fromId);
+  var toScene = document.getElementById(toId);
+
+  // Capture outgoing scene (DOM stays visible during async capture)
+  captureScene(fromScene)
+    .then(function (fromCanvas) {
+      uploadTexture(fromId, fromCanvas);
+
+      // Show incoming scene BEHIND outgoing (z-index -1) for capture
+      toScene.style.zIndex = "-1";
+      toScene.style.opacity = "1";
+      var contentEl = toScene.querySelector(".scene-content");
+      if (contentEl) contentEl.style.visibility = "hidden";
+
+      // Wait 2 rAFs for browser to render with correct fonts
+      return new Promise(function (resolve) {
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            captureScene(toScene).then(function (toCanvas) {
+              if (contentEl) contentEl.style.visibility = "";
+              toScene.style.opacity = "0";
+              toScene.style.zIndex = "";
+              uploadTexture(toId, toCanvas);
+              resolve();
+            });
+          });
+        });
+      });
+    })
+    .then(function () {
+      // Both textures ready — swap DOM for canvas
+      document.querySelectorAll(".scene").forEach(function (s) {
+        s.style.opacity = "0";
+      });
+      glCanvas.style.display = "block";
+      trans.prog = prog;
+      trans.fromId = fromId;
+      trans.toId = toId;
+      trans.progress = 0;
+      trans.active = true;
+    });
 }
 
 function updateTrans() {
-  if (!trans.active) return;
-  // Re-capture video scenes every frame during transition
-  if (sceneHasVideo[trans.fromId]) recaptureVideoScene(trans.fromId);
-  if (sceneHasVideo[trans.toId]) recaptureVideoScene(trans.toId);
+  if (!trans.active || !gl) return;
   renderShader(trans.prog, sceneTextures[trans.fromId], sceneTextures[trans.toId], trans.progress);
 }
 
 function endTrans(showId) {
   trans.active = false;
-  renderShader(progPass, sceneTextures[showId], sceneTextures[showId], 0);
+  glCanvas.style.display = "none";
+  document.getElementById(showId).style.opacity = "1";
 }
 ```
 
 ## GSAP Timeline Integration
 
+Scene 1 starts visible on the DOM. GSAP animates elements normally. The canvas is hidden until a transition begins. After each transition, the canvas hides and the next scene's DOM takes over.
+
 ```js
-// Wait for media, start videos, capture all scenes, then build timeline
-var sceneIds = ["scene1", "scene2" /* ... */];
-waitForMedia()
-  .then(function () {
-    // Start any background videos (muted)
-    document.querySelectorAll("video").forEach(function (v) {
-      v.play();
-    });
-    return Promise.all(sceneIds.map(captureScene));
-  })
-  .then(function () {
-    glCanvas.style.display = "block";
-    renderShader(progPass, sceneTextures["scene1"], sceneTextures["scene1"], 0);
-    document.querySelectorAll(".scene").forEach(function (s) {
-      s.style.opacity = "0";
-    });
+// Canvas starts hidden — DOM scene 1 is visible
+glCanvas.style.display = "none";
 
-    var tl = gsap.timeline({
-      paused: true,
-      onUpdate: function () {
-        updateTrans();
-      },
-    });
+var tl = gsap.timeline({
+  paused: true,
+  onUpdate: function () {
+    updateTrans();
+  },
+});
 
-    // For each transition:
-    tl.call(
-      function () {
-        beginTrans(myShaderProg, "scene1", "scene2");
-      },
-      null,
-      T,
-    );
-    var tw = { p: 0 };
-    tl.to(
-      tw,
-      {
-        p: 1,
-        duration: DUR,
-        ease: "power2.inOut",
-        onUpdate: function () {
-          trans.progress = tw.p;
-        },
-      },
-      T,
-    );
-    tl.call(
-      function () {
-        endTrans("scene2");
-      },
-      null,
-      T + DUR,
-    );
+// Scene 1 entrance animations go here (normal GSAP on DOM)...
 
-    window.__timelines["main"] = tl;
-  });
+// Transition 1→2:
+tl.call(
+  function () {
+    beginTrans(myShaderProg, "scene1", "scene2");
+  },
+  null,
+  T,
+);
+var tw1 = { p: 0 };
+tl.to(
+  tw1,
+  {
+    p: 1,
+    duration: DUR,
+    ease: "power2.inOut",
+    onUpdate: function () {
+      trans.progress = tw1.p;
+    },
+  },
+  T,
+);
+tl.call(
+  function () {
+    endTrans("scene2");
+  },
+  null,
+  T + DUR,
+);
+
+// Scene 2 entrance animations go here (normal GSAP on DOM)...
+
+window.__timelines["main"] = tl;
 ```

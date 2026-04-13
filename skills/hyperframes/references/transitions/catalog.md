@@ -34,7 +34,7 @@ Read [shader-setup.md](./shader-setup.md) for the full setup code these rules ap
 
 **WebGL setup:** `gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)` — NOT true. Vertex shader flips Y: `v_uv.y = 1.0 - v_uv.y`. `preserveDrawingBuffer: true` required for HyperFrames capture. No `fwidth()` without extension — use constant `0.003`.
 
-**Rendering model:** GL canvas stays visible entire composition — DOM scenes remain `opacity: 0`. Passthrough shader for holds. Scene capture = static snapshots at load; animated GSAP tweens on elements won't appear.
+**Rendering model:** DOM scenes play normally with GSAP animations during holds — canvas is hidden (`display:none`). When a transition starts: capture outgoing scene with full content, capture incoming scene with `.scene-content` hidden (background + decoratives only), show canvas, run shader. When transition ends: hide canvas, show next DOM scene. GSAP entrance animations play on the live DOM. The incoming scene's content is never visible in the shader — it only shows the background layer, preventing un-animated elements from flashing.
 
 **Scene capture:** Canvas `fillText` doesn't match CSS fonts exactly (known, not a bug). No CSS gradients or SVGs. Images and videos ARE supported via `ctx.drawImage()`. Video scenes re-capture every frame during transitions via `recaptureVideoScene()`.
 
@@ -118,7 +118,7 @@ All code examples use `old` for the outgoing scene-inner selector and `new` for 
 | Distortion     | Glitch, chromatic aberration, ripple, VHS tape       | [css-distortion.md](./css-distortion.md)   |
 | Mechanical     | Shutter, clock wipe                                  | [css-mechanical.md](./css-mechanical.md)   |
 | Grid           | Grid dissolve                                        | [css-grid.md](./css-grid.md)               |
-| Other          | Flash cut, gravity drop, morph circle                | [css-other.md](./css-other.md)             |
+| Other          | Gravity drop, morph circle                           | [css-other.md](./css-other.md)             |
 | Blur           | Blur through, directional blur                       | [css-blur.md](./css-blur.md)               |
 | Destruction    | Page burn                                            | [css-destruction.md](./css-destruction.md) |
 
@@ -126,7 +126,7 @@ All code examples use `old` for the outgoing scene-inner selector and `new` for 
 
 WebGL fragment shaders that composite between scene textures per-pixel. Require setup boilerplate.
 
-| What                                                                                                                                                                                                                                            | Reference                                        |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Setup (canvas, capture, WebGL init, render loop, GSAP integration)                                                                                                                                                                              | [shader-setup.md](./shader-setup.md)             |
-| Fragment shaders (14 transitions: domain warp, ridged burn, whip pan, SDF iris, ripple waves, gravitational lens, cinematic zoom, chromatic split, glitch, swirl vortex, thermal distortion, flash through white, cross-warp morph, light leak) | [shader-transitions.md](./shader-transitions.md) |
+| What                                                                                                                                                                                                                       | Reference                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Setup (canvas, capture, WebGL init, render loop, GSAP integration)                                                                                                                                                         | [shader-setup.md](./shader-setup.md)             |
+| Fragment shaders (13 transitions: domain warp, ridged burn, whip pan, SDF iris, ripple waves, gravitational lens, cinematic zoom, chromatic split, glitch, swirl vortex, thermal distortion, cross-warp morph, light leak) | [shader-transitions.md](./shader-transitions.md) |
