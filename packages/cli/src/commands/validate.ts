@@ -16,14 +16,169 @@ interface ConsoleEntry {
   line?: number;
 }
 
+interface ContrastEntry {
+  time: number;
+  selector: string;
+  text: string;
+  ratio: number;
+  wcagAA: boolean;
+  large: boolean;
+  fg: string;
+  bg: string;
+}
+
+// Browser-side WCAG audit code — kept as a raw string so esbuild doesn't
+// transform it (page.evaluate serializes functions and __name helpers break).
+const CONTRAST_AUDIT_SCRIPT = `
+window.__contrastAudit = async function(imgBase64, time) {
+  var relLum = function(r, g, b) {
+    var ch = function(v) { var s = v / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+    return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
+  };
+  var wcagRatio = function(r1,g1,b1,r2,g2,b2) {
+    var l1 = relLum(r1,g1,b1), l2 = relLum(r2,g2,b2);
+    var L1 = l1 > l2 ? l1 : l2, L2 = l1 > l2 ? l2 : l1;
+    return (L1 + 0.05) / (L2 + 0.05);
+  };
+  var parseColor = function(c) {
+    var m = c.match(/rgba?\\(([^)]+)\\)/);
+    if (!m) return [0,0,0,1];
+    var p = m[1].split(",").map(function(s){return parseFloat(s.trim())});
+    return [p[0], p[1], p[2], p[3] != null ? p[3] : 1];
+  };
+  var selectorOf = function(el) {
+    if (el.id) return "#" + el.id;
+    var cls = Array.from(el.classList).slice(0,2).join(".");
+    return cls ? el.tagName.toLowerCase() + "." + cls : el.tagName.toLowerCase();
+  };
+  var median = function(arr) {
+    var s = arr.slice().sort(function(a,b){return a-b});
+    return s[Math.floor(s.length / 2)];
+  };
+  var img = new Image();
+  await new Promise(function(resolve) { img.onload = resolve; img.src = "data:image/png;base64," + imgBase64; });
+  var canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth || 1920;
+  canvas.height = img.naturalHeight || 1080;
+  var ctx = canvas.getContext("2d");
+  if (!ctx) return [];
+  ctx.drawImage(img, 0, 0);
+  var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  var px = imageData.data;
+  var w = canvas.width;
+  var out = [];
+  var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
+  var node;
+  while ((node = walker.nextNode())) {
+    var el = node;
+    var hasText = false;
+    for (var i = 0; i < el.childNodes.length; i++) {
+      if (el.childNodes[i].nodeType === 3 && (el.childNodes[i].textContent || "").trim().length > 0) { hasText = true; break; }
+    }
+    if (!hasText) continue;
+    var cs = getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none") continue;
+    if (parseFloat(cs.opacity) <= 0.01) continue;
+    var rect = el.getBoundingClientRect();
+    if (rect.width < 8 || rect.height < 8) continue;
+    var fg = parseColor(cs.color);
+    if (fg[3] <= 0.01) continue;
+    var rr = [], gg = [], bb = [];
+    var x0 = Math.max(0, Math.floor(rect.x) - 4);
+    var x1 = Math.min(w - 1, Math.ceil(rect.x + rect.width) + 4);
+    var y0 = Math.max(0, Math.floor(rect.y) - 4);
+    var y1 = Math.min(canvas.height - 1, Math.ceil(rect.y + rect.height) + 4);
+    var pushPx = function(px_x, px_y) { var idx = (px_y * w + px_x) * 4; rr.push(px[idx]); gg.push(px[idx+1]); bb.push(px[idx+2]); };
+    for (var x = x0; x <= x1; x++) { pushPx(x, y0); pushPx(x, y1); }
+    for (var y = y0; y <= y1; y++) { pushPx(x0, y); pushPx(x1, y); }
+    var bgR = median(rr), bgG = median(gg), bgB = median(bb);
+    var compR = Math.round(fg[0]*fg[3] + bgR*(1-fg[3]));
+    var compG = Math.round(fg[1]*fg[3] + bgG*(1-fg[3]));
+    var compB = Math.round(fg[2]*fg[3] + bgB*(1-fg[3]));
+    var ratio = +wcagRatio(compR,compG,compB, bgR,bgG,bgB).toFixed(2);
+    var fontSize = parseFloat(cs.fontSize);
+    var fontWeight = Number(cs.fontWeight) || 400;
+    var large = fontSize >= 24 || (fontSize >= 19 && fontWeight >= 700);
+    var aa = large ? ratio >= 3 : ratio >= 4.5;
+    out.push({ time:time, selector:selectorOf(el), text:(el.textContent||"").trim().slice(0,50), ratio:ratio, wcagAA:aa, large:large, fg:"rgb("+compR+","+compG+","+compB+")", bg:"rgb("+bgR+","+bgG+","+bgB+")" });
+  }
+  return out;
+};
+`;
+
+/**
+ * Run WCAG contrast audit on the live page. Takes screenshots at N timestamps,
+ * samples bg pixels via browser canvas (no Node image deps), computes ratios.
+ */
+async function runContrastAudit(
+  page: import("puppeteer-core").Page,
+  samples: number,
+): Promise<ContrastEntry[]> {
+  // Get duration — try runtime first, fall back to data-duration attribute
+  const duration: number = await page.evaluate(() => {
+    if (window.__hf?.duration && window.__hf.duration > 0) return window.__hf.duration;
+    const root = document.querySelector("[data-composition-id][data-duration]");
+    return root ? parseFloat(root.getAttribute("data-duration") ?? "0") : 0;
+  });
+  if (duration <= 0) return [];
+
+  // Inject the audit function into the page (avoids esbuild transform issues)
+  await page.addScriptTag({ content: CONTRAST_AUDIT_SCRIPT });
+
+  const results: ContrastEntry[] = [];
+  const timestamps = Array.from(
+    { length: samples },
+    (_, i) => +(((i + 0.5) / samples) * duration).toFixed(3),
+  );
+
+  for (const t of timestamps) {
+    // Seek
+    await page.evaluate((time: number) => {
+      if (window.__hf && typeof window.__hf.seek === "function") {
+        window.__hf.seek(time);
+        return;
+      }
+      const timelines = (window as Record<string, unknown>).__timelines as
+        | Record<string, { seek: (t: number) => void }>
+        | undefined;
+      if (timelines) {
+        for (const tl of Object.values(timelines)) {
+          if (typeof tl.seek === "function") tl.seek(time);
+        }
+      }
+    }, t);
+    await new Promise((r) => setTimeout(r, 150));
+
+    // Screenshot
+    const screenshot = await page.screenshot({ encoding: "base64", type: "png" });
+
+    // Pass screenshot to browser via a global, call the injected audit function
+    await page.evaluate((b64: string) => {
+      (window as Record<string, unknown>).__screenshotB64 = b64;
+    }, screenshot as string);
+    const entries = await page.evaluate(`
+      (async function() {
+        if (typeof window.__contrastAudit !== 'function') return [];
+        var result = await window.__contrastAudit(window.__screenshotB64, ${t});
+        delete window.__screenshotB64;
+        return result;
+      })()
+    `);
+
+    results.push(...(entries as ContrastEntry[]));
+  }
+
+  return results;
+}
+
 /**
  * Bundle the project HTML with the runtime injected, serve it via a minimal
  * static server, open headless Chrome, and collect console errors.
  */
 async function validateInBrowser(
   projectDir: string,
-  opts: { timeout?: number },
-): Promise<{ errors: ConsoleEntry[]; warnings: ConsoleEntry[] }> {
+  opts: { timeout?: number; contrast?: boolean },
+): Promise<{ errors: ConsoleEntry[]; warnings: ConsoleEntry[]; contrast?: ContrastEntry[] }> {
   const { bundleToSingleHtml } = await import("@hyperframes/core/compiler");
   const { ensureBrowser } = await import("../browser/manager.js");
 
@@ -79,6 +234,7 @@ async function validateInBrowser(
 
   const errors: ConsoleEntry[] = [];
   const warnings: ConsoleEntry[] = [];
+  let contrast: ContrastEntry[] | undefined;
 
   try {
     // 3. Launch headless Chrome
@@ -148,12 +304,17 @@ async function validateInBrowser(
     // Wait for scripts to settle
     await new Promise((r) => setTimeout(r, timeoutMs));
 
+    // 6. Contrast audit (optional)
+    if (opts.contrast) {
+      contrast = await runContrastAudit(page, 5);
+    }
+
     await chromeBrowser.close();
   } finally {
     server.close();
   }
 
-  return { errors, warnings };
+  return { errors, warnings, contrast };
 }
 
 export default defineCommand({
@@ -164,6 +325,7 @@ export default defineCommand({
 Examples:
   hyperframes validate
   hyperframes validate ./my-project
+  hyperframes validate --contrast
   hyperframes validate --json
   hyperframes validate --timeout 5000`,
   },
@@ -178,6 +340,11 @@ Examples:
       description: "Output as JSON",
       default: false,
     },
+    contrast: {
+      type: "boolean",
+      description: "Run WCAG contrast audit on text elements (samples 5 timestamps)",
+      default: false,
+    },
     timeout: {
       type: "string",
       description: "Ms to wait for scripts to settle (default: 3000)",
@@ -188,30 +355,56 @@ Examples:
     const project = resolveProject(args.dir);
     const timeout = parseInt(args.timeout as string, 10) || 3000;
 
+    const useContrast = args.contrast ?? false;
+
     if (!args.json) {
-      console.log(`${c.accent("◆")}  Validating ${c.accent(project.name)} in headless Chrome`);
+      const contrastLabel = useContrast ? " + contrast audit" : "";
+      console.log(
+        `${c.accent("◆")}  Validating ${c.accent(project.name)} in headless Chrome${c.dim(contrastLabel)}`,
+      );
     }
 
     try {
-      const { errors, warnings } = await validateInBrowser(project.dir, { timeout });
+      const { errors, warnings, contrast } = await validateInBrowser(project.dir, {
+        timeout,
+        contrast: useContrast,
+      });
+
+      // Collect contrast failures as errors
+      const contrastFailures = (contrast ?? []).filter((e) => !e.wcagAA);
+      const contrastPassed = (contrast ?? []).filter((e) => e.wcagAA);
+      const allErrors = [...errors];
+      for (const cf of contrastFailures) {
+        allErrors.push({
+          level: "error",
+          text: `WCAG AA contrast fail: ${cf.selector} "${cf.text}" — ${cf.ratio}:1 (need ${cf.large ? "3" : "4.5"}:1) fg=${cf.fg} bg=${cf.bg} at t=${cf.time}s`,
+        });
+      }
 
       if (args.json) {
         console.log(
           JSON.stringify(
             withMeta({
-              ok: errors.length === 0,
-              errors,
+              ok: allErrors.length === 0,
+              errors: allErrors,
               warnings,
+              contrast: contrast ?? undefined,
             }),
             null,
             2,
           ),
         );
-        process.exit(errors.length > 0 ? 1 : 0);
+        process.exit(allErrors.length > 0 ? 1 : 0);
       }
 
-      if (errors.length === 0 && warnings.length === 0) {
-        console.log(`${c.success("◇")}  No console errors`);
+      if (allErrors.length === 0 && warnings.length === 0) {
+        if (useContrast && contrastPassed.length > 0) {
+          console.log(
+            `${c.success("◇")}  No console errors · ${contrastPassed.length} text elements pass WCAG AA`,
+          );
+        } else {
+          console.log(`${c.success("◇")}  No console errors`);
+        }
         return;
       }
 
@@ -220,14 +413,26 @@ Examples:
         const loc = e.line ? ` (line ${e.line})` : "";
         console.log(`  ${c.error("✗")} ${e.text}${c.dim(loc)}`);
       }
+      if (contrastFailures.length > 0) {
+        console.log();
+        console.log(`  ${c.error("✗")} WCAG AA contrast failures:`);
+        for (const cf of contrastFailures) {
+          console.log(
+            `    ${c.error("·")} ${cf.selector} ${c.dim(`"${cf.text}"`)} — ${c.error(cf.ratio + ":1")} ${c.dim(`(need ${cf.large ? "3" : "4.5"}:1, t=${cf.time}s)`)}`,
+          );
+        }
+      }
       for (const w of warnings) {
         const loc = w.line ? ` (line ${w.line})` : "";
         console.log(`  ${c.warn("⚠")} ${w.text}${c.dim(loc)}`);
       }
       console.log();
-      console.log(`${c.accent("◇")}  ${errors.length} error(s), ${warnings.length} warning(s)`);
+      const contrastLabel = useContrast ? `, ${contrastFailures.length} contrast failure(s)` : "";
+      console.log(
+        `${c.accent("◇")}  ${errors.length} error(s), ${warnings.length} warning(s)${contrastLabel}`,
+      );
 
-      process.exit(errors.length > 0 ? 1 : 0);
+      process.exit(allErrors.length > 0 ? 1 : 0);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       if (args.json) {
