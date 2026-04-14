@@ -18,7 +18,6 @@ export function generateAgentPrompt(
   tokens: DesignTokens,
   animations: AnimationCatalog | undefined,
   hasScreenshot: boolean,
-  hasDesignMd: boolean,
   hasLottie?: boolean,
   hasShaders?: boolean,
   catalogedAssets?: CatalogedAsset[],
@@ -28,7 +27,6 @@ export function generateAgentPrompt(
     tokens,
     animations,
     hasScreenshot,
-    hasDesignMd,
     hasLottie,
     hasShaders,
     catalogedAssets,
@@ -42,7 +40,6 @@ function buildPrompt(
   tokens: DesignTokens,
   animations: AnimationCatalog | undefined,
   hasScreenshot: boolean,
-  hasDesignMd: boolean,
   hasLottie?: boolean,
   hasShaders?: boolean,
   catalogedAssets?: CatalogedAsset[],
@@ -88,7 +85,9 @@ ${hasScreenshot ? "| `screenshots/full-page.png` | Full-page screenshot of the w
 ${hasLottie ? "| `extracted/lottie-manifest.json` | Lottie animations found on this site — read this to see what animations are available (name, dimensions, duration). Embed via `lottie.loadAnimation({ path: 'assets/lottie/animation-0.json' })`. Do NOT read the raw JSON files — they are machine data. |" : ""}
 ${videoUrls.length > 0 ? "| `extracted/video-manifest.json` | Video manifest: every `<video>` element with its URL, surrounding heading/caption context, and a preview screenshot. **Read this + view each preview image** to understand what each video shows before using it. |" : ""}
 ${hasShaders ? "| `extracted/shaders.json` | Captured WebGL shader source code (GLSL vertex + fragment shaders) |" : ""}
-${hasDesignMd ? "| `DESIGN.md` | AI-generated design system reference |" : ""}
+| \`extracted/asset-descriptions.md\` | One-line description of every downloaded asset — read this first |
+
+> **DESIGN.md does not exist yet.** It will be created when you run the \`/website-to-hyperframes\` workflow. Do not write compositions without it.
 
 ## Brand Summary
 
