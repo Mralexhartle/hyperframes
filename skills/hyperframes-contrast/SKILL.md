@@ -33,7 +33,7 @@ node skills/hyperframes-contrast/scripts/contrast-report.mjs <composition-dir> \
 The script:
 
 1. Launches the engine's headless browser, serves the composition via the built-in file server, and seeks to each sample timestamp.
-2. At every sample, walks the DOM for elements whose computed style has renderable text (non-empty text node, `opacity > 0`, `visibility !== hidden`, non-zero rect).
+2. At every sample, walks the DOM for elements whose computed style has renderable text (non-empty text node, opacity above 0, visibility not hidden, non-zero rect).
 3. For each text element: resolves the declared foreground color from computed style, samples a 4-pixel ring of background pixels just outside the element bbox (median luminance), computes the WCAG 2.1 contrast ratio.
 4. Writes:
    - `contrast-report.json` — machine-readable list of `{ time, selector, text, fg, bg, ratio, wcagAA, wcagAALarge, wcagAAA }`.
