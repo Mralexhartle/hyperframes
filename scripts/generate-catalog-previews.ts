@@ -146,8 +146,18 @@ function prepareProjectDir(item: CatalogItem): string {
           return false;
         }
       })();
-      if (hasSocialTag && content.includes("background: transparent")) {
-        content = content.replace("background: transparent", "background: #1a1a2e");
+      if (hasSocialTag) {
+        // Dark bg for transparent overlays
+        if (content.includes("background: transparent")) {
+          content = content.replace("background: transparent", "background: #1a1a2e");
+        }
+        // Reposition bottom-anchored overlays to center for preview.
+        // Social overlays use "bottom: Npx" positioning — replace with
+        // "top: 50%; transform: translate(-50%, -50%)" for a centered preview.
+        content = content.replace(
+          /bottom:\s*\d+px;\s*\n(\s*)left:\s*50%;\s*\n(\s*)transform:\s*translateX\(-50%\)/,
+          "top: 50%;\n$1left: 50%;\n$2transform: translate(-50%, -50%)",
+        );
       }
       writeFileSync(join(tmpDir, "index.html"), content, "utf-8");
       return tmpDir;
