@@ -97,12 +97,19 @@ try {
 
   markCollisions(report.tweens);
 
-  // Re-generate summaries for tweens that got collision flags after cross-check
   for (const tw of report.tweens) {
     if (tw.flags.includes("collision") && !tw.summary.includes("collision")) {
       tw.summary += " Overlaps another animated element.";
     }
   }
+
+  // ── Composition-level analysis ──
+  report.choreography = buildTimeline(report.tweens, duration);
+  report.density = computeDensity(report.tweens, duration);
+  report.staggers = detectStaggers(report.tweens);
+  report.elements = buildElementLifecycles(report.tweens);
+  report.deadZones = findDeadZones(report.density, duration);
+  report.snapshots = await captureSnapshots(session, report.tweens, duration);
 
   await writeFile(join(OUT_DIR, "animation-map.json"), JSON.stringify(report, null, 2));
 
@@ -332,22 +339,238 @@ function rectOverlapArea(a, b) {
   return Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
 }
 
+// ─── Composition-level analysis ─────────────────────────────────────────────
+
+function buildTimeline(tweens, duration) {
+  const cols = 60;
+  const lines = [];
+  const secPerCol = duration / cols;
+
+  lines.push("Timeline (" + duration.toFixed(1) + "s, each char ≈ " + secPerCol.toFixed(2) + "s):");
+  lines.push("  " + "0s" + " ".repeat(cols - 8) + duration.toFixed(0) + "s");
+  lines.push("  " + "┼" + "─".repeat(cols - 1) + "┤");
+
+  for (const tw of tweens) {
+    const startCol = Math.floor(tw.start / secPerCol);
+    const endCol = Math.min(cols, Math.ceil(tw.end / secPerCol));
+    const bar =
+      " ".repeat(startCol) +
+      "█".repeat(Math.max(1, endCol - startCol)) +
+      " ".repeat(Math.max(0, cols - endCol));
+    const label = tw.selector + " " + tw.props.join("+");
+    lines.push("  " + bar + "  " + label);
+  }
+
+  return lines.join("\n");
+}
+
+function computeDensity(tweens, duration) {
+  const buckets = [];
+  for (let t = 0; t < duration; t += 0.5) {
+    const active = tweens.filter((tw) => tw.start <= t + 0.5 && tw.end >= t);
+    buckets.push({ t: +t.toFixed(1), activeTweens: active.length });
+  }
+  return buckets;
+}
+
+function findDeadZones(density, duration) {
+  const zones = [];
+  let zoneStart = null;
+  for (const d of density) {
+    if (d.activeTweens === 0) {
+      if (zoneStart === null) zoneStart = d.t;
+    } else {
+      if (zoneStart !== null) {
+        const zoneEnd = d.t;
+        if (zoneEnd - zoneStart >= 1.0) {
+          zones.push({
+            start: zoneStart,
+            end: zoneEnd,
+            duration: +(zoneEnd - zoneStart).toFixed(1),
+            note:
+              "No animation for " +
+              (zoneEnd - zoneStart).toFixed(1) +
+              "s. Intentional hold or missing entrance?",
+          });
+        }
+        zoneStart = null;
+      }
+    }
+  }
+  if (zoneStart !== null && duration - zoneStart >= 1.0) {
+    zones.push({
+      start: zoneStart,
+      end: +duration.toFixed(1),
+      duration: +(duration - zoneStart).toFixed(1),
+      note:
+        "No animation for " +
+        (duration - zoneStart).toFixed(1) +
+        "s at end. Final hold or missing outro?",
+    });
+  }
+  return zones;
+}
+
+function detectStaggers(tweens) {
+  const groups = [];
+  const used = new Set();
+
+  for (let i = 0; i < tweens.length; i++) {
+    if (used.has(i)) continue;
+    const tw = tweens[i];
+    const group = [tw];
+    used.add(i);
+
+    for (let j = i + 1; j < tweens.length; j++) {
+      if (used.has(j)) continue;
+      const other = tweens[j];
+      const sameProps = tw.props.join(",") === other.props.join(",");
+      const sameDuration = Math.abs(tw.duration - other.duration) < 0.05;
+      const closeInTime = other.start - tw.start < tw.duration * 4;
+      if (sameProps && sameDuration && closeInTime) {
+        group.push(other);
+        used.add(j);
+      }
+    }
+
+    if (group.length >= 3) {
+      const intervals = [];
+      for (let k = 1; k < group.length; k++) {
+        intervals.push(+(group[k].start - group[k - 1].start).toFixed(3));
+      }
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const maxDrift = Math.max(...intervals.map((iv) => Math.abs(iv - avgInterval)));
+      const consistent = maxDrift < avgInterval * 0.3;
+
+      groups.push({
+        elements: group.map((g) => g.selector),
+        props: tw.props,
+        count: group.length,
+        intervals,
+        avgInterval: +avgInterval.toFixed(3),
+        consistent,
+        note: consistent
+          ? group.length +
+            " elements stagger at " +
+            (avgInterval * 1000).toFixed(0) +
+            "ms intervals"
+          : group.length +
+            " elements stagger with uneven intervals (" +
+            intervals.map((iv) => (iv * 1000).toFixed(0) + "ms").join(", ") +
+            ")",
+      });
+    }
+  }
+
+  return groups;
+}
+
+function buildElementLifecycles(tweens) {
+  const elements = {};
+  for (const tw of tweens) {
+    const sel = tw.selector;
+    if (!elements[sel]) {
+      elements[sel] = { firstTween: tw.start, lastTween: tw.end, tweenCount: 0, props: new Set() };
+    }
+    elements[sel].firstTween = Math.min(elements[sel].firstTween, tw.start);
+    elements[sel].lastTween = Math.max(elements[sel].lastTween, tw.end);
+    elements[sel].tweenCount++;
+    tw.props.forEach((p) => elements[sel].props.add(p));
+  }
+
+  const result = {};
+  for (const [sel, data] of Object.entries(elements)) {
+    const lastBbox = findLastBbox(tweens, sel);
+    result[sel] = {
+      firstAppears: +data.firstTween.toFixed(3),
+      lastAnimates: +data.lastTween.toFixed(3),
+      tweenCount: data.tweenCount,
+      props: [...data.props],
+      endsVisible: lastBbox ? lastBbox.opacity > 0.1 && lastBbox.visible : null,
+      finalPosition: lastBbox
+        ? { x: lastBbox.x, y: lastBbox.y, w: lastBbox.w, h: lastBbox.h }
+        : null,
+    };
+  }
+  return result;
+}
+
+function findLastBbox(tweens, selector) {
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    if (tweens[i].selector === selector && tweens[i].bboxes?.length > 0) {
+      return tweens[i].bboxes[tweens[i].bboxes.length - 1];
+    }
+  }
+  return null;
+}
+
+async function captureSnapshots(session, tweens, duration) {
+  const times = [0, duration * 0.25, duration * 0.5, duration * 0.75, duration - 0.1];
+  const snapshots = [];
+
+  for (const t of times) {
+    await seekTo(session, t);
+    const visible = await session.page.evaluate(() => {
+      const out = [];
+      const els = document.querySelectorAll("[id]");
+      for (const el of els) {
+        const cs = getComputedStyle(el);
+        if (cs.display === "none") continue;
+        const opacity = parseFloat(cs.opacity);
+        if (opacity < 0.01) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.width < 1 || rect.height < 1) continue;
+        out.push({
+          id: el.id,
+          x: Math.round(rect.x),
+          y: Math.round(rect.y),
+          w: Math.round(rect.width),
+          h: Math.round(rect.height),
+          opacity: +opacity.toFixed(2),
+        });
+      }
+      return out;
+    });
+
+    const activeTweens = tweens
+      .filter((tw) => tw.start <= t && tw.end >= t)
+      .map((tw) => tw.selector);
+
+    snapshots.push({
+      t: +t.toFixed(2),
+      visibleElements: visible.length,
+      animatingNow: activeTweens,
+      elements: visible,
+    });
+  }
+
+  return snapshots;
+}
+
 // ─── Output ─────────────────────────────────────────────────────────────────
 
 function printSummary(report) {
   console.log(
     `\nAnimation map: ${report.mappedTweens}/${report.totalTweens} tweens (skipped ${report.skippedMicroTweens} micro-tweens)`,
   );
+
   const flagCounts = {};
   for (const tw of report.tweens) {
     for (const f of tw.flags) flagCounts[f] = (flagCounts[f] ?? 0) + 1;
   }
-  for (const [f, n] of Object.entries(flagCounts)) {
-    console.log(`  ${f}: ${n}`);
+  if (Object.keys(flagCounts).length > 0) {
+    for (const [f, n] of Object.entries(flagCounts)) console.log(`  ${f}: ${n}`);
   }
-  if (Object.keys(flagCounts).length === 0) {
-    console.log("  no flags raised");
+  if (report.staggers?.length > 0) {
+    console.log(`  staggers: ${report.staggers.map((s) => s.note).join("; ")}`);
   }
+  if (report.deadZones?.length > 0) {
+    console.log(
+      `  dead zones: ${report.deadZones.map((z) => z.start + "-" + z.end + "s").join(", ")}`,
+    );
+  }
+
+  console.log(report.choreography);
 }
 
 function parseArgs(argv) {
