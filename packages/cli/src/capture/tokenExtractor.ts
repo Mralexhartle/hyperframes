@@ -53,7 +53,21 @@ const EXTRACT_SCRIPT = `(() => {
   var colorSet = {};
   function addColor(c) {
     if (!c || c === "rgba(0, 0, 0, 0)" || c === "transparent" || c === "inherit" || c === "initial") return;
-    colorSet[c] = (colorSet[c] || 0) + 1;
+    var hex = rgbToHex(c);
+    if (hex) colorSet[hex] = (colorSet[hex] || 0) + 1;
+  }
+  function rgbToHex(color) {
+    if (!color) return null;
+    if (color.startsWith('#')) return color.length === 4
+      ? '#' + color[1]+color[1] + color[2]+color[2] + color[3]+color[3]
+      : color;
+    var m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (!m) {
+      var cm = color.match(/color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+      if (!cm) return color;
+      m = [null, Math.round(parseFloat(cm[1])*255), Math.round(parseFloat(cm[2])*255), Math.round(parseFloat(cm[3])*255)];
+    }
+    return '#' + ((1<<24) + (parseInt(m[1])<<16) + (parseInt(m[2])<<8) + parseInt(m[3])).toString(16).slice(1).toUpperCase();
   }
   // Sample all sections, headings, buttons, links, and elements with explicit backgrounds
   var colorCandidates = Array.from(document.querySelectorAll(
@@ -85,7 +99,7 @@ const EXTRACT_SCRIPT = `(() => {
   var headingEls = Array.from(document.querySelectorAll("h1, h2, h3, h4")).slice(0, 20);
   var headings = headingEls.filter(isVisible).map(function(h) {
     var s = getComputedStyle(h);
-    return { level: parseInt(h.tagName[1]), text: (h.textContent || "").trim().slice(0, 200), fontSize: s.fontSize, fontWeight: s.fontWeight, color: s.color };
+    return { level: parseInt(h.tagName[1]), text: (h.textContent || "").trim().slice(0, 200), fontSize: s.fontSize, fontWeight: s.fontWeight, color: rgbToHex(s.color) || s.color };
   });
 
   // 6. Paragraphs
@@ -141,7 +155,8 @@ const EXTRACT_SCRIPT = `(() => {
     else if (classes.indexOf("feature") !== -1 || classes.indexOf("section") !== -1) type = "features";
     var selector = el.id ? "#" + el.id : el.tagName.toLowerCase();
     var sectionBg = getComputedStyle(el).backgroundColor;
-    if (!sectionBg || sectionBg === "rgba(0, 0, 0, 0)" || sectionBg === "transparent") sectionBg = "#ffffff";
+    if (!sectionBg || sectionBg === "rgba(0, 0, 0, 0)" || sectionBg === "transparent") sectionBg = "#FFFFFF";
+    else sectionBg = rgbToHex(sectionBg) || sectionBg;
     seen[si] = true;
     sectionResults.push({ selector: selector, type: type, y: Math.round(y), height: Math.round(rect.height), heading: headingText, backgroundColor: sectionBg });
   }
