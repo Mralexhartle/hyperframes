@@ -61,15 +61,15 @@ const EXTRACT_SCRIPT = `(() => {
     if (color.startsWith('#')) return color.length === 4
       ? '#' + color[1]+color[1] + color[2]+color[2] + color[3]+color[3]
       : color;
-    var m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    var m = color.match(/rgba?\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)/);
     if (!m) {
       // Handle color(srgb ...) format
-      var cm = color.match(/color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
+      var cm = color.match(/color\\(srgb\\s+([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)/);
       if (cm) {
         m = [null, Math.round(parseFloat(cm[1])*255), Math.round(parseFloat(cm[2])*255), Math.round(parseFloat(cm[3])*255)];
       } else {
         // Handle hsl()/hsla() by resolving through a temp element
-        var hm = color.match(/hsla?\(/);
+        var hm = color.match(/hsla?\\(/);
         if (hm) {
           var tmp = document.createElement('div');
           tmp.style.color = color;
