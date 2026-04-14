@@ -257,6 +257,8 @@ When no `visual-style.md` or animation direction is provided, follow [house-styl
 ## Output Checklist
 
 - [ ] `npx hyperframes lint` and `npx hyperframes validate` both pass
+- [ ] Contrast audit: `hyperframes validate` runs WCAG contrast checks by default. If warnings appear, fix the failing colors (brighten on dark bg, darken on light bg) until all text passes 4.5:1 for normal text, 3:1 for large text.
+- [ ] Animation map: run `node skills/hyperframes-animation-map/scripts/animation-map.mjs <dir>` after authoring animations. Read the JSON summaries and choreography timeline. Fix flagged issues: offscreen elements, invisible tweens, sluggish staggers, dead zones where motion should exist. Re-run after fixes.
 
 ---
 
