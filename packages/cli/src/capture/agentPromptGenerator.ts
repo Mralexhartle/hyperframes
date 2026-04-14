@@ -10,6 +10,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DesignTokens } from "./types.js";
 import type { AnimationCatalog } from "./animationCataloger.js";
+import type { CatalogedAsset } from "./assetCataloger.js";
 
 export function generateAgentPrompt(
   outputDir: string,
@@ -20,6 +21,7 @@ export function generateAgentPrompt(
   hasDesignMd: boolean,
   hasLottie?: boolean,
   hasShaders?: boolean,
+  catalogedAssets?: CatalogedAsset[],
 ): void {
   const prompt = buildPrompt(
     url,
@@ -29,6 +31,7 @@ export function generateAgentPrompt(
     hasDesignMd,
     hasLottie,
     hasShaders,
+    catalogedAssets,
   );
   writeFileSync(join(outputDir, "CLAUDE.md"), prompt, "utf-8");
   writeFileSync(join(outputDir, ".cursorrules"), prompt, "utf-8");
@@ -42,6 +45,7 @@ function buildPrompt(
   hasDesignMd: boolean,
   hasLottie?: boolean,
   hasShaders?: boolean,
+  catalogedAssets?: CatalogedAsset[],
 ): string {
   const hostname = new URL(url).hostname.replace(/^www\./, "");
   const title = tokens.title || hostname;
@@ -52,6 +56,13 @@ function buildPrompt(
   const sectionCount = tokens.sections?.length ?? 0;
   const headingCount = tokens.headings?.length ?? 0;
   const ctaCount = tokens.ctas?.length ?? 0;
+
+  const videoUrls = catalogedAssets
+    ? catalogedAssets
+        .filter((a) => a.type === "Video" && a.url.startsWith("http"))
+        .map((a) => a.url)
+        .filter((u, i, arr) => arr.indexOf(u) === i) // deduplicate
+    : [];
 
   return `# ${title} — Captured Website
 
@@ -73,8 +84,9 @@ ${hasScreenshot ? "| `screenshots/full-page.png` | Full-page screenshot of the w
 | \`extracted/assets-catalog.json\` | Every asset URL (images, fonts, videos, icons) with HTML context |
 | \`extracted/animations.json\` | Animation catalog: ${animations?.summary?.webAnimations ?? 0} web animations, ${animations?.summary?.scrollTargets ?? 0} scroll triggers, ${animations?.summary?.canvases ?? 0} canvases |
 | \`assets/svgs/\` | Extracted inline SVGs (logos, icons, illustrations) |
-| \`assets/\` | Downloaded images and font files |
+| \`assets/\` | Downloaded images and font files — **Read every image file to see what it contains** |
 ${hasLottie ? "| `extracted/lottie-manifest.json` | Lottie animations found on this site — read this to see what animations are available (name, dimensions, duration). Embed via `lottie.loadAnimation({ path: 'assets/lottie/animation-0.json' })`. Do NOT read the raw JSON files — they are machine data. |" : ""}
+${videoUrls.length > 0 ? "| `extracted/video-manifest.json` | Video manifest: every `<video>` element with its URL, surrounding heading/caption context, and a preview screenshot. **Read this + view each preview image** to understand what each video shows before using it. |" : ""}
 ${hasShaders ? "| `extracted/shaders.json` | Captured WebGL shader source code (GLSL vertex + fragment shaders) |" : ""}
 ${hasDesignMd ? "| `DESIGN.md` | AI-generated design system reference |" : ""}
 

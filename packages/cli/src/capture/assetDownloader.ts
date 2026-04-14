@@ -63,20 +63,21 @@ export async function downloadAssets(
   if (catalogedAssets && catalogedAssets.length > 0) {
     // Use catalog — already deduplicated with highest-res srcset variants
     for (const a of catalogedAssets) {
-      if (a.type !== "Image") continue;
+      if (a.type !== "Image" && a.type !== "Background") continue;
       if (!a.url.startsWith("http")) continue;
       // Skip junk
       if (a.url.includes("pixel") || a.url.includes("beacon") || a.url.includes("analytics"))
         continue;
       if (a.url.includes("/favicon")) continue;
-      // Only download images from meaningful contexts
+      // Download images from standard img/video contexts + CSS backgrounds (for hero sections, feature illustrations)
       const hasGoodContext = a.contexts.some(
         (c) =>
           c === "img[src]" ||
           c === "img[srcset]" ||
           c === "video[poster]" ||
           c === "source[srcset]" ||
-          c === "data-src",
+          c === "data-src" ||
+          c === "css url()",
       );
       if (!hasGoodContext) continue;
       const isPoster = a.contexts.includes("video[poster]");
@@ -91,11 +92,11 @@ export async function downloadAssets(
     }
   }
 
-  // Download up to 25 images in parallel batches, skipping duplicates and tiny files
-  // Pre-filter to deduplicate and cap before downloading
+  // Download all images (no arbitrary cap) — Claude Code needs to see every asset to use them creatively.
+  // The 10KB minimum size filter handles tracking pixels and tiny icons.
+  // Pre-filter to deduplicate before downloading.
   const toDownload: { url: string; isPoster: boolean; normalized: string }[] = [];
   for (const { url, isPoster } of imageUrls) {
-    if (toDownload.length >= 25) break;
     const normalized = normalizeUrl(url);
     if (downloadedUrls.has(normalized)) continue;
     downloadedUrls.add(normalized); // Reserve to prevent duplicates in parallel batches
@@ -228,6 +229,11 @@ async function fetchBuffer(url: string): Promise<Buffer | null> {
       headers: { "User-Agent": "HyperFrames/1.0" },
     });
     if (!res.ok) return null;
+    // Reject XML/HTML error pages disguised as 200 OK (common with S3/CloudFront)
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("text/xml") || ct.includes("text/html") || ct.includes("application/xml")) {
+      return null;
+    }
     const ab = await res.arrayBuffer();
     return Buffer.from(ab);
   } catch {

@@ -91,6 +91,85 @@ tl.to("#scene-bg", { opacity: 0, duration: 0.3, ease: "power2.in" }, dur - 0.3);
 
 Root `body { background: #000 }` ensures the gap between scenes is black.
 
+## Scene Composition: 5-Layer System
+
+Every scene should be composed in layers. This is the difference between a flat slide and a cinematic frame:
+
+| Layer | Purpose | Examples |
+|-------|---------|---------|
+| **L1 Background** | Sets the visual world | Solid color, gradient, texture, slow-moving particles, CSS noise |
+| **L2 Hero** | The dominant visual — fills 50-70% of frame | Large headline, key stat, hero image with Ken Burns, Lottie animation |
+| **L3 Supporting** | Context and depth | Secondary text, smaller stats, caption, sub-headline |
+| **L4 Info bar** | Label, source, or accent | Bottom-third text, ticker, brand logo placement, category tag |
+| **L5 Effects** | Energy and texture | Grain overlay, glitch artifact, scan lines, gradient sweep, light leak |
+
+**Every B-roll scene: aim for 4+ layers.** Every element in every layer must move.
+
+```html
+<!-- Example: 5-layer stat reveal scene -->
+<!-- L1: Background with subtle grain -->
+<div id="bg" style="position:absolute;width:100%;height:100%;background:#0a0a0a;">
+  <canvas id="grain" style="position:absolute;width:100%;height:100%;opacity:0.04;"></canvas>
+</div>
+
+<!-- L2: Hero stat (massive) -->
+<div id="hero-stat" style="position:absolute;top:280px;left:50%;transform:translateX(-50%);
+  font-size:200px;font-weight:900;color:#fff;opacity:0;">$1.9T</div>
+
+<!-- L3: Supporting label -->
+<div id="label" style="position:absolute;top:520px;left:50%;transform:translateX(-50%);
+  font-size:28px;color:#aaa;opacity:0;letter-spacing:0.2em;text-transform:uppercase;">
+  global transactions in 2024
+</div>
+
+<!-- L4: Brand strip -->
+<div id="brand" style="position:absolute;bottom:120px;left:80px;opacity:0;">
+  <img src="../assets/svgs/logo.svg" style="height:32px;" />
+</div>
+
+<!-- L5: Gradient sweep effect -->
+<div id="sweep" style="position:absolute;top:0;left:-100%;width:40%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.03),transparent);"></div>
+```
+
+```javascript
+var tl = gsap.timeline({ paused: true });
+
+// L1: Background is immediately visible
+gsap.set("#bg", { opacity: 1 });
+
+// Grain (L5): generate deterministic noise
+(function() {
+  var canvas = document.getElementById("grain");
+  var ctx = canvas.getContext("2d");
+  canvas.width = 1920; canvas.height = 1080;
+  // Seeded PRNG for deterministic noise (same frame = same grain pattern)
+  var seed = 42;
+  function rand() { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return (seed >>> 0) / 0xffffffff; }
+  var img = ctx.createImageData(1920, 1080);
+  for (var i = 0; i < img.data.length; i += 4) {
+    var v = Math.floor(rand() * 255);
+    img.data[i] = img.data[i+1] = img.data[i+2] = v; img.data[i+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+})();
+
+// L5 sweep: continuous slow pan across the frame
+tl.to("#sweep", { left: "110%", duration: 3, ease: "none" }, 0);
+
+// L2: Hero stat slams in
+tl.fromTo("#hero-stat", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.5, ease: "expo.out" }, 0.2);
+
+// L3: Label fades + slides up
+tl.fromTo("#label", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 0.5);
+
+// L4: Brand mark fades in
+tl.fromTo("#brand", { opacity: 0 }, { opacity: 0.7, duration: 0.4 }, 0.7);
+
+// L2: Mid-scene — stat breathes
+tl.to("#hero-stat", { scale: 1.02, duration: 4, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0.7);
+```
+
 ## Caption Safe Zone
 
 **Bottom 120px is reserved for captions.** No scene content below y=960px. The captions sub-composition sits on track 2 as a full-duration overlay occupying this space.

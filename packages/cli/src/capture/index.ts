@@ -470,6 +470,148 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
       warnings.push(`Asset cataloging failed: ${err}`);
     }
 
+    // Generate video manifest — screenshot each <video> element + extract surrounding context
+    // so Claude Code can SEE what each video shows and WHERE it was used on the page.
+    try {
+      const videoElements = await page1.evaluate(`(() => {
+        var videos = Array.from(document.querySelectorAll('video'));
+        return videos.map(function(v) {
+          var src = v.src || v.currentSrc || (v.querySelector('source') ? v.querySelector('source').src : '');
+          if (!src || !src.startsWith('http')) return null;
+
+          // Get bounding box for screenshot
+          var rect = v.getBoundingClientRect();
+          if (rect.width < 10 || rect.height < 10) return null;
+
+          // Nearest heading above the video
+          var heading = '';
+          var el = v;
+          for (var i = 0; i < 8; i++) {
+            el = el.parentElement;
+            if (!el) break;
+            var h = el.querySelector('h1,h2,h3,h4');
+            if (h) { heading = h.textContent.trim().slice(0, 100); break; }
+          }
+
+          // Nearest paragraph/caption text
+          var caption = '';
+          el = v;
+          for (var j = 0; j < 5; j++) {
+            el = el.parentElement;
+            if (!el) break;
+            var p = el.querySelector('p,figcaption,[class*="caption"],[class*="desc"]');
+            if (p) { caption = p.textContent.trim().slice(0, 200); break; }
+          }
+
+          // aria-label on video or wrapper
+          var ariaLabel = v.getAttribute('aria-label') || v.getAttribute('title') || '';
+          var wrapper = v.parentElement;
+          if (!ariaLabel && wrapper) ariaLabel = wrapper.getAttribute('aria-label') || '';
+
+          return {
+            src: src,
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+            top: Math.round(rect.top + window.scrollY),
+            left: Math.round(rect.left),
+            heading: heading,
+            caption: caption,
+            ariaLabel: ariaLabel,
+            filename: src.split('/').pop().split('?')[0],
+          };
+        }).filter(Boolean);
+      })`) as Array<{
+        src: string;
+        width: number;
+        height: number;
+        top: number;
+        left: number;
+        heading: string;
+        caption: string;
+        ariaLabel: string;
+        filename: string;
+      }>;
+
+      // Deduplicate by src
+      const seenSrcs = new Set<string>();
+      const uniqueVideos = videoElements.filter((v) => {
+        if (seenSrcs.has(v.src)) return false;
+        seenSrcs.add(v.src);
+        return true;
+      });
+
+      if (uniqueVideos.length > 0) {
+        const videoManifestDir = join(outputDir, "assets", "videos");
+        mkdirSync(videoManifestDir, { recursive: true });
+        const previewDir = join(videoManifestDir, "previews");
+        mkdirSync(previewDir, { recursive: true });
+
+        const videoManifest: Array<{
+          index: number;
+          url: string;
+          filename: string;
+          width: number;
+          height: number;
+          heading: string;
+          caption: string;
+          ariaLabel: string;
+          preview: string;
+        }> = [];
+
+        for (let vi = 0; vi < uniqueVideos.length && vi < 20; vi++) {
+          const v = uniqueVideos[vi]!;
+          const previewName = `video-${vi}-preview.png`;
+          const previewPath = join(previewDir, previewName);
+
+          // Screenshot the video element to get a visible frame
+          try {
+            await page1.evaluate(`(() => {
+              var vids = Array.from(document.querySelectorAll('video'));
+              vids.forEach(function(v) {
+                if ((v.src || v.currentSrc).includes(${JSON.stringify(v.filename)})) {
+                  try { v.play(); v.pause(); } catch(e) {}
+                }
+              });
+            })()`);
+            await page1.screenshot({
+              path: previewPath,
+              clip: {
+                x: Math.max(0, v.left),
+                y: Math.max(0, v.top),
+                width: Math.min(v.width, 1920),
+                height: Math.min(v.height, 1080),
+              },
+            });
+          } catch {
+            /* preview failed — non-critical */
+          }
+
+          videoManifest.push({
+            index: vi,
+            url: v.src,
+            filename: v.filename,
+            width: v.width,
+            height: v.height,
+            heading: v.heading,
+            caption: v.caption,
+            ariaLabel: v.ariaLabel,
+            preview: `assets/videos/previews/${previewName}`,
+          });
+        }
+
+        if (videoManifest.length > 0) {
+          writeFileSync(
+            join(outputDir, "extracted", "video-manifest.json"),
+            JSON.stringify(videoManifest, null, 2),
+            "utf-8",
+          );
+          progress("design", `${videoManifest.length} video previews captured`);
+        }
+      }
+    } catch {
+      /* non-blocking — video manifest is best-effort */
+    }
+
     // Detect JS libraries via globals, DOM fingerprints, and script URLs
     let detectedLibraries: string[] = [];
     try {
@@ -813,6 +955,7 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
         !!hasAiKey,
         discoveredLotties.length > 0,
         existsSync(join(outputDir, "extracted", "shaders.json")),
+        catalogedAssets,
       );
       progress("agent", "CLAUDE.md generated");
     } catch (err) {

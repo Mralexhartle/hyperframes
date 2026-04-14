@@ -24,13 +24,13 @@ The workflow: **Capture → Understand!!!! → Create**. That's it.
 ### Step 1: Capture the website
 
 ```bash
-npx hyperframes capture <URL> -o <project-name>
+npx hyperframes capture <URL> -o captures/<project-name>
 ```
 
 If the built CLI isn't available, fall back to:
 
 ```bash
-npx tsx packages/cli/src/cli.ts capture <URL> -o <project-name>
+npx tsx packages/cli/src/cli.ts capture <URL> -o captures/<project-name>
 ```
 
 Optional flags:
@@ -46,13 +46,14 @@ You MUST read every single file before writing any code. Do not skip any.
 
 1. **Read and VIEW (actually view and see what is this website's mood, vibe?)** `screenshots/full-page.png` — study every section, component, color, font, layout
 2. **Read and ANALYZE** `extracted/tokens.json` — exact hex colors, font families, font weights, headings, CTAs, sections, CSS variables
-3. **Read and START BUILDING A WEBSITE OVERVIEW in your mind** `extracted/visible-text.txt` — exact text content from every section of the page
-4. **Read and VIEW (actually view and see how and what is it)** `extracted/assets-catalog.json` — every image, video, font, icon URL with HTML context
-5. **Browse and VIEW (actually view and see how and what is it)** `assets/svgs/` — open each SVG to identify what it is (company logos, icons, illustrations)
-6. **Browse and VIEW (actually view and see how and what is it)** `assets/` — check downloaded images and font files
-7. **Read and ANALYZE** `extracted/animations.json` — what animations the site uses (named animations, scroll triggers, canvas count)
-8. **If exists, read** `extracted/lottie-manifest.json` — Lottie animations found on the site. **VIEW each preview image** at `assets/lottie/previews/` to actually SEE what the animation looks like (the names are often useless). Do NOT read the raw JSON files — they are machine data. Just reference them by path when embedding.
-9. **If exists, read** `extracted/shaders.json` — WebGL shader source code captured from the site
+3. **Read for CONTEXT** `extracted/visible-text.txt` — exact text from every section of the page
+4. **Read and Understand (You need to know what's available)** `extracted/assets-catalog.json` — all images, videos, fonts, icon URLs with HTML context 
+5. **Browse and VIEW (actually view and see how and what is it)** `assets/svgs/` — open and view every single thing, not 2-5, but EVERY SINGLE thing!!!!!!
+6. **Browse and VIEW every image in `assets/`** — use Read on each .jpg, .png, .webp, .gif file to actually see what it shows. Do not skip any. You need to know what every downloaded asset actually looks like before you can use it creatively.
+7. **Read and ANALYZE** `extracted/animations.json` — what animations the site uses (named animations, scroll triggers, canvas count and etc.)
+8. **Check if exists, read** `extracted/lottie-manifest.json` — Lottie animations found on the site. **VIEW each preview image** at `assets/lottie/previews/` to actually SEE what the animation looks like (the names are often useless). Do NOT read the raw JSON files — they are machine data. Just reference them by path when embedding.
+9. **Check if exists, read** `extracted/video-manifest.json` — every `<video>` on the site with its URL, section heading, caption text, and a preview screenshot. **VIEW each preview** at `assets/videos/previews/` to see what each video shows. Videos work as remote URLs in compositions — download with `curl -o assets/video-name.mp4 "<url>"` before rendering.
+10. **Check if exists, read** `extracted/shaders.json` — WebGL shader source code captured from the site
 
 **Confirm:** Print the site title, top colors, fonts, number of sections, number of assets.
 
@@ -61,11 +62,14 @@ You MUST read every single file before writing any code. Do not skip any.
 Write a `DESIGN.md` file with these sections:
 
 - **## Overview** — 3-4 sentences: visual identity of the website, design philosophy, vibe, overall feel
+- **## Style Prompt** — A single self-contained paragraph (3-5 sentences) that fully captures the visual identity. An AI should be able to read ONLY this paragraph and generate consistent on-brand visuals. Include exact hex colors, font names, motion feel, and what to avoid. This is the most important section.
 - **## Colors** — Brand & neutral colors with exact HEX values from tokens.json. Semantic palette.
 - **## Typography** — Every font family with weights and design roles. Sizing hierarchy.
 - **## Elevation** — Depth strategy (borders vs shadows vs glassmorphism).
 - **## Components** — Name every UI component you see in the screenshot with styling details.
+- **## Motion** — How the site moves: animation style (subtle/energetic/mechanical), typical easing, scroll behavior, any signature motion patterns.
 - **## Do's and Don'ts** — Design rules from what the site does and doesn't do.
+- **## What NOT to Do** — An explicit list of anti-patterns for this brand (e.g., "No gradients — this brand is flat", "Never use rounded corners", "No sans-serif for headings"). These are the `mood.avoid` constraints — what would look immediately off-brand.
 - **## Assets** — Map every file in assets/ and URL in assets-catalog.json to WHERE it appears and WHAT it shows.
 
 Rules (IMPORTANT):
@@ -160,14 +164,55 @@ Don't think about code yet. Think about storytelling, pacing, and emotion.
 - Invoke `/hyperframes-compose` and read `references/transitions/catalog.md` — all available transitions with mood mapping
 - Read `references/transitions/shader-transitions.md` — the 14 shader effects (domain warp, ridged burn, gravitational lens, etc.)
 - Read `house-style.md` Anti-Defaults table — things the LLM defaults to that look generic. Do the OPPOSITE.
+- Read [visual-styles.md](./references/visual-styles.md) — 8 named visual styles (Swiss Pulse, Velvet Standard, Deconstructed, Maximalist Type, Data Drift, Soft Signal, Folk Frequency, Shadow Cut) with designer references, palettes, and motion rules. Pick ONE as your style anchor.
 
-#### Choose your transitions
+#### Choose your transitions FIRST — before writing anything else
 
-Every scene change is an opportunity for visual storytelling. Don't default to fade-to-black.
+**Right now, before writing the narration or scene plan, state your transition choice:**
 
-**Pick ONE primary transition for your video** (used 60-70% of scene changes) and ONE accent (for the most dramatic moment). Add your transition choices to the scene plan table.
+> "I will use **[shader name]** as the primary transition for this video because [reason]."
 
-Shader transitions are HyperFrames' biggest visual differentiator — per-pixel compositing effects that CSS literally cannot do. Use them by default.
+Shader transitions are HyperFrames' biggest visual differentiator — per-pixel compositing effects that CSS literally **cannot replicate**. The 14 available shaders (domain warp, ridged burn, gravitational lens, swirl vortex, glitch, cross-warp morph, etc.) are in `references/transitions/shader-transitions.md`.
+
+Use this table to match the right shader to your video's energy:
+
+| Energy | Primary shader | Why it works |
+|--------|---------------|-------------|
+| Calm / luxury / wellness | Cross-Warp Morph | Organic and flowing — scenes melt into each other |
+| Corporate / SaaS / explainer | Cinematic Zoom or SDF Iris | Professional momentum without being boring |
+| High energy / launch / promo | Ridged Burn or Glitch | Dramatic — stops the scroll, feels technically impossible |
+| Cinematic / dramatic / story | Gravitational Lens or Domain Warp | Otherworldly — viewers rewatch to understand what happened |
+| Playful / fun / social | Swirl Vortex or Ripple Waves | Hypnotic and delightful |
+
+**Default: use a shader transition.** The only valid reasons to use CSS instead:
+- The video is under 10 seconds total
+- The creative brief explicitly requires "minimal" or "clean cuts"
+
+If you default to fade-to-black, CSS wipe, or any non-shader transition without a stated reason from the above list, you have made the wrong choice. Hard cuts are also valid as an **accent** (1-2 scenes max), not as the primary.
+
+#### Red Flags — STOP if you think any of these
+
+| Thought | Reality |
+|---------|---------|
+| "CSS fades are simpler" | Shader transitions ARE the default. CSS is the fallback for <10s videos only. |
+| "I'll add shader transitions later" | Later never comes. Wire them when you write the first scene. |
+| "Separate composition files are cleaner than inline" | Shaders need the root `index.html` to have WebGL. Plan the architecture for this. |
+| "The video is short, shaders are overkill" | Under 10 seconds is the ONLY valid exception. State the exact duration. |
+| "I committed to a shader in Step 4 but now it seems complex" | The boilerplate is copy-paste from `shader-setup.md`. Read it — it's not complex. |
+| "I'll use a simple fade and the video will still look good" | Fade-to-black between every scene = slideshow. Shaders = video. This is the difference. |
+| "I'll put the shader transition in a sub-composition file" | Shaders composite between scene textures at the WebGL level. They MUST go in root `index.html`. |
+
+#### Motion Vocabulary
+
+Use specific action verbs when describing what you want to build. These are the words to think in — not "it animates in" but which specific motion:
+
+| Energy | Verbs | Example |
+|--------|-------|---------|
+| **High impact** | SLAMS, CRASHES, PUNCHES, STAMPS, SHATTERS | `"$1.9T" SLAMS in from left at -5°` |
+| **Medium energy** | CASCADE, SLIDES, DROPS, FILLS, DRAWS | `Three cards CASCADE in staggered 0.3s` |
+| **Low energy** | types on, FLOATS, morphs, COUNTS UP, fades in | `Counter COUNTS UP from 0 to 135K` |
+
+Every element MUST have at least one of these during its hold phase — not just entrance and exit.
 
 #### Write the narration script FIRST
 
@@ -224,6 +269,17 @@ Before writing a single line of HTML, produce the voiceover and get word-level t
 4. **Map timestamps to scenes** — each scene's `data-duration` now comes from the narration, not from guessing.
 
 #### Then: build the compositions
+
+<HARD-GATE>
+Before writing `index.html`, verify ALL of these:
+1. You stated a specific shader transition by name in Step 4 (e.g., "Cross-Warp Morph", "Gravitational Lens")
+2. You read `references/transitions/shader-setup.md` — the complete WebGL boilerplate
+3. You read the specific fragment shader code from `references/transitions/shader-transitions.md`
+
+If your `index.html` does NOT contain `gl.createShader` and `beginTrans`, you have not wired shader transitions. Go back and read `shader-setup.md` — the boilerplate is copy-paste.
+
+The ONLY exceptions: video is under 10 seconds, OR the user explicitly said "no shaders" or "simple cuts."
+</HARD-GATE>
 
 Now invoke `/hyperframes-compose`. Read the entire skill — every rule, every pattern, every anti-pattern, examples, guides - everything. This is your technical bible. Also read:
 
@@ -328,7 +384,18 @@ Key points:
 
 **Confirm:** Print what was built (Scene | File | Duration | Elements | Animations).
 
-### Step 6 (IMPORTANT ALWAYS): Lint, validate, preview
+### Step 6 (IMPORTANT ALWAYS): Self-verify, lint, validate, preview
+
+**Before running lint/validate, self-verify your shader implementation:**
+
+If the video is over 10 seconds and you committed to a shader in Step 4:
+- [ ] `index.html` contains `<canvas id="gl-canvas">`
+- [ ] `index.html` contains `gl.createShader` or `compileShader`
+- [ ] `index.html` contains `beginTrans` and `endTrans` function calls
+- [ ] Scene compositions do NOT individually fade to/from black (shaders handle transitions)
+- [ ] There is a CSS fallback `else` block in case WebGL is unavailable
+
+If any checkbox fails, go back to Step 5 and wire the shader. Do NOT proceed with a video that uses CSS fades when shaders were planned.
 
 ```bash
 npx hyperframes lint
@@ -361,6 +428,13 @@ Don't just pick timing — pick a VISUAL IDENTITY for the video:
 | **Technical** (dev tools, APIs, SaaS) | Precise, geometric, grid-aware           | Cinematic Zoom, SDF Iris (shader)             | `power3.out`, `circ.out`       | Like a HUD system booting up            |
 | **Chaotic** (social, memes, viral)    | Unexpected motion, broken rules          | Glitch, Whip Pan (shader)                     | `elastic.out(1.5)`, `steps(4)` | Like TikTok creators with After Effects |
 
+**The opening 2 seconds define everything.** If you start with a logo fading in on a solid background, you've already lost. Start with:
+
+- A number that shocks ("$1.9 TRILLION in transactions")
+- A visual that moves immediately (image zooming, particles, gradient shifting)
+- A question that provokes ("What if your database could think?")
+- An asset from the website doing something unexpected (logo exploding into pieces, hero image warping, headline text shattering)
+
 ### Format
 
 - **Landscape**: 1920×1080 (default)
@@ -371,6 +445,8 @@ Don't just pick timing — pick a VISUAL IDENTITY for the video:
 
 | File                                                            | When to read                                               |
 | --------------------------------------------------------------- | ---------------------------------------------------------- |
+| [visual-styles.md](./references/visual-styles.md)               | Step 4 — 8 named visual styles with palettes, motion rules, and shader pairings |
 | [animation-recreation.md](./references/animation-recreation.md) | Step 5 — converting source animations to GSAP              |
-| [video-recipes.md](./references/video-recipes.md)               | Step 5 — scene patterns, mid-scene activity, templates     |
+| [video-recipes.md](./references/video-recipes.md)               | Step 5 — scene patterns, 5-layer system, mid-scene activity |
 | [tts-integration.md](./references/tts-integration.md)           | Step 5 — voice selection, TTS generation, audition process |
+| [asset-sourcing.md](./references/asset-sourcing.md)             | Step 5 — finding and downloading brand logos, icons, photos from free sources |

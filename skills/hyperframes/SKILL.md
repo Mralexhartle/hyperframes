@@ -19,7 +19,25 @@ Before writing HTML, think at a high level:
 
 For small edits (fix a color, adjust timing, add one element), skip straight to the rules.
 
-When no `visual-style.md` or animation direction is provided, follow [house-style.md](./house-style.md) for motion defaults, sizing, and color palettes.
+### Visual Identity Gate
+
+<HARD-GATE>
+Before writing ANY composition HTML, you MUST have a visual identity defined. Do NOT write compositions with default or generic colors.
+
+Check in this order:
+1. **DESIGN.md exists in the project?** → Read it. Use its exact colors, fonts, motion rules, and "What NOT to Do" constraints.
+2. **visual-style.md exists?** → Read it. Apply its `style_prompt_full` and structured fields. (Note: `visual-style.md` is a project-specific file. `visual-styles.md` is the style library with 8 named presets — different files.)
+3. **User named a style** (e.g., "Swiss Pulse", "dark and techy", "luxury brand")? → Read [visual-styles.md](./visual-styles.md) for the 8 named presets. Generate a minimal DESIGN.md with: `## Style Prompt` (one paragraph), `## Colors` (3-5 hex values with roles), `## Typography` (1-2 font families), `## What NOT to Do` (3-5 anti-patterns).
+4. **None of the above?** → Ask 3 questions before writing any HTML:
+   - What's the mood? (explosive / cinematic / fluid / technical / chaotic / warm)
+   - Light or dark canvas?
+   - Any specific brand colors, fonts, or visual references?
+   Then generate a minimal DESIGN.md from the answers.
+
+Every composition must trace its palette and typography back to a DESIGN.md, visual-style.md, or explicit user direction. If you're reaching for `#333`, `#3b82f6`, or `Roboto` — you skipped this step.
+</HARD-GATE>
+
+For motion defaults, sizing, entrance patterns, and easing — follow [house-style.md](./house-style.md). The house style handles HOW things move. The DESIGN.md handles WHAT things look like.
 
 ## Layout Before Animation
 
@@ -314,6 +332,7 @@ Skip on small edits (fixing a color, adjusting one duration). Run on new composi
 - **[references/css-patterns.md](references/css-patterns.md)** — CSS+GSAP marker highlighting: highlight, circle, burst, scribble, sketchout. Deterministic, fully seekable. Read when adding visual emphasis to text.
 - **[references/typography.md](references/typography.md)** — Typography: font pairing, OpenType features, dark-background adjustments, font discovery script. **Always read** — every composition has text.
 - **[references/motion-principles.md](references/motion-principles.md)** — Motion design principles: easing as emotion, timing as weight, choreography as hierarchy, scene pacing, ambient motion, anti-patterns. Read when choreographing GSAP animations.
+- **[visual-styles.md](visual-styles.md)** — 8 named visual styles (Swiss Pulse, Velvet Standard, Deconstructed, Maximalist Type, Data Drift, Soft Signal, Folk Frequency, Shadow Cut) with hex palettes, GSAP easing signatures, and shader pairings. Read when user names a style or when generating DESIGN.md.
 - **[house-style.md](house-style.md)** — Default motion, sizing, and color palettes when no style is specified.
 - **[patterns.md](patterns.md)** — PiP, title cards, slide show patterns.
 - **[data-in-motion.md](data-in-motion.md)** — Data, stats, and infographic patterns.
