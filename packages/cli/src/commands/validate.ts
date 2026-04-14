@@ -325,7 +325,6 @@ export default defineCommand({
 Examples:
   hyperframes validate
   hyperframes validate ./my-project
-  hyperframes validate --contrast
   hyperframes validate --json
   hyperframes validate --timeout 5000`,
   },
@@ -342,8 +341,9 @@ Examples:
     },
     contrast: {
       type: "boolean",
-      description: "Run WCAG contrast audit on text elements (samples 5 timestamps)",
-      default: false,
+      description:
+        "Run WCAG contrast audit on text elements (samples 5 timestamps). Enabled by default.",
+      default: true,
     },
     timeout: {
       type: "string",
@@ -355,13 +355,10 @@ Examples:
     const project = resolveProject(args.dir);
     const timeout = parseInt(args.timeout as string, 10) || 3000;
 
-    const useContrast = args.contrast ?? false;
+    const useContrast = args.contrast ?? true;
 
     if (!args.json) {
-      const contrastLabel = useContrast ? " + contrast audit" : "";
-      console.log(
-        `${c.accent("◆")}  Validating ${c.accent(project.name)} in headless Chrome${c.dim(contrastLabel)}`,
-      );
+      console.log(`${c.accent("◆")}  Validating ${c.accent(project.name)} in headless Chrome`);
     }
 
     try {
@@ -370,35 +367,29 @@ Examples:
         contrast: useContrast,
       });
 
-      // Collect contrast failures as errors
+      // Contrast failures are warnings (visible but don't block exit code)
       const contrastFailures = (contrast ?? []).filter((e) => !e.wcagAA);
       const contrastPassed = (contrast ?? []).filter((e) => e.wcagAA);
-      const allErrors = [...errors];
-      for (const cf of contrastFailures) {
-        allErrors.push({
-          level: "error",
-          text: `WCAG AA contrast fail: ${cf.selector} "${cf.text}" — ${cf.ratio}:1 (need ${cf.large ? "3" : "4.5"}:1) fg=${cf.fg} bg=${cf.bg} at t=${cf.time}s`,
-        });
-      }
 
       if (args.json) {
         console.log(
           JSON.stringify(
             withMeta({
-              ok: allErrors.length === 0,
-              errors: allErrors,
+              ok: errors.length === 0,
+              errors,
               warnings,
               contrast: contrast ?? undefined,
+              contrastFailures: contrastFailures.length,
             }),
             null,
             2,
           ),
         );
-        process.exit(allErrors.length > 0 ? 1 : 0);
+        process.exit(errors.length > 0 ? 1 : 0);
       }
 
-      if (allErrors.length === 0 && warnings.length === 0) {
-        if (useContrast && contrastPassed.length > 0) {
+      if (errors.length === 0 && warnings.length === 0 && contrastFailures.length === 0) {
+        if (contrastPassed.length > 0) {
           console.log(
             `${c.success("◇")}  No console errors · ${contrastPassed.length} text elements pass WCAG AA`,
           );
@@ -413,26 +404,25 @@ Examples:
         const loc = e.line ? ` (line ${e.line})` : "";
         console.log(`  ${c.error("✗")} ${e.text}${c.dim(loc)}`);
       }
-      if (contrastFailures.length > 0) {
-        console.log();
-        console.log(`  ${c.error("✗")} WCAG AA contrast failures:`);
-        for (const cf of contrastFailures) {
-          console.log(
-            `    ${c.error("·")} ${cf.selector} ${c.dim(`"${cf.text}"`)} — ${c.error(cf.ratio + ":1")} ${c.dim(`(need ${cf.large ? "3" : "4.5"}:1, t=${cf.time}s)`)}`,
-          );
-        }
-      }
       for (const w of warnings) {
         const loc = w.line ? ` (line ${w.line})` : "";
         console.log(`  ${c.warn("⚠")} ${w.text}${c.dim(loc)}`);
       }
+      if (contrastFailures.length > 0) {
+        console.log();
+        console.log(`  ${c.warn("⚠")} WCAG AA contrast warnings (${contrastFailures.length}):`);
+        for (const cf of contrastFailures) {
+          console.log(
+            `    ${c.warn("·")} ${cf.selector} ${c.dim(`"${cf.text}"`)} — ${c.warn(cf.ratio + ":1")} ${c.dim(`(need ${cf.large ? "3" : "4.5"}:1, t=${cf.time}s)`)}`,
+          );
+        }
+      }
       console.log();
-      const contrastLabel = useContrast ? `, ${contrastFailures.length} contrast failure(s)` : "";
-      console.log(
-        `${c.accent("◇")}  ${errors.length} error(s), ${warnings.length} warning(s)${contrastLabel}`,
-      );
+      const parts = [`${errors.length} error(s)`, `${warnings.length} warning(s)`];
+      if (contrastFailures.length > 0) parts.push(`${contrastFailures.length} contrast warning(s)`);
+      console.log(`${c.accent("◇")}  ${parts.join(", ")}`);
 
-      process.exit(allErrors.length > 0 ? 1 : 0);
+      process.exit(errors.length > 0 ? 1 : 0);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       if (args.json) {
