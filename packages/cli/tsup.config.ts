@@ -57,5 +57,6 @@ var __dirname = __hf_dirname(__filename);`,
     options.alias = {
       "@hyperframes/producer": resolve(__dirname, "../producer/src/index.ts"),
     };
+    options.loader = { ...options.loader, ".browser.js": "text" };
   },
 });
