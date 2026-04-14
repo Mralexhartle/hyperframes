@@ -97,6 +97,25 @@ Blocks don't need `demo.html` — they are already standalone compositions.
 4. Run `npx hyperframes lint` and `npx hyperframes validate` on your HTML
 5. Test the install flow: `hyperframes add <name> --dir /tmp/test-project`
 
+### Auto-generated docs
+
+When you add a new block or component, its documentation page is generated automatically — you don't need to write MDX by hand.
+
+Run the codegen script after adding items:
+
+```bash
+npx tsx scripts/generate-catalog-pages.ts
+```
+
+This produces:
+
+- `docs/catalog/blocks/<name>.mdx` — per-block detail page
+- `docs/catalog/components/<name>.mdx` — per-component detail page
+- `docs/public/catalog-index.json` — flat manifest for the catalog grid page
+- Updates `docs/docs.json` navigation with the new pages
+
+The script wipes `docs/catalog/` before regenerating, so deleted items are automatically cleaned up.
+
 ## Pull Requests
 
 - Use [conventional commit](https://www.conventionalcommits.org/) format for **all commits** (e.g., `feat: add timeline export`, `fix: resolve seek overflow`). Enforced by a git hook.
