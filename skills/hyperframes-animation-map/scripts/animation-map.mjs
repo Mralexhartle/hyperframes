@@ -1,33 +1,22 @@
 #!/usr/bin/env node
-// animation-map.mjs — HyperFrames animation visualizer
+// animation-map.mjs — HyperFrames animation map for agents
 //
-// Reads every GSAP timeline registered in window.__timelines, enumerates each
-// tween recursively, samples N frames across each tween window, annotates the
-// animated element with a magenta box + label, and emits:
-//
-//   - animation-map.json       (tweens + per-frame bboxes + flags)
-//   - sprites/<idx>_<sel>.png  (one sprite sheet per tween)
+// Reads every GSAP timeline registered in window.__timelines, enumerates
+// tweens, samples bboxes at N points per tween, computes flags and
+// human-readable summaries. Outputs a single animation-map.json.
 //
 // Usage:
 //   node skills/hyperframes-animation-map/scripts/animation-map.mjs <composition-dir> \
 //     [--frames N] [--out <dir>] [--min-duration S] [--width W] [--height H] [--fps N]
-//
-// The composition directory must contain an index.html. Raw authoring HTML
-// works — the producer's file server auto-injects the runtime at serve time.
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 
-import sharp from "sharp";
-
-// Use the producer's file server — it auto-injects the HyperFrames runtime
-// and render-seek bridge, so raw authoring HTML works without a build step.
 import {
   createFileServer,
   createCaptureSession,
   initializeSession,
   closeCaptureSession,
-  captureFrameToBuffer,
   getCompositionDuration,
 } from "@hyperframes/producer";
 
@@ -36,7 +25,7 @@ import {
 const args = parseArgs(process.argv.slice(2));
 if (!args.composition) die("missing <composition-dir>");
 
-const FRAMES = Number(args.frames ?? 8);
+const FRAMES = Number(args.frames ?? 6);
 const OUT_DIR = resolve(args.out ?? ".hyperframes/anim-map");
 const MIN_DUR = Number(args["min-duration"] ?? 0.15);
 const WIDTH = Number(args.width ?? 1920);
@@ -44,7 +33,7 @@ const HEIGHT = Number(args.height ?? 1080);
 const FPS = Number(args.fps ?? 30);
 const COMP_DIR = resolve(args.composition);
 
-await mkdir(join(OUT_DIR, "sprites"), { recursive: true });
+await mkdir(OUT_DIR, { recursive: true });
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
@@ -67,58 +56,78 @@ try {
     duration,
     totalTweens: tweens.length,
     mappedTweens: kept.length,
-    skippedForMinDuration: tweens.length - kept.length,
+    skippedMicroTweens: tweens.length - kept.length,
     tweens: [],
   };
 
   for (let i = 0; i < kept.length; i++) {
     const tw = kept[i];
-    const times = Array.from({ length: FRAMES }, (_, k) =>
-      +(tw.start + ((k + 0.5) / FRAMES) * (tw.end - tw.start)).toFixed(3),
+    const times = Array.from(
+      { length: FRAMES },
+      (_, k) => +(tw.start + ((k + 0.5) / FRAMES) * (tw.end - tw.start)).toFixed(3),
     );
-    const frames = [];
+
     const bboxes = [];
-    for (let k = 0; k < times.length; k++) {
-      const t = times[k];
-      const { buffer: pngBuf } = await captureFrameToBuffer(session, k, t);
-      const bbox = await measureTarget(session, tw.selectorHint, t);
+    for (const t of times) {
+      await seekTo(session, t);
+      const bbox = await measureTarget(session, tw.selectorHint);
       bboxes.push({ t, ...bbox });
-      const annotated = await annotate(pngBuf, bbox, {
-        label: `${tw.selectorHint}  ${tw.props.join(",")}  t=${t.toFixed(2)}s`,
-      });
-      frames.push(annotated);
     }
 
+    const animProps = tw.props.filter(
+      (p) => !["parent", "overwrite", "immediateRender", "startAt", "runBackwards"].includes(p),
+    );
     const flags = computeFlags(tw, bboxes, { width: WIDTH, height: HEIGHT });
-    const spriteName = `${String(i + 1).padStart(2, "0")}_${slug(tw.selectorHint)}_${tw.props.join("_") || "anim"}.png`;
-    await writeSprite(frames, join(OUT_DIR, "sprites", spriteName));
+    const summary = describeTween(tw, animProps, bboxes, flags);
 
     report.tweens.push({
       index: i + 1,
       selector: tw.selectorHint,
       targets: tw.targetCount,
-      props: tw.props,
+      props: animProps,
       start: +tw.start.toFixed(3),
       end: +tw.end.toFixed(3),
+      duration: +(tw.end - tw.start).toFixed(3),
       ease: tw.ease,
       bboxes,
-      sprite: `sprites/${spriteName}`,
       flags,
+      summary,
     });
   }
 
-  // Second pass: collision detection across tweens at shared sample times.
   markCollisions(report.tweens);
 
-  await writeFile(
-    join(OUT_DIR, "animation-map.json"),
-    JSON.stringify(report, null, 2),
-  );
+  // Re-generate summaries for tweens that got collision flags after cross-check
+  for (const tw of report.tweens) {
+    if (tw.flags.includes("collision") && !tw.summary.includes("collision")) {
+      tw.summary += " Overlaps another animated element.";
+    }
+  }
+
+  await writeFile(join(OUT_DIR, "animation-map.json"), JSON.stringify(report, null, 2));
 
   printSummary(report);
 } finally {
   await closeCaptureSession(session).catch(() => {});
   server.close();
+}
+
+// ─── Seek helper ────────────────────────────────────────────────────────────
+
+async function seekTo(session, t) {
+  await session.page.evaluate((time) => {
+    if (window.__hf && typeof window.__hf.seek === "function") {
+      window.__hf.seek(time);
+      return;
+    }
+    const tls = window.__timelines;
+    if (tls) {
+      for (const tl of Object.values(tls)) {
+        if (typeof tl.seek === "function") tl.seek(time);
+      }
+    }
+  }, t);
+  await new Promise((r) => setTimeout(r, 50));
 }
 
 // ─── Timeline introspection ──────────────────────────────────────────────────
@@ -137,7 +146,6 @@ async function enumerateTweens(session) {
 
     const walk = (node, parentOffset = 0) => {
       if (!node) return;
-      // Timeline: recurse into its children with the offset adjusted.
       if (typeof node.getChildren === "function") {
         const offset = parentOffset + (node.startTime?.() ?? 0);
         for (const child of node.getChildren(true, true, true)) {
@@ -145,13 +153,22 @@ async function enumerateTweens(session) {
         }
         return;
       }
-      // Tween: capture.
       const targets = (node.targets?.() ?? []).filter((t) => t instanceof Element);
       if (!targets.length) return;
       const vars = node.vars ?? {};
       const props = Object.keys(vars).filter(
         (k) =>
-          !["duration", "ease", "delay", "repeat", "yoyo", "onStart", "onUpdate", "onComplete", "stagger"].includes(k),
+          ![
+            "duration",
+            "ease",
+            "delay",
+            "repeat",
+            "yoyo",
+            "onStart",
+            "onUpdate",
+            "onComplete",
+            "stagger",
+          ].includes(k),
       );
       const start = parentOffset + (node.startTime?.() ?? 0);
       const end = start + (node.duration?.() ?? 0);
@@ -171,66 +188,86 @@ async function enumerateTweens(session) {
   });
 }
 
-async function measureTarget(session, selector, _t) {
-  // Seek happens upstream in captureFrameToBuffer; the page state reflects `_t`.
+async function measureTarget(session, selector) {
   return await session.page.evaluate((sel) => {
     const el = document.querySelector(sel);
     if (!el) return { x: 0, y: 0, w: 0, h: 0, missing: true };
     const r = el.getBoundingClientRect();
-    return { x: r.x, y: r.y, w: r.width, h: r.height };
+    const cs = getComputedStyle(el);
+    return {
+      x: Math.round(r.x),
+      y: Math.round(r.y),
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+      opacity: parseFloat(cs.opacity),
+      visible: cs.visibility !== "hidden" && cs.display !== "none",
+    };
   }, selector);
 }
 
-// ─── Frame annotation ───────────────────────────────────────────────────────
+// ─── Tween description (the key output for agents) ──────────────────────────
 
-async function annotate(pngBuf, bbox, { label }) {
-  const { width, height } = await sharp(pngBuf).metadata();
-  if (!bbox || bbox.w <= 0 || bbox.h <= 0) return pngBuf;
+function describeTween(tw, props, bboxes, flags) {
+  const dur = (tw.end - tw.start).toFixed(2);
+  const parts = [];
 
-  // Clamp bbox to viewport for drawing (the motion may overshoot).
-  const x = Math.max(0, bbox.x);
-  const y = Math.max(0, bbox.y);
-  const w = Math.min(width - x, bbox.w);
-  const h = Math.min(height - y, bbox.h);
+  parts.push(`${tw.selectorHint} animates ${props.join("+")} over ${dur}s (${tw.ease})`);
 
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-      <rect x="${x}" y="${y}" width="${w}" height="${h}"
-            fill="none" stroke="#ff00aa" stroke-width="4"/>
-      <rect x="${x}" y="${Math.max(0, y - 24)}" width="${Math.min(label.length * 8 + 16, 520)}" height="22" fill="#ff00aa"/>
-      <text x="${x + 8}" y="${Math.max(14, y - 8)}" font-family="monospace" font-size="13" fill="#000" font-weight="bold">
-        ${escapeXml(label)}
-      </text>
-    </svg>`;
+  // Movement
+  const first = bboxes[0];
+  const last = bboxes[bboxes.length - 1];
+  if (first && last) {
+    const dx = last.x - first.x;
+    const dy = last.y - first.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+      const dirs = [];
+      if (Math.abs(dy) > 3) dirs.push(dy < 0 ? `${Math.abs(dy)}px up` : `${Math.abs(dy)}px down`);
+      if (Math.abs(dx) > 3)
+        dirs.push(dx < 0 ? `${Math.abs(dx)}px left` : `${Math.abs(dx)}px right`);
+      parts.push(`moves ${dirs.join(" and ")}`);
+    }
+  }
 
-  return await sharp(pngBuf)
-    .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
-    .png()
-    .toBuffer();
-}
+  // Opacity
+  if (first && last && first.opacity !== undefined && last.opacity !== undefined) {
+    const o1 = first.opacity;
+    const o2 = last.opacity;
+    if (Math.abs(o2 - o1) > 0.1) {
+      if (o1 < 0.1 && o2 > 0.5) parts.push("fades in");
+      else if (o1 > 0.5 && o2 < 0.1) parts.push("fades out");
+      else parts.push(`opacity ${o1.toFixed(1)}→${o2.toFixed(1)}`);
+    }
+  }
 
-async function writeSprite(frames, outPath) {
-  const cols = frames.length;
-  const { width, height } = await sharp(frames[0]).metadata();
-  const scale = 0.22;
-  const cellW = Math.round(width * scale);
-  const cellH = Math.round(height * scale);
+  // Scale (from props)
+  if (props.includes("scale") || props.includes("scaleX") || props.includes("scaleY")) {
+    parts.push("scales");
+  }
 
-  const cells = await Promise.all(
-    frames.map((buf) => sharp(buf).resize(cellW, cellH).png().toBuffer()),
-  );
+  // Size changes
+  if (first && last) {
+    const dw = last.w - first.w;
+    const dh = last.h - first.h;
+    if (Math.abs(dw) > 5) parts.push(`width ${first.w}→${last.w}px`);
+    if (Math.abs(dh) > 5) parts.push(`height ${first.h}→${last.h}px`);
+  }
 
-  await sharp({
-    create: {
-      width: cols * cellW,
-      height: cellH,
-      channels: 3,
-      background: { r: 12, g: 12, b: 16 },
-    },
-  })
-    .composite(cells.map((b, i) => ({ input: b, top: 0, left: i * cellW })))
-    .png()
-    .toFile(outPath);
+  // Visibility
+  if (first && last && first.visible !== last.visible) {
+    parts.push(last.visible ? "becomes visible" : "becomes hidden");
+  }
+
+  // Final position
+  if (last && !last.missing) {
+    parts.push(`ends at (${last.x}, ${last.y}) ${last.w}×${last.h}px`);
+  }
+
+  // Flags
+  if (flags.length > 0) {
+    parts.push(`FLAGS: ${flags.join(", ")}`);
+  }
+
+  return parts.join(". ") + ".";
 }
 
 // ─── Flag computation ───────────────────────────────────────────────────────
@@ -243,15 +280,19 @@ function computeFlags(tw, bboxes, { width, height }) {
 
   const anyOffscreen = bboxes.some(
     (b) =>
-      b.x + b.w <= 0 || b.y + b.h <= 0 || b.x >= width || b.y >= height ||
-      b.x < -b.w * 0.5 || b.y < -b.h * 0.5 ||
-      b.x + b.w > width + b.w * 0.5 || b.y + b.h > height + b.h * 0.5,
+      b.x + b.w <= 0 ||
+      b.y + b.h <= 0 ||
+      b.x >= width ||
+      b.y >= height ||
+      b.x < -b.w * 0.5 ||
+      b.y < -b.h * 0.5 ||
+      b.x + b.w > width + b.w * 0.5 ||
+      b.y + b.h > height + b.h * 0.5,
   );
   if (anyOffscreen) flags.push("offscreen");
 
-  if (tw.props.includes("opacity") || tw.props.includes("autoAlpha")) {
-    // light heuristic: a fade-in should increase alpha; we can't read it
-    // from bbox alone, so leave visibility check to the Read step.
+  if (bboxes.every((b) => b.opacity !== undefined && b.opacity < 0.01 && b.visible)) {
+    flags.push("invisible");
   }
 
   if (dur < 0.2 && tw.props.some((p) => ["y", "x", "opacity", "scale"].includes(p))) {
@@ -268,7 +309,6 @@ function markCollisions(tweens) {
       const a = tweens[i];
       const b = tweens[j];
       if (a.end <= b.start || b.end <= a.start) continue;
-      // find overlapping sampled times
       for (const ba of a.bboxes) {
         const bb = b.bboxes.find((x) => Math.abs(x.t - ba.t) < 0.05);
         if (!bb) continue;
@@ -292,29 +332,21 @@ function rectOverlapArea(a, b) {
   return Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
 }
 
-// ─── Utilities ──────────────────────────────────────────────────────────────
-
-function slug(s) {
-  return String(s).replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "").slice(0, 32) || "anim";
-}
-
-function escapeXml(s) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
+// ─── Output ─────────────────────────────────────────────────────────────────
 
 function printSummary(report) {
-  console.log(`\nAnimation map: ${report.mappedTweens}/${report.totalTweens} tweens (skipped ${report.skippedForMinDuration} micro-tweens)`);
+  console.log(
+    `\nAnimation map: ${report.mappedTweens}/${report.totalTweens} tweens (skipped ${report.skippedMicroTweens} micro-tweens)`,
+  );
   const flagCounts = {};
   for (const tw of report.tweens) {
     for (const f of tw.flags) flagCounts[f] = (flagCounts[f] ?? 0) + 1;
   }
   for (const [f, n] of Object.entries(flagCounts)) {
     console.log(`  ${f}: ${n}`);
+  }
+  if (Object.keys(flagCounts).length === 0) {
+    console.log("  no flags raised");
   }
 }
 

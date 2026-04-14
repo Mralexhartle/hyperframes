@@ -1,124 +1,94 @@
 ---
 name: hyperframes-animation-map
-description: Visualize every GSAP animation in a HyperFrames composition as a sprite sheet so you can actually see how motion plays out. Use after authoring animations and before final render. The script reads window.__timelines, enumerates every tween, renders N frames across each tween window with a high-contrast box drawn on the animated element, and emits one sprite sheet per element plus a timeline JSON. Review the output to catch off-screen animations, collisions, stiff pacing, and entrances that never visually arrive.
+description: Map every GSAP animation in a HyperFrames composition to a structured JSON report with per-tween summaries, bbox trajectories, and flags. Use after authoring animations and before final render. Catches off-screen elements, invisible tweens, collisions, and bad pacing.
 ---
 
 # HyperFrames Animation Map
 
-LLMs write GSAP code blind. You can see where elements _end up_ (that's CSS), but you cannot see how they move — you are guessing at pacing, overshoot, collision, and whether the animation is even visible on screen. This skill makes the motion legible: every tween becomes a sprite sheet you can read.
+You write GSAP code but you cannot see how it plays. You guess at pacing, overshoot, collision, and whether the animation is even visible. This skill makes every tween legible: structured data you can read and reason about.
 
 ## When to run
 
-Run this skill:
-
-1. **After all animations are authored.** The timeline should be complete — entrances, exits, nested sub-compositions, the lot.
-2. **Before declaring the composition done.** Hard gate, same as contrast.
-3. **Whenever you wrote an animation you have not visually verified**, even a small one.
-
-If you only wrote a single crossfade and nothing else moves, you can skip — but say so in your plan.
+1. After all animations are authored.
+2. Before declaring the composition done.
+3. Whenever you wrote an animation you have not verified.
 
 ## How to run
 
 ```bash
 node skills/hyperframes-animation-map/scripts/animation-map.mjs <composition-dir> \
-  --frames 8 \
   --out .hyperframes/anim-map
 ```
 
-- `<composition-dir>` — directory containing `index.html`. Works with raw authoring HTML — the script auto-injects the HyperFrames runtime at serve time.
-- `--frames N` — screenshots per tween, evenly spaced from start to end. Default `8`.
-- `--out <dir>` — report directory. Default `.hyperframes/anim-map/`.
-- `--min-duration 0.15` — skip tweens shorter than this (seconds). Default `0.15` to suppress imperceptible micro-tweens.
-
-The script:
-
-1. Launches the headless engine on the composition.
-2. Reads `window.__timelines` and recursively descends into every child timeline.
-3. For every top-level tween, resolves:
-   - the DOM target (from `tween.targets()`),
-   - absolute start and end time on the master timeline,
-   - which properties are being animated,
-   - the animated element's bbox at each sampled frame.
-4. For each tween, renders `frames` screenshots between start and end. On every frame it overlays the target's bbox in high-contrast magenta, with a label showing `{selector} {props} t={time}s`.
-5. Stitches each tween's frames into a horizontal sprite sheet.
+- `<composition-dir>` — directory containing index.html. Raw authoring HTML works.
+- `--frames N` — bbox samples per tween (default 6).
+- `--out <dir>` — output directory (default .hyperframes/anim-map/).
+- `--min-duration S` — skip tweens shorter than this (default 0.15s).
 
 ## Output
 
-```
-.hyperframes/anim-map/
-  animation-map.json       # timeline + per-tween metadata
-  sprites/
-    01_title_opacity_y.png # one sprite sheet per tween, named by tween index + target + props
-    02_subtitle_x.png
-    ...
-```
-
-`animation-map.json` shape:
+A single `animation-map.json`:
 
 ```json
 {
-  "compositionId": "my-video",
-  "duration": 30.0,
+  "duration": 35.5,
+  "mappedTweens": 17,
+  "totalTweens": 17,
   "tweens": [
     {
       "index": 1,
-      "selector": ".title",
-      "targets": 1,
+      "selector": "#card1",
       "props": ["opacity", "y"],
-      "start": 0.0,
-      "end": 0.6,
+      "start": 5.2,
+      "end": 5.7,
+      "duration": 0.5,
       "ease": "power3.out",
       "bboxes": [
-        { "t": 0.0, "x": 160, "y": 220, "w": 820, "h": 140 },
-        { "t": 0.3, "x": 160, "y": 190, "w": 820, "h": 140 },
-        { "t": 0.6, "x": 160, "y": 160, "w": 820, "h": 140 }
+        { "t": 5.24, "x": 120, "y": 223, "w": 640, "h": 80, "opacity": 0, "visible": true },
+        { "t": 5.45, "x": 120, "y": 208, "w": 640, "h": 80, "opacity": 0.7, "visible": true },
+        { "t": 5.66, "x": 120, "y": 200, "w": 640, "h": 80, "opacity": 1, "visible": true }
       ],
-      "sprite": "sprites/01_title_opacity_y.png",
-      "flags": []
+      "flags": [],
+      "summary": "#card1 animates opacity+y over 0.50s (power3.out). moves 23px up. fades in. ends at (120, 200) 640x80px."
     }
   ]
 }
 ```
 
-Flags are script-generated warnings you should attend to:
+Each tween has a `summary` — a single sentence describing what happens in plain language. Read the summaries first, check flags second, look at bboxes only if something needs debugging.
 
-- `offscreen` — the target's bbox is partially or fully outside the viewport during part of the tween.
-- `degenerate` — the target has width or height 0 at one or more sampled frames.
-- `invisible` — the target has `opacity: 0` or `visibility: hidden` throughout the tween window (animation is happening, but nothing is visible).
-- `collision` — the target's bbox overlaps another tween's target bbox at the same sample time by >30% area.
-- `paced-fast` — tween duration under 0.2s for non-micro-interactions; may feel twitchy.
-- `paced-slow` — tween duration over 2.0s for entrances/exits; may feel sluggish.
+## Flags
 
-## How to use the output
+- **offscreen** — element partially or fully outside the viewport during the tween.
+- **degenerate** — element has 0 width or height throughout (invisible by geometry).
+- **invisible** — element has opacity 0 and visibility hidden throughout the tween window.
+- **collision** — element overlaps another animated element by more than 30% area at the same timestamp.
+- **paced-fast** — duration under 0.2s for a tween that moves or fades; may feel twitchy.
+- **paced-slow** — duration over 2.0s; may feel sluggish.
 
-**Read each sprite sheet.** That is the whole point. The LLM can Read PNG files — do it.
+## How to use
 
-For every tween:
+1. Read `animation-map.json`.
+2. Scan summaries for anything unexpected (wrong direction, missing fade, bad timing).
+3. Check every flag. Fix or justify each one.
+4. Verify tween count matches what you authored — extra tweens may indicate duplicates.
 
-1. Check the sprite sheet. Does the element actually appear to move from A to B? Is the motion visible, or is the element off-screen / behind another element / opacity-0 the whole time?
-2. Check the flags in `animation-map.json`. Address every flag or justify why it's intentional.
-3. Check pacing: the frames are evenly spaced in time, so visually uneven stride = non-linear easing. That's often correct. But if the element barely moves for 6 frames and then snaps at the end, your easing is probably wrong.
-4. Check collisions: if flagged, the animation overlaps another element's animation at the same moment. Either stagger them or confirm the overlap is design intent (e.g. layered entrance).
+## Fixing flagged tweens
 
-## How to fix a flagged animation
-
-- **`offscreen`**: animate from `x` / `y` that lands on-screen, not `x: 200vw`. Or extend the tween so the arrival frame lingers on-screen before the next beat. Verify the element's final position is inside the canvas.
-- **`degenerate`**: the element has `width: 0` or similar — usually means you tweened `scale` from/to 0 and the sprite sheet shows nothing. Fine for exits, bad for entrances if nothing comes in.
-- **`invisible`**: you forgot to tween `opacity` back up, or the parent is hidden. Trace the visibility chain.
-- **`collision`**: restagger with the position parameter on the timeline, or move one element to a different region of the frame.
-- **`paced-fast` / `paced-slow`**: adjust `duration`. Entrances usually want 0.4–0.8s, exits 0.3–0.5s, hero reveals 0.8–1.2s.
+- **offscreen**: change the from/to values so the element stays within the canvas. Check the final bbox coordinates.
+- **degenerate**: the element has width/height 0 — likely scaled to 0 without a corresponding scale-up, or a CSS issue.
+- **invisible**: opacity is 0 throughout. Either tween opacity up, or the parent is hidden.
+- **collision**: stagger the tweens or move one element to a different region.
+- **paced-fast/slow**: adjust duration. Entrances: 0.4-0.8s. Exits: 0.3-0.5s. Hero reveals: 0.8-1.2s.
 
 ## Anti-patterns
 
-- Declaring a tween "fine" without reading its sprite sheet. If you skip the visual check, you are in exactly the position this skill exists to fix.
-- Suppressing the flags (`flags: []` but the motion is obviously broken). The script is conservative — if it flagged something, look.
-- Adding a parallel, untimed tween with `gsap.to` outside the timeline. Only tweens inside timelines registered in `window.__timelines` are mapped. If you wrote ad-hoc tweens, move them into the timeline or the audit misses them.
-- Using the sprite sheet as decoration. It is a diagnostic — if you looked at it and didn't come away with a concrete verdict, look again.
+- Declaring a tween "fine" without reading its summary. The summary is the minimum check.
+- Ad-hoc tweens via `gsap.to()` outside the timeline. Only tweens inside `window.__timelines` are mapped.
 
 ## Checklist
 
-- [ ] `animation-map.json` has every tween you intentionally authored (no "where did this come from" entries)
-- [ ] Every sprite sheet has been visually inspected via Read
-- [ ] Every flagged tween has been fixed or justified
-- [ ] Pacing feels intentional, not accidental
+- [ ] Every authored tween appears in the map
+- [ ] Every flagged tween is fixed or justified
+- [ ] Summaries describe the intended motion
 - [ ] Re-run after any animation change
