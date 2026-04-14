@@ -21,7 +21,7 @@ export const BUNDLED_TEMPLATES: TemplateOption[] = [
 
 /**
  * Resolve the full template list by merging bundled and remote templates.
- * Fetches templates.json from GitHub (cached 24h). No CLI release needed to add templates.
+ * Fetches `registry/examples/templates.json` from GitHub (cached 24h). No CLI release needed to add templates.
  * If offline, returns only bundled templates.
  */
 export async function resolveTemplateList(): Promise<TemplateOption[]> {

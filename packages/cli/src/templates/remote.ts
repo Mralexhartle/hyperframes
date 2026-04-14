@@ -2,7 +2,7 @@
  * Remote Template Fetching
  *
  * Downloads templates from the hyperframes GitHub repository using giget.
- * Templates live in the `templates/` directory of the repo.
+ * Templates live in the `registry/examples/` directory of the repo.
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 const REPO = "heygen-com/hyperframes";
-const TEMPLATES_DIR = "templates";
+const TEMPLATES_DIR = "registry/examples";
 const MANIFEST_FILENAME = "templates.json";
 
 /** Cache directory for remote template metadata. */

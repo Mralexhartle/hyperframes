@@ -39,7 +39,7 @@ import {
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..");
 const bundledTemplatesDir = resolve(repoRoot, "packages/cli/src/templates");
-const remoteTemplatesDir = resolve(repoRoot, "templates");
+const remoteTemplatesDir = resolve(repoRoot, "registry/examples");
 const outputDir = resolve(repoRoot, "docs/images/templates");
 
 if (!process.env.PRODUCER_HYPERFRAME_MANIFEST_PATH) {
