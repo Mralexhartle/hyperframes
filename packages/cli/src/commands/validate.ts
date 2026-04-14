@@ -48,7 +48,7 @@ async function seekTo(page: import("puppeteer-core").Page, time: number): Promis
       window.__hf.seek(t);
       return;
     }
-    const timelines = (window as Record<string, unknown>).__timelines as
+    const timelines = (window as unknown as Record<string, unknown>).__timelines as
       | Record<string, { seek: (t: number) => void }>
       | undefined;
     if (timelines) {
@@ -74,8 +74,8 @@ async function runContrastAudit(page: import("puppeteer-core").Page): Promise<Co
     const screenshot = (await page.screenshot({ encoding: "base64", type: "png" })) as string;
     const entries = await page.evaluate(
       (b64: string, time: number) =>
-        typeof (window as Record<string, unknown>).__contrastAudit === "function"
-          ? ((window as Record<string, unknown>).__contrastAudit as Function)(b64, time)
+        typeof (window as unknown as Record<string, unknown>).__contrastAudit === "function"
+          ? ((window as unknown as Record<string, unknown>).__contrastAudit as Function)(b64, time)
           : [],
       screenshot,
       t,

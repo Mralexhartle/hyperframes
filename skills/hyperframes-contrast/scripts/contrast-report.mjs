@@ -59,8 +59,9 @@ await initializeSession(session);
 
 try {
   const duration = await getCompositionDuration(session);
-  const times = Array.from({ length: SAMPLES }, (_, i) =>
-    +(((i + 0.5) / SAMPLES) * duration).toFixed(3),
+  const times = Array.from(
+    { length: SAMPLES },
+    (_, i) => +(((i + 0.5) / SAMPLES) * duration).toFixed(3),
   );
 
   const allEntries = [];
@@ -85,10 +86,7 @@ try {
     summary: summarize(allEntries),
   };
 
-  await writeFile(
-    resolve(OUT_DIR, "contrast-report.json"),
-    JSON.stringify(report, null, 2),
-  );
+  await writeFile(resolve(OUT_DIR, "contrast-report.json"), JSON.stringify(report, null, 2));
   await writeOverlaySprite(overlayFrames, resolve(OUT_DIR, "contrast-overlay.png"));
 
   printSummary(report);
@@ -122,7 +120,9 @@ async function probeTextElements(session, _t) {
     let el;
     while ((el = walker.nextNode())) {
       // must have direct text
-      const direct = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim().length);
+      const direct = [...el.childNodes].some(
+        (n) => n.nodeType === 3 && n.textContent.trim().length,
+      );
       if (!direct) continue;
       const cs = getComputedStyle(el);
       if (cs.visibility === "hidden" || cs.display === "none") continue;
@@ -175,14 +175,18 @@ async function annotateFrame(pngBuf, elements) {
 
 function sampleRingMedian(raw, width, height, channels, bbox) {
   // 4-px ring immediately outside the element bbox. Median of each channel.
-  const r = [], g = [], b = [];
+  const r = [],
+    g = [],
+    b = [];
   const x0 = Math.max(0, Math.floor(bbox.x) - 4);
   const x1 = Math.min(width - 1, Math.ceil(bbox.x + bbox.w) + 4);
   const y0 = Math.max(0, Math.floor(bbox.y) - 4);
   const y1 = Math.min(height - 1, Math.ceil(bbox.y + bbox.h) + 4);
   const pushPixel = (x, y) => {
     const i = (y * width + x) * channels;
-    r.push(raw[i]); g.push(raw[i + 1]); b.push(raw[i + 2]);
+    r.push(raw[i]);
+    g.push(raw[i + 1]);
+    b.push(raw[i + 2]);
   };
   for (let x = x0; x <= x1; x++) {
     pushPixel(x, y0);
@@ -301,9 +305,7 @@ function printSummary({ summary, entries }) {
   if (failAA) {
     console.log("\nFailures:");
     for (const e of entries.filter((x) => !x.wcagAA)) {
-      console.log(
-        `  t=${e.time}s  ${e.selector.padEnd(24)}  ${e.ratio.toFixed(2)}:1  "${e.text}"`,
-      );
+      console.log(`  t=${e.time}s  ${e.selector.padEnd(24)}  ${e.ratio.toFixed(2)}:1  "${e.text}"`);
     }
   }
 }
