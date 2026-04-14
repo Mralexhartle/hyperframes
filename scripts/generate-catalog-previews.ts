@@ -158,6 +158,14 @@ function prepareProjectDir(item: CatalogItem): string {
           /bottom:\s*\d+px;\s*\n(\s*)left:\s*50%;\s*\n(\s*)transform:\s*translateX\(-50%\)/,
           "top: 50%;\n$1left: 50%;\n$2transform: translate(-50%, -50%)",
         );
+        // Scale down large centered cards (like Spotify) that use
+        // margin-based centering with large negative margins.
+        if (/margin-top:\s*-[3-9]\d\dpx/.test(content)) {
+          content = content.replace(
+            /(<body[^>]*>)/,
+            "$1\n<style>body { transform: scale(0.55); transform-origin: center center; }</style>",
+          );
+        }
       }
       writeFileSync(join(tmpDir, "index.html"), content, "utf-8");
       return tmpDir;
