@@ -58,6 +58,50 @@
     {
       "name": "grid-pixelate-wipe",
       "type": "hyperframes:component"
+    },
+    {
+      "name": "instagram-follow",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "tiktok-follow",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "yt-lower-third",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "x-post",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "reddit-post",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "spotify-card",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "macos-notification",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "ascii-dashboard",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "ascii-lightning",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "app-showcase",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "ui-3d-reveal",
+      "type": "hyperframes:block"
     }
   ]
 }

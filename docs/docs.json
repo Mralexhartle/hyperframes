@@ -99,9 +99,20 @@
           {
             "group": "Blocks",
             "pages": [
+              "catalog/blocks/app-showcase",
+              "catalog/blocks/ascii-dashboard",
+              "catalog/blocks/ascii-lightning",
               "catalog/blocks/data-chart",
               "catalog/blocks/flowchart",
-              "catalog/blocks/logo-outro"
+              "catalog/blocks/instagram-follow",
+              "catalog/blocks/logo-outro",
+              "catalog/blocks/macos-notification",
+              "catalog/blocks/reddit-post",
+              "catalog/blocks/spotify-card",
+              "catalog/blocks/tiktok-follow",
+              "catalog/blocks/ui-3d-reveal",
+              "catalog/blocks/x-post",
+              "catalog/blocks/yt-lower-third"
             ]
           },
           {

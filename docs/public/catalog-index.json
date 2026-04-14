@@ -1,5 +1,44 @@
 [
   {
+    "name": "app-showcase",
+    "type": "block",
+    "title": "App Showcase",
+    "description": "Fitness app product showcase with three floating smartphone screens",
+    "tags": [
+      "showcase",
+      "app",
+      "3d"
+    ],
+    "href": "/catalog/blocks/app-showcase",
+    "preview": "/images/catalog/blocks/app-showcase.png"
+  },
+  {
+    "name": "ascii-dashboard",
+    "type": "block",
+    "title": "ASCII Dashboard",
+    "description": "Retro terminal-style data visualization with charts and metrics",
+    "tags": [
+      "data",
+      "ascii",
+      "dashboard"
+    ],
+    "href": "/catalog/blocks/ascii-dashboard",
+    "preview": "/images/catalog/blocks/ascii-dashboard.png"
+  },
+  {
+    "name": "ascii-lightning",
+    "type": "block",
+    "title": "ASCII Lightning",
+    "description": "Pure ASCII art lightning bolt animation on dark background",
+    "tags": [
+      "title",
+      "ascii",
+      "animation"
+    ],
+    "href": "/catalog/blocks/ascii-lightning",
+    "preview": "/images/catalog/blocks/ascii-lightning.png"
+  },
+  {
     "name": "data-chart",
     "type": "block",
     "title": "Data Chart",
@@ -54,6 +93,19 @@
     "preview": "/images/catalog/components/grid-pixelate-wipe.png"
   },
   {
+    "name": "instagram-follow",
+    "type": "block",
+    "title": "Instagram Follow",
+    "description": "Animated Instagram follow overlay with profile card and follow button",
+    "tags": [
+      "social",
+      "overlay",
+      "instagram"
+    ],
+    "href": "/catalog/blocks/instagram-follow",
+    "preview": "/images/catalog/blocks/instagram-follow.png"
+  },
+  {
     "name": "logo-outro",
     "type": "block",
     "title": "Logo Outro",
@@ -65,6 +117,32 @@
     ],
     "href": "/catalog/blocks/logo-outro",
     "preview": "/images/catalog/blocks/logo-outro.png"
+  },
+  {
+    "name": "macos-notification",
+    "type": "block",
+    "title": "macOS Notification",
+    "description": "Animated macOS-style notification banner with app icon and message",
+    "tags": [
+      "social",
+      "overlay",
+      "notification"
+    ],
+    "href": "/catalog/blocks/macos-notification",
+    "preview": "/images/catalog/blocks/macos-notification.png"
+  },
+  {
+    "name": "reddit-post",
+    "type": "block",
+    "title": "Reddit Post Card",
+    "description": "Animated Reddit post card overlay with upvotes and comments",
+    "tags": [
+      "social",
+      "overlay",
+      "reddit"
+    ],
+    "href": "/catalog/blocks/reddit-post",
+    "preview": "/images/catalog/blocks/reddit-post.png"
   },
   {
     "name": "shimmer-sweep",
@@ -79,5 +157,70 @@
     ],
     "href": "/catalog/components/shimmer-sweep",
     "preview": "/images/catalog/components/shimmer-sweep.png"
+  },
+  {
+    "name": "spotify-card",
+    "type": "block",
+    "title": "Spotify Now Playing",
+    "description": "Animated Spotify now-playing card with album art and progress bar",
+    "tags": [
+      "social",
+      "overlay",
+      "spotify"
+    ],
+    "href": "/catalog/blocks/spotify-card",
+    "preview": "/images/catalog/blocks/spotify-card.png"
+  },
+  {
+    "name": "tiktok-follow",
+    "type": "block",
+    "title": "TikTok Follow",
+    "description": "Animated TikTok follow overlay with profile card and follow button",
+    "tags": [
+      "social",
+      "overlay",
+      "tiktok"
+    ],
+    "href": "/catalog/blocks/tiktok-follow",
+    "preview": "/images/catalog/blocks/tiktok-follow.png"
+  },
+  {
+    "name": "ui-3d-reveal",
+    "type": "block",
+    "title": "3D UI Reveal",
+    "description": "Perspective 3D reveal animation for UI elements",
+    "tags": [
+      "showcase",
+      "3d",
+      "reveal"
+    ],
+    "href": "/catalog/blocks/ui-3d-reveal",
+    "preview": "/images/catalog/blocks/ui-3d-reveal.png"
+  },
+  {
+    "name": "x-post",
+    "type": "block",
+    "title": "X Post Card",
+    "description": "Animated X/Twitter post card overlay with engagement metrics",
+    "tags": [
+      "social",
+      "overlay",
+      "twitter"
+    ],
+    "href": "/catalog/blocks/x-post",
+    "preview": "/images/catalog/blocks/x-post.png"
+  },
+  {
+    "name": "yt-lower-third",
+    "type": "block",
+    "title": "YouTube Lower Third",
+    "description": "Animated YouTube subscribe lower third with avatar and channel info",
+    "tags": [
+      "social",
+      "overlay",
+      "youtube"
+    ],
+    "href": "/catalog/blocks/yt-lower-third",
+    "preview": "/images/catalog/blocks/yt-lower-third.png"
   }
 ]
