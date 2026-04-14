@@ -205,12 +205,8 @@
       </style>
 
       <script>
-        (function initChart() {
+        (function () {
           const svg = document.querySelector('[data-composition-id="data-chart"] .chart-svg');
-          if (!svg) {
-            setTimeout(initChart, 50);
-            return;
-          }
           const tl = gsap.timeline({ paused: true });
 
           // Data

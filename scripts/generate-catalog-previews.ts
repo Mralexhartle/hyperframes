@@ -2,10 +2,11 @@
 /**
  * Generate Catalog Preview Images + Videos
  *
- * Extends the template preview pipeline to handle all registry item types:
- * - Examples:   renders index.html (same as generate-template-previews.ts)
- * - Blocks:     renders the block's standalone HTML directly
- * - Components: renders the component's demo.html
+ * Renders preview thumbnails and videos for registry blocks and components.
+ * Examples use the separate generate-template-previews.ts script.
+ *
+ * - Blocks:     renders the block's standalone HTML via a wrapper index.html
+ * - Components: renders the component's demo.html via a wrapper index.html
  *
  * Output: docs/images/catalog/<type>/<name>.png + <name>.mp4
  *

@@ -61,7 +61,13 @@ function discoverItems(): { kind: ItemKind; manifest: RegistryItem }[] {
       const manifestPath = join(dir, entry.name, "registry-item.json");
       if (!existsSync(manifestPath)) continue;
 
-      const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as RegistryItem;
+      let manifest: RegistryItem;
+      try {
+        manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as RegistryItem;
+      } catch (err) {
+        console.warn(`  ⚠ Skipping ${manifestPath}: ${(err as Error).message}`);
+        continue;
+      }
       items.push({ kind, manifest });
     }
   }
@@ -235,7 +241,12 @@ function main(): void {
   // Update docs.json navigation with generated catalog pages.
   const docsJsonPath = join(docsDir, "docs.json");
   const docsJson = JSON.parse(readFileSync(docsJsonPath, "utf-8"));
-  const tabs = docsJson.navigation?.tabs as Array<{ tab: string; groups: unknown[] }>;
+  const tabs = docsJson.navigation?.tabs;
+  if (!Array.isArray(tabs)) {
+    console.warn("  ⚠ docs.json has no navigation.tabs — skipping nav update");
+    console.log("\nDone.");
+    return;
+  }
 
   // Build catalog groups by category (first tag), like shadcn/ui.
   // Items with the same first tag are grouped together. Items without tags
