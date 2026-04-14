@@ -134,7 +134,7 @@ async function seekTo(session, t) {
       }
     }
   }, t);
-  await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 100));
 }
 
 // ─── Timeline introspection ──────────────────────────────────────────────────

@@ -1,6 +1,9 @@
 // Browser-side WCAG contrast audit.
 // Loaded as a raw string and injected via page.addScriptTag to avoid
 // esbuild mangling (page.evaluate serializes functions; __name helpers break).
+//
+// NOTE: WCAG math (relLum, wcagRatio, parseColor, median) is duplicated in
+// skills/hyperframes-contrast/scripts/contrast-report.mjs — keep in sync.
 
 /* eslint-disable */
 window.__contrastAudit = async function (imgBase64, time) {
@@ -46,8 +49,12 @@ window.__contrastAudit = async function (imgBase64, time) {
   var img = new Image();
   await new Promise(function (resolve) {
     img.onload = resolve;
+    img.onerror = function () {
+      resolve();
+    };
     img.src = "data:image/png;base64," + imgBase64;
   });
+  if (!img.naturalWidth) return [];
   var canvas = document.createElement("canvas");
   canvas.width = img.naturalWidth || 1920;
   canvas.height = img.naturalHeight || 1080;
@@ -109,6 +116,8 @@ window.__contrastAudit = async function (imgBase64, time) {
       sample(x0, y);
       sample(x1, y);
     }
+
+    if (rr.length === 0) continue;
 
     var bgR = median(rr),
       bgG = median(gg),
