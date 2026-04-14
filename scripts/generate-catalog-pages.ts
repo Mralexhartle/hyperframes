@@ -109,7 +109,7 @@ function generateItemMdx(kind: ItemKind, manifest: RegistryItem): string {
   // Preview video with poster — muted loop, no autoPlay (matches examples page).
   const previewPath = `/images/catalog/${typeDir(kind)}/${manifest.name}`;
   lines.push(
-    `<video className="w-full aspect-video rounded-xl object-cover bg-zinc-100 dark:bg-zinc-800" src="${previewPath}.mp4" poster="${previewPath}.png" muted loop playsInline preload="metadata" />`,
+    `<video className="w-full aspect-video rounded-xl object-cover bg-zinc-100 dark:bg-zinc-800" src="${previewPath}.mp4" poster="${previewPath}.png" autoPlay muted loop playsInline />`,
     "",
   );
 
