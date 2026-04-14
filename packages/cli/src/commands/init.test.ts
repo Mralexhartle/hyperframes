@@ -7,6 +7,10 @@ import { fileURLToPath } from "node:url";
 
 const cliEntry = resolve(fileURLToPath(import.meta.url), "..", "..", "cli.ts");
 
+// Spawns `bun` directly because the CLI entry is a .ts file that needs a
+// TypeScript-aware runtime. vitest runs under node, so `process.execPath`
+// would be node and couldn't load the entry. This repo hard-depends on bun
+// (package.json scripts), so assuming it's on PATH is safe.
 function runInit(args: string[]): { status: number; stdout: string; stderr: string } {
   const res = spawnSync("bun", ["run", cliEntry, "init", ...args], {
     encoding: "utf-8",
@@ -39,7 +43,7 @@ describe("hyperframes init flag rename", () => {
       const res = runInit([target, "--template", "blank", "--non-interactive", "--skip-skills"]);
       expect(res.status).not.toBe(0);
       expect(res.stderr).toContain("--template flag was renamed to --example");
-      expect(res.stderr).toContain("--example blank");
+      expect(res.stderr).toContain(`--example "blank"`);
       expect(existsSync(target)).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });

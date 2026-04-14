@@ -370,11 +370,12 @@ export default defineCommand({
     // Accepted-but-errored so users who still type the old flag get a clear
     // message rather than citty silently ignoring it and producing a blank
     // project. The actual behavior is gone — this exists purely for the
-    // diagnostic. Remove once the rename has had a couple of release cycles
-    // of awareness.
+    // diagnostic. `hidden` keeps it out of --help output so new users aren't
+    // taught about a flag that's already gone.
     template: {
       type: "string",
       description: "[renamed] Use --example instead.",
+      hidden: true,
     },
     video: {
       type: "string",
@@ -411,9 +412,11 @@ export default defineCommand({
   },
   async run({ args }) {
     if (args.template !== undefined) {
+      // Quote the value in case it looks flag-like — keeps the suggested
+      // command copy-pasteable.
       console.error(
         c.error(
-          `The --template flag was renamed to --example. Example:\n  npx hyperframes init ${args.name ?? "my-video"} --example ${args.template}`,
+          `The --template flag was renamed to --example. Example:\n  npx hyperframes init ${args.name ?? "my-video"} --example "${args.template}"`,
         ),
       );
       process.exit(1);
@@ -513,7 +516,7 @@ export default defineCommand({
       } catch (err) {
         console.error(
           c.error(
-            `Failed to scaffold template "${templateId}": ${err instanceof Error ? err.message : err}`,
+            `Failed to scaffold example "${templateId}": ${err instanceof Error ? err.message : err}`,
           ),
         );
         console.error(c.dim("Use --example blank for offline use."));
@@ -692,7 +695,7 @@ export default defineCommand({
     const spin = clack.spinner();
     const isBundled = BUNDLED_TEMPLATES.some((t) => t.id === templateId);
     if (!isBundled) {
-      spin.start(`Downloading template ${c.accent(templateId)}...`);
+      spin.start(`Downloading example ${c.accent(templateId)}...`);
     }
     try {
       await scaffoldProject(destDir, name, templateId, localVideoName, videoDuration);
