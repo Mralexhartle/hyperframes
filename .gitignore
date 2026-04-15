@@ -29,6 +29,7 @@ packages/producer/tests/*/failures/
 
 # Rendered output (not test fixtures — those use git LFS)
 output/
+*.mp4
 !packages/producer/tests/*/output/
 
 # npm pack artifacts
