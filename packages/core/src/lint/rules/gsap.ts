@@ -326,11 +326,12 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
   },
 
   // gsap_css_transform_conflict
-  ({ styles, scripts }) => {
+  ({ styles, scripts, tags }) => {
     const findings: HyperframeLintFinding[] = [];
     const cssTranslateSelectors = new Map<string, string>();
     const cssScaleSelectors = new Map<string, string>();
 
+    // Check <style> blocks for transform rules
     for (const style of styles) {
       for (const [, selector, body] of style.content.matchAll(
         /([#.][a-zA-Z0-9_-]+)\s*\{([^}]+)\}/g,
@@ -342,6 +343,28 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
           cssTranslateSelectors.set((selector ?? "").trim(), transformVal);
         if (/scale/i.test(transformVal))
           cssScaleSelectors.set((selector ?? "").trim(), transformVal);
+      }
+    }
+
+    // Also check inline style="..." attributes on tags
+    for (const tag of tags) {
+      const inlineStyle = readAttr(tag.raw, "style");
+      if (!inlineStyle) continue;
+      const tMatch = inlineStyle.match(/transform\s*:\s*([^;]+)/);
+      if (!tMatch || !tMatch[1]) continue;
+      const transformVal = tMatch[1].trim();
+      // Derive selectors from the tag's id and all classes
+      const id = readAttr(tag.raw, "id");
+      const classes = readAttr(tag.raw, "class")?.split(/\s+/).filter(Boolean) ?? [];
+      const selectors: string[] = [];
+      if (id) selectors.push(`#${id}`);
+      for (const cls of classes) selectors.push(`.${cls}`);
+      if (selectors.length === 0) continue;
+      for (const sel of selectors) {
+        if (/translate/i.test(transformVal) && !cssTranslateSelectors.has(sel))
+          cssTranslateSelectors.set(sel, transformVal);
+        if (/scale/i.test(transformVal) && !cssScaleSelectors.has(sel))
+          cssScaleSelectors.set(sel, transformVal);
       }
     }
 

@@ -75,7 +75,7 @@ If you don't have the skill installed, run: \`npx skills add heygen-com/hyperfra
 
 | File | Contents |
 |------|----------|
-${hasScreenshot ? "| `screenshots/full-page.png` | Full-page screenshot of the website — your primary visual reference |" : ""}
+${hasScreenshot ? "| `screenshots/full-page.png` | Full-page screenshot (very tall — hard to read details, use scroll screenshots instead) |\n| `screenshots/scroll-0.png` | Hero section at 1920x1080 — **VIEW THIS FIRST** to understand the site's look and feel |\n| `screenshots/scroll-25.png` | Page at 25% scroll — 1920x1080 readable viewport |\n| `screenshots/scroll-50.png` | Page at 50% scroll — 1920x1080 readable viewport |\n| `screenshots/scroll-75.png` | Page at 75% scroll — 1920x1080 readable viewport |\n| `screenshots/scroll-100.png` | Page bottom at 1920x1080 — footer and final sections |" : ""}
 | \`extracted/tokens.json\` | Design tokens: ${tokens.colors.length} colors, ${tokens.fonts.length} fonts, ${headingCount} headings, ${ctaCount} CTAs, ${sectionCount} sections |
 | \`extracted/visible-text.txt\` | All visible text content in DOM order — use exact strings, never paraphrase |
 | \`extracted/assets-catalog.json\` | Every asset URL (images, fonts, videos, icons) with HTML context |

@@ -25,25 +25,15 @@ For small edits (fix a color, adjust timing, add one element), skip straight to 
 Before writing ANY composition HTML, you MUST have a visual identity defined. Do NOT write compositions with default or generic colors.
 
 Check in this order:
+
 1. **DESIGN.md exists in the project?** → Read it. Use its exact colors, fonts, motion rules, and "What NOT to Do" constraints.
 2. **visual-style.md exists?** → Read it. Apply its `style_prompt_full` and structured fields. (Note: `visual-style.md` is a project-specific file. `visual-styles.md` is the style library with 8 named presets — different files.)
-3. **User named a style or gave a topic** (e.g., "Swiss Pulse", "dark and techy", "astronomical discoveries")? → Read [visual-styles.md](./visual-styles.md) for the 8 named presets. Pick the closest match or blend from multiple. Generate a **full** DESIGN.md with all 10 sections:
-   - `## Overview` (3-4 sentences)
-   - `## Style Prompt` (single self-contained paragraph — most important)
-   - `## Colors` (3-5 hex values with roles, derived from the style preset)
-   - `## Typography` (1-2 font families with weights)
-   - `## Elevation` (depth strategy for this style)
-   - `## Components` (what visual elements this style typically uses)
-   - `## Motion` (easing, speed, animation character from the style)
-   - `## Do's and Don'ts` (3-5 rules each)
-   - `## What NOT to Do` (3-5 anti-patterns)
-   - `## Assets` (list any sourced assets)
-   Save as DESIGN.md in the project directory.
+3. **User named a style** (e.g., "Swiss Pulse", "dark and techy", "luxury brand")? → Read [visual-styles.md](./visual-styles.md) for the 8 named presets. Generate a minimal DESIGN.md with: `## Style Prompt` (one paragraph), `## Colors` (3-5 hex values with roles), `## Typography` (1-2 font families), `## What NOT to Do` (3-5 anti-patterns).
 4. **None of the above?** → Ask 3 questions before writing any HTML:
    - What's the mood? (explosive / cinematic / fluid / technical / chaotic / warm)
    - Light or dark canvas?
    - Any specific brand colors, fonts, or visual references?
-   Then generate a **full** DESIGN.md with all 10 sections listed above, using the answers to select and adapt a style from visual-styles.md.
+     Then generate a minimal DESIGN.md from the answers.
 
 Every composition must trace its palette and typography back to a DESIGN.md, visual-style.md, or explicit user direction. If you're reaching for `#333`, `#3b82f6`, or `Roboto` — you skipped this step.
 </HARD-GATE>

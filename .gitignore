@@ -60,6 +60,10 @@ packages/studio/data/
 .claude/skills/
 skills-lock.json
 
+# Skills from other PRs (not managed here)
+skills/hyperframes-animation-map/
+skills/hyperframes-contrast/
+
 # Capture outputs (new captures go to captures/ by default)
 captures/
 notion-promo/

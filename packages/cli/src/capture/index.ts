@@ -408,11 +408,17 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
     progress("animations", "Cataloging animations...");
     animationCatalog = await collectAnimationCatalog(page1, cdpAnims, cdp);
 
-    // Capture full-page screenshot (scrolls to trigger lazy loading, neutralizes sticky elements)
+    // Capture per-section viewport screenshots (1920x1080 each — readable by AI vision)
+    progress("screenshots", "Capturing viewport screenshots...");
+    const { captureScreenshots, captureFullPageScreenshot } =
+      await import("./screenshotCapture.js");
+    const sectionScreenshots = await captureScreenshots(page1, outputDir, { maxScreenshots: 24 });
+    progress("screenshots", `${sectionScreenshots.length} section screenshots captured`);
+
+    // Also capture full-page screenshot + scroll-position screenshots
     progress("screenshots", "Capturing full-page screenshot...");
-    const { captureFullPageScreenshot } = await import("./screenshotCapture.js");
     const fullPageScreenshot = await captureFullPageScreenshot(page1, outputDir, url);
-    const screenshots: string[] = [];
+    const screenshots: string[] = [...sectionScreenshots];
     if (fullPageScreenshot) {
       screenshots.push(fullPageScreenshot);
     }
@@ -473,7 +479,7 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
     // Generate video manifest — screenshot each <video> element + extract surrounding context
     // so Claude Code can SEE what each video shows and WHERE it was used on the page.
     try {
-      const videoElements = await page1.evaluate(`(() => {
+      const videoElements = (await page1.evaluate(`(() => {
         var videos = Array.from(document.querySelectorAll('video'));
         return videos.map(function(v) {
           var src = v.src || v.currentSrc || (v.querySelector('source') ? v.querySelector('source').src : '');
@@ -512,7 +518,7 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
             src: src,
             width: Math.round(rect.width),
             height: Math.round(rect.height),
-            top: Math.round(rect.top + window.scrollY),
+            top: Math.round(rect.top),
             left: Math.round(rect.left),
             heading: heading,
             caption: caption,
@@ -520,7 +526,7 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
             filename: src.split('/').pop().split('?')[0],
           };
         }).filter(Boolean);
-      })`) as Array<{
+      })`)) as Array<{
         src: string;
         width: number;
         height: number;
@@ -565,6 +571,11 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
 
           // Screenshot the video element to get a visible frame
           try {
+            // Scroll to the video element so it's in the viewport
+            await page1.evaluate(`window.scrollTo(0, ${Math.max(0, v.top - 100)})`);
+            await new Promise((r) => setTimeout(r, 300));
+            // Re-measure viewport-relative position after scroll
+            const clipY = v.top - Math.max(0, v.top - 100);
             await page1.evaluate(`(() => {
               var vids = Array.from(document.querySelectorAll('video'));
               vids.forEach(function(v) {
@@ -577,7 +588,7 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
               path: previewPath,
               clip: {
                 x: Math.max(0, v.left),
-                y: Math.max(0, v.top),
+                y: Math.max(0, clipY),
                 width: Math.min(v.width, 1920),
                 height: Math.min(v.height, 1080),
               },
@@ -807,7 +818,72 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
       );
     }
 
-    // Generate asset descriptions for the AI agent (no API keys needed)
+    // AI-powered image captioning via Gemini (optional — enriches asset descriptions)
+    const geminiCaptions: Record<string, string> = {};
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (geminiKey) {
+      progress("design", "Captioning images with Gemini vision...");
+      try {
+        const { GoogleGenAI } = await import("@google/genai");
+        const { readFileSync: readAssetFile, readdirSync: listAssetDir } = await import("node:fs");
+        const ai = new GoogleGenAI({ apiKey: geminiKey });
+        const imageFiles = listAssetDir(join(outputDir, "assets")).filter((f: string) =>
+          /\.(png|jpg|jpeg|webp|gif)$/i.test(f),
+        );
+
+        // Caption in parallel batches via Gemini vision API.
+        // Rate limits vary by tier: free = 5 RPM, paid = 1000+ RPM.
+        // We batch 5 at a time with a 12s pause — safe for free tier, fast for paid.
+        const model = "gemini-2.5-flash";
+        const BATCH_SIZE = 5;
+        for (let i = 0; i < imageFiles.length; i += BATCH_SIZE) {
+          const batch = imageFiles.slice(i, i + BATCH_SIZE);
+          const results = await Promise.allSettled(
+            batch.map(async (file: string) => {
+              const filePath = join(outputDir, "assets", file);
+              const buffer = readAssetFile(filePath);
+              const base64 = buffer.toString("base64");
+              const ext = file.split(".").pop()?.toLowerCase() || "png";
+              const mimeType = ext === "jpg" ? "image/jpeg" : `image/${ext}`;
+              const response = await ai.models.generateContent({
+                model,
+                contents: [
+                  {
+                    role: "user",
+                    parts: [
+                      { inlineData: { mimeType, data: base64 } },
+                      {
+                        text: "Describe this website image in ONE short sentence for a video storyboard. Focus on: what it shows, dominant colors, whether background is light or dark. Be factual, not creative.",
+                      },
+                    ],
+                  },
+                ],
+                config: { maxOutputTokens: 100 },
+              });
+              return { file, caption: response.text?.trim() || "" };
+            }),
+          );
+          for (const result of results) {
+            if (result.status === "fulfilled" && result.value.caption) {
+              geminiCaptions[result.value.file] = result.value.caption;
+            }
+          }
+          // Pace requests to stay under free tier rate limits (5 RPM for gemini-2.5-flash)
+          if (i + BATCH_SIZE < imageFiles.length) {
+            await new Promise((r) => setTimeout(r, 12000)); // 12s between batches of 5 ≈ 25 RPM (safe for free tier)
+          }
+          progress(
+            "design",
+            `Captioned ${Math.min(i + BATCH_SIZE, imageFiles.length)}/${imageFiles.length} images...`,
+          );
+        }
+        progress("design", `${Object.keys(geminiCaptions).length} images captioned with Gemini`);
+      } catch (err) {
+        warnings.push(`Gemini captioning failed: ${err}`);
+      }
+    }
+
+    // Generate asset descriptions for the AI agent
     progress("design", "Generating asset descriptions...");
     try {
       const { readdirSync, statSync } = await import("node:fs");
@@ -817,22 +893,44 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
       const assetsPath = join(outputDir, "assets");
       try {
         for (const file of readdirSync(assetsPath)) {
-          if (file === "svgs" || file === "fonts" || file === "lottie" || file === "videos") continue;
+          if (file === "svgs" || file === "fonts" || file === "lottie" || file === "videos")
+            continue;
           const filePath = join(assetsPath, file);
           const stat = statSync(filePath);
           if (!stat.isFile()) continue;
           const sizeKb = Math.round(stat.size / 1024);
           // Find context from cataloged assets
           const catalogMatch = catalogedAssets.find(
-            (a) => a.url && file.includes(a.url.split("/").pop()?.split("?")[0]?.slice(0, 20) || "___"),
+            (a) =>
+              a.url && file.includes(a.url.split("/").pop()?.split("?")[0]?.slice(0, 20) || "___"),
           );
-          const contexts = catalogMatch?.contexts?.join(", ") || "";
-          const notes = catalogMatch?.notes || "";
+          // Build rich description from catalog context
+          const desc = catalogMatch?.description || catalogMatch?.notes || "";
+          const heading = catalogMatch?.nearestHeading || "";
+          const section = catalogMatch?.sectionClasses || "";
+          const aboveFold = catalogMatch?.aboveFold ? "above fold" : "";
+          // No brightness analysis — Gemini captions handle this when available
+          // Gemini vision caption (highest quality — available when GEMINI_API_KEY is set)
+          const geminiCaption = geminiCaptions[file];
           // Derive a meaningful name from the filename
-          const cleanName = file.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c);
-          lines.push(`${file} — ${sizeKb}KB, ${cleanName}${notes ? " (" + notes + ")" : ""}${contexts ? " [" + contexts + "]" : ""}`);
+          const cleanName = file.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
+          const parts = [`${file} — ${sizeKb}KB`];
+          if (geminiCaption) {
+            // Gemini gives the best description — use it as primary
+            parts.push(geminiCaption);
+          } else {
+            // Fallback: DOM context
+            if (desc) parts.push(`"${desc.slice(0, 80)}"`);
+            if (heading) parts.push(`section: "${heading.slice(0, 60)}"`);
+            else if (section) parts.push(`in: ${section.split(" ").slice(0, 3).join(" ")}`);
+            if (aboveFold) parts.push(aboveFold);
+            if (!desc && !heading) parts.push(cleanName);
+          }
+          lines.push(parts.join(", "));
         }
-      } catch { /* no assets dir */ }
+      } catch {
+        /* no assets dir */
+      }
 
       // Describe SVGs
       try {
@@ -840,13 +938,22 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
         for (const file of readdirSync(svgsPath)) {
           if (!file.endsWith(".svg")) continue;
           const svgMatch = tokens.svgs.find(
-            (s) => s.label && file.includes(s.label.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 15)),
+            (s) =>
+              s.label &&
+              file.includes(
+                s.label
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]/g, "-")
+                  .slice(0, 15),
+              ),
           );
           const label = svgMatch?.label || file.replace(".svg", "").replace(/-/g, " ");
           const isLogo = svgMatch?.isLogo || file.includes("logo");
           lines.push(`svgs/${file} — ${isLogo ? "logo: " : "icon: "}${label}`);
         }
-      } catch { /* no svgs dir */ }
+      } catch {
+        /* no svgs dir */
+      }
 
       // Describe fonts
       try {
@@ -854,13 +961,16 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
         for (const file of readdirSync(fontsPath)) {
           lines.push(`fonts/${file} — font file`);
         }
-      } catch { /* no fonts dir */ }
+      } catch {
+        /* no fonts dir */
+      }
 
       if (lines.length > 0) {
         writeFileSync(
           join(outputDir, "extracted", "asset-descriptions.md"),
           "# Asset Descriptions\n\nOne line per file. Read this instead of opening every image individually.\n\n" +
-            lines.map((l) => "- " + l).join("\n") + "\n",
+            lines.map((l) => "- " + l).join("\n") +
+            "\n",
           "utf-8",
         );
         progress("design", `${lines.length} asset descriptions written`);
@@ -939,34 +1049,26 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
     </style>
   </head>
   <body>
-    <!-- SCENE SLOTS — AGENT: adjust count, durations, and IDs to match your scene plan -->
-    <div id="scene-1" data-composition-src="compositions/scene-1.html" data-start="0" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
-    <div id="scene-2" data-composition-src="compositions/scene-2.html" data-start="7" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
-    <div id="scene-3" data-composition-src="compositions/scene-3.html" data-start="14" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
-    <div id="scene-4" data-composition-src="compositions/scene-4.html" data-start="21" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
+    <!-- Root composition wrapper — AGENT: update data-duration to match total video length -->
+    <div data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-duration="28">
 
-    <!-- NARRATION — AGENT: update src after generating TTS -->
-    <audio id="narration" data-start="0" data-duration="28" data-track-index="0" data-volume="1" src="narration.wav"></audio>
+      <!-- SCENE SLOTS — AGENT: adjust count, durations, and IDs to match your scene plan -->
+      <div id="scene-1" data-composition-src="compositions/scene-1.html" data-start="0" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="scene-2" data-composition-src="compositions/scene-2.html" data-start="7" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="scene-3" data-composition-src="compositions/scene-3.html" data-start="14" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="scene-4" data-composition-src="compositions/scene-4.html" data-start="21" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
 
-    <!-- CAPTIONS — AGENT: create compositions/captions.html with word-level timestamps -->
-    <div id="captions" data-composition-src="compositions/captions.html" data-start="0" data-duration="28" data-track-index="2" data-width="1920" data-height="1080"></div>
+      <!-- NARRATION — AGENT: update src after generating TTS -->
+      <audio id="narration" data-start="0" data-duration="28" data-track-index="0" data-volume="1" src="narration.wav"></audio>
+
+      <!-- CAPTIONS (optional — only add if user requests captions/subtitles) -->
+
+    </div>
 
     <script>
       window.__timelines = window.__timelines || {};
       var tl = gsap.timeline({ paused: true });
       window.__timelines["main"] = tl;
-
-      /* SHADER TRANSITIONS
-       * Copy the FULL WebGL boilerplate from:
-       *   skills/hyperframes/references/transitions/shader-setup.md
-       * Pick a fragment shader from:
-       *   skills/hyperframes/references/transitions/shader-transitions.md
-       * Working reference: captures/arc-browser/index.html
-       *
-       * Do NOT write a simplified version — the full boilerplate handles
-       * text, images, backgrounds, border-radius, and box-shadow rendering.
-       * A simplified version will produce black screens during transitions.
-       */
     </script>
   </body>
 </html>

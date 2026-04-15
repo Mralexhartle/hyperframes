@@ -6,13 +6,13 @@ This repo ships skills that are installed globally via `npx hyperframes skills` 
 
 ### HyperFrames Skills (from this repo)
 
-| Skill                    | Invoke with             | When to use                                                                                                                                                                           |
-| ------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **hyperframes-compose**  | `/hyperframes-compose`  | Creating ANY HTML composition — videos, animations, title cards, overlays. Contains required HTML structure, `class="clip"` rules, GSAP timeline patterns, and rendering constraints. |
-| **hyperframes-captions** | `/hyperframes-captions` | Any task involving text synced to audio: captions, subtitles, lyrics, lyric videos, karaoke. Also covers transcription strategy (whisper model selection, transcript format).         |
-| **hyperframes-tts**      | `/hyperframes-tts`      | Generating speech from text: narration, voiceovers, text-to-speech. Voice selection, speed control, and combining TTS output with compositions.                                       |
-| **marker-highlight**     | `/marker-highlight`     | Animated text highlighting — marker sweeps, hand-drawn circles, burst lines, scribble, sketchout. Use with captions for dynamic emphasis.                                             |
-| **website-to-hyperframes** | `/website-to-hyperframes` | Capture a website and create a video from it. 4-phase pipeline: capture URL → understand data → create DESIGN.md → plan video → build compositions. Use when a user provides a URL and wants ANY kind of video. |
+| Skill                      | Invoke with               | When to use                                                                                                                                                                                   |
+| -------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **hyperframes-compose**    | `/hyperframes-compose`    | Creating ANY HTML composition — videos, animations, title cards, overlays. Contains required HTML structure, `class="clip"` rules, GSAP timeline patterns, and rendering constraints.         |
+| **hyperframes-captions**   | `/hyperframes-captions`   | Any task involving text synced to audio: captions, subtitles, lyrics, lyric videos, karaoke. Also covers transcription strategy (whisper model selection, transcript format).                 |
+| **hyperframes-tts**        | `/hyperframes-tts`        | Generating speech from text: narration, voiceovers, text-to-speech. Voice selection, speed control, and combining TTS output with compositions.                                               |
+| **marker-highlight**       | `/marker-highlight`       | Animated text highlighting — marker sweeps, hand-drawn circles, burst lines, scribble, sketchout. Use with captions for dynamic emphasis.                                                     |
+| **website-to-hyperframes** | `/website-to-hyperframes` | Capture a website and create a video from it. 7-step pipeline: capture → DESIGN.md → script → storyboard → VO → build → validate. Use when a user provides a URL and wants ANY kind of video. |
 
 ### GSAP Skills (from [greensock/gsap-skills](https://github.com/greensock/gsap-skills))
 

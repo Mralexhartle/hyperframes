@@ -149,11 +149,9 @@ const EXTRACT_SCRIPT = `(() => {
 
   // 11. Sections
   var sectionResults = [];
-  var seen = {};
   var candidates = Array.from(document.querySelectorAll('section, main > div, main > section, [class*="hero"], [class*="Hero"], footer'));
   for (var si = 0; si < candidates.length; si++) {
     var el = candidates[si];
-    if (seen[si]) continue;
     var rect = el.getBoundingClientRect();
     if (rect.height < 200 || rect.width < 400 || !isVisible(el)) continue;
     var y = rect.top + window.scrollY;
@@ -171,7 +169,6 @@ const EXTRACT_SCRIPT = `(() => {
     var sectionBg = getComputedStyle(el).backgroundColor;
     if (!sectionBg || sectionBg === "rgba(0, 0, 0, 0)" || sectionBg === "transparent") sectionBg = "#FFFFFF";
     else sectionBg = rgbToHex(sectionBg) || sectionBg;
-    seen[si] = true;
     sectionResults.push({ selector: selector, type: type, y: Math.round(y), height: Math.round(rect.height), heading: headingText, backgroundColor: sectionBg });
   }
   sectionResults.sort(function(a, b) { return a.y - b.y; });

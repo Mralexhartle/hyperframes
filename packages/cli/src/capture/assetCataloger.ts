@@ -16,6 +16,14 @@ export interface CatalogedAsset {
   type: "Image" | "Video" | "Font" | "Icon" | "Background" | "Other";
   contexts: string[];
   notes?: string;
+  /** Alt text, figcaption, or aria-label */
+  description?: string;
+  /** Nearest heading (h1-h4) text */
+  nearestHeading?: string;
+  /** Parent section/container class names */
+  sectionClasses?: string;
+  /** Whether the image is above the fold (visible without scrolling) */
+  aboveFold?: boolean;
 }
 
 /**
@@ -25,7 +33,38 @@ export async function catalogAssets(page: Page): Promise<CatalogedAsset[]> {
   const assets = await page.evaluate(`(() => {
     var assetMap = {};
 
-    function add(url, type, context, notes) {
+    // Extract rich DOM context from any element (heading, section, position)
+    function getElementContext(el) {
+      var ctx = {};
+      // Alt text, aria-label, figcaption
+      var desc = el.alt || el.getAttribute('aria-label') || el.getAttribute('title') || '';
+      var fig = el.closest('figure');
+      if (fig) {
+        var cap = fig.querySelector('figcaption');
+        if (cap) desc = desc || cap.textContent.trim().slice(0, 100);
+      }
+      var ariaBy = el.getAttribute('aria-describedby');
+      if (ariaBy) {
+        var descEl = document.getElementById(ariaBy);
+        if (descEl) desc = desc || descEl.textContent.trim().slice(0, 100);
+      }
+      if (desc) ctx.description = desc.slice(0, 150);
+      // Nearest heading
+      var section = el.closest('section, article, header, footer, main, [class*="hero"], [class*="banner"], [class*="feature"]');
+      if (section) {
+        var heading = section.querySelector('h1, h2, h3, h4');
+        if (heading) ctx.nearestHeading = heading.textContent.trim().slice(0, 80);
+        ctx.sectionClasses = (section.className || '').toString().slice(0, 120);
+      }
+      // Above fold?
+      try {
+        var rect = el.getBoundingClientRect();
+        ctx.aboveFold = rect.top < window.innerHeight;
+      } catch(e) {}
+      return ctx;
+    }
+
+    function add(url, type, context, notes, richCtx) {
       if (!url || url === '' || url.startsWith('data:') || url.startsWith('blob:') || url === 'about:blank') return;
       // Normalize URL
       try { url = new URL(url, document.baseURI).href; } catch(e) { return; }
@@ -52,16 +91,24 @@ export async function catalogAssets(page: Page): Promise<CatalogedAsset[]> {
       if (notes && !entry.notes) {
         entry.notes = notes;
       }
+      // Merge rich context (first one wins)
+      if (richCtx) {
+        if (richCtx.description && !entry.description) entry.description = richCtx.description;
+        if (richCtx.nearestHeading && !entry.nearestHeading) entry.nearestHeading = richCtx.nearestHeading;
+        if (richCtx.sectionClasses && !entry.sectionClasses) entry.sectionClasses = richCtx.sectionClasses;
+        if (richCtx.aboveFold !== undefined && entry.aboveFold === undefined) entry.aboveFold = richCtx.aboveFold;
+      }
     }
 
     // ── Images: <img src="..."> and <img srcset="..."> ──
     document.querySelectorAll('img[src]').forEach(function(img) {
       var notes = img.alt || img.getAttribute('aria-label') || null;
-      add(img.src, 'Image', 'img[src]', notes);
+      var ctx = getElementContext(img);
+      add(img.src, 'Image', 'img[src]', notes, ctx);
       if (img.srcset) {
         img.srcset.split(',').forEach(function(entry) {
           var u = entry.trim().split(/\\s+/)[0];
-          if (u) add(u, 'Image', 'img[srcset]', notes);
+          if (u) add(u, 'Image', 'img[srcset]', notes, ctx);
         });
       }
     });
@@ -69,7 +116,7 @@ export async function catalogAssets(page: Page): Promise<CatalogedAsset[]> {
     // ── Lazy-loaded images: data-src, data-lazy-src, data-original ──
     document.querySelectorAll('img[data-src], img[data-lazy-src], img[data-original], [data-background-image]').forEach(function(el) {
       var dataSrc = el.getAttribute('data-src') || el.getAttribute('data-lazy-src') || el.getAttribute('data-original') || el.getAttribute('data-background-image');
-      if (dataSrc) add(dataSrc, 'Image', 'data-src', el.alt || el.getAttribute('aria-label') || null);
+      if (dataSrc) add(dataSrc, 'Image', 'data-src', el.alt || el.getAttribute('aria-label') || null, getElementContext(el));
     });
 
     // ── Picture sources: <source srcset="..."> ──
