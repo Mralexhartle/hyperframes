@@ -90,7 +90,7 @@ Avoid: star iris, tilt-shift, lens flare, hinge/door. See catalog.md for why.
 
 CSS transitions animate scene containers with opacity, transforms, clip-path, and filters. Shader transitions composite both scene textures per-pixel on a WebGL canvas — they can warp, dissolve, and morph in ways CSS cannot.
 
-**Both are first-class options.** Shaders require setup boilerplate (~200 lines, copied from [transitions/shader-setup.md](transitions/shader-setup.md)) but produce richer, more cinematic effects. CSS transitions are simpler to set up. Choose based on the effect you want, not based on which is easier.
+**Both are first-class options.** Shaders are provided by the `@hyperframes/shader-transitions` package — import from the package instead of writing raw GLSL. CSS transitions are simpler to set up. Choose based on the effect you want, not based on which is easier.
 
 When a composition uses shader transitions, ALL transitions in that composition should be shader-based (the WebGL canvas replaces DOM-based scene switching). Don't mix CSS and shader transitions in the same composition.
 
@@ -103,7 +103,7 @@ Shader transitions capture DOM scenes to WebGL textures via html2canvas. The can
 3. **No CSS variables (`var()`) on elements visible during capture.** html2canvas doesn't reliably resolve custom properties. Use literal color values in inline styles.
 4. **Mark uncapturable decorative elements with `data-no-capture`.** The capture function skips these. They're present on the live DOM but absent from the shader texture. Use for elements that can't follow the rules above.
 5. **No gradient opacity below 0.15.** Gradient elements below 10% opacity render differently in canvas vs CSS. Increase to 0.15+ or use a solid color at equivalent brightness.
-6. **Every `.scene` div must have explicit `background-color`, AND set `BG_COLOR` in the shader setup to the same value.** html2canvas captures the scene element, not the body. Both the CSS `background-color` on `.scene` and the `backgroundColor` option in `html2canvas()` must be set to the composition's background color. Without either, the texture renders as black.
+6. **Every `.scene` div must have explicit `background-color`, AND pass the same color as `bgColor` in the `init()` config.** The package captures scene elements via html2canvas. Both the CSS `background-color` on `.scene` and the `bgColor` config must match. Without either, the texture renders as black.
 
 These rules only apply to shader transition compositions. CSS-only compositions have no restrictions.
 

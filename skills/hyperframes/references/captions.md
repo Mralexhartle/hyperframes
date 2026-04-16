@@ -44,7 +44,7 @@ Scan for words deserving distinct treatment:
 - **Numbers/statistics** — bold weight, accent color
 - **Emotional keywords** — exaggerated animation (overshoot, bounce)
 - **Call-to-action** — highlight, underline, color pop
-- **Marker highlight** — for beyond-color emphasis, see [marker-highlight.md](marker-highlight.md)
+- **Marker highlight** — for beyond-color emphasis, see [css-patterns.md](css-patterns.md)
 
 ## Script-to-Style Mapping
 
@@ -121,7 +121,7 @@ tl.seek(0);
 
 - [dynamic-techniques.md](dynamic-techniques.md) — karaoke, clip-path reveals, slam words, scatter exits, elastic, 3D rotation
 - [transcript-guide.md](transcript-guide.md) — transcription commands, whisper models, external APIs
-- [marker-highlight.md](marker-highlight.md) — animated text emphasis paired with per-word styling
+- [css-patterns.md](css-patterns.md) — CSS+GSAP marker highlighting (deterministic, fully seekable)
 
 ## Constraints
 

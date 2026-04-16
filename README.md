@@ -31,11 +31,35 @@ Install the HyperFrames skills, then describe the video you want:
 npx skills add heygen-com/hyperframes
 ```
 
-This teaches your agent (Claude Code, Cursor, Gemini CLI, Codex) how to write correct compositions and GSAP animations. Then just prompt it:
+This teaches your agent (Claude Code, Cursor, Gemini CLI, Codex) how to write correct compositions and GSAP animations. In Claude Code, the skills register as slash commands — invoke `/hyperframes` to author compositions, `/hyperframes-cli` for CLI commands, and `/gsap` for animation help.
 
-> "Create a 10-second product intro video with a fade-in title, a background video, and background music"
+#### Try it: example prompts
 
-The agent handles scaffolding, animation, and rendering.
+Copy any of these into your agent to get started. The `/hyperframes` prefix loads the skill context explicitly so you get correct output the first time.
+
+**Cold start — describe what you want:**
+
+> Using `/hyperframes`, create a 10-second product intro with a fade-in title, a background video, and background music.
+
+**Warm start — turn existing context into a video:**
+
+> Take a look at this GitHub repo https://github.com/heygen-com/hyperframes and explain its uses and architecture to me using `/hyperframes`.
+
+> Summarize the attached PDF into a 45-second pitch video using `/hyperframes`.
+
+> Turn this CSV into an animated bar chart race using `/hyperframes`.
+
+**Format-specific:**
+
+> Make a 9:16 TikTok-style hook video about [topic] using `/hyperframes`, with bouncy captions synced to a TTS narration.
+
+**Iterate — talk to the agent like a video editor:**
+
+> Make the title 2x bigger, swap to dark mode, and add a fade-out at the end.
+
+> Add a lower third at 0:03 with my name and title.
+
+The agent handles scaffolding, animation, and rendering. See the [prompting guide](https://hyperframes.heygen.com/guides/prompting) for more patterns.
 
 ### Option 2: Start a project manually
 
@@ -126,16 +150,15 @@ Full documentation at **[hyperframes.heygen.com/introduction](https://hyperframe
 HyperFrames ships [skills](https://github.com/vercel-labs/skills) that teach AI agents framework-specific patterns that generic docs don't cover.
 
 ```bash
-npx skills add heygen-com/hyperframes    # HyperFrames skills
-npx skills add greensock/gsap-skills     # GSAP animation skills
+npx skills add heygen-com/hyperframes
 ```
 
-| Skill                                             | What it teaches                                                        |
-| ------------------------------------------------- | ---------------------------------------------------------------------- |
-| `hyperframes-compose`                             | HTML composition structure, `data-*` attributes, timeline registration |
-| `hyperframes-captions`                            | Caption/subtitle authoring and transcript integration                  |
-| `hyperframes-registry`                            | Block and component installation via `hyperframes add`                 |
-| `gsap-core`, `gsap-timeline`, `gsap-plugins`, ... | GSAP animation API, sequencing, ScrollTrigger, performance             |
+| Skill                  | What it teaches                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `hyperframes`          | HTML composition authoring, captions, TTS, audio-reactive animation, transitions             |
+| `hyperframes-cli`      | CLI commands: init, lint, preview, render, transcribe, tts, doctor                           |
+| `hyperframes-registry` | Block and component installation via `hyperframes add`                                       |
+| `gsap`                 | GSAP animation API, timelines, easing, ScrollTrigger, plugins, React/Vue/Svelte, performance |
 
 ## Contributing
 

@@ -141,6 +141,7 @@ Layered effects (glow behind text, shadow elements, background patterns) and z-s
 | Attribute                    | Required | Values                                       |
 | ---------------------------- | -------- | -------------------------------------------- |
 | `data-composition-id`        | Yes      | Unique composition ID                        |
+| `data-start`                 | Yes      | Start time (root composition: use `"0"`)     |
 | `data-duration`              | Yes      | Takes precedence over GSAP timeline duration |
 | `data-width` / `data-height` | Yes      | Pixel dimensions (1920x1080 or 1080x1920)    |
 | `data-composition-src`       | No       | Path to external HTML file                   |
@@ -315,7 +316,7 @@ Use `--no-contrast` to skip if iterating rapidly and you'll check later.
 After authoring animations, run the animation map to verify choreography:
 
 ```bash
-node skills/hyperframes-animation-map/scripts/animation-map.mjs <composition-dir> \
+node skills/hyperframes/scripts/animation-map.mjs <composition-dir> \
   --out <composition-dir>/.hyperframes/anim-map
 ```
 
@@ -362,5 +363,9 @@ Skip on small edits (fixing a color, adjusting one duration). Run on new composi
 - **[references/audio-reactive.md](references/audio-reactive.md)** — Audio-reactive animation: map frequency bands and amplitude to GSAP properties.
 - **[references/transcript-guide.md](references/transcript-guide.md)** — Transcription commands, whisper models, external APIs.
 - **[references/dynamic-techniques.md](references/dynamic-techniques.md)** — Dynamic caption animation techniques (karaoke, clip-path, slam, scatter, elastic, 3D).
+
+- **[references/transitions.md](references/transitions.md)** — Scene transitions: crossfades, wipes, reveals, shader transitions. **Always read for multi-scene compositions.**
+  - [transitions/catalog.md](references/transitions/catalog.md) — Hard rules, scene template, and routing to per-type implementation code.
+  - Shader transitions are in `@hyperframes/shader-transitions` (`packages/shader-transitions/`) — read package source, not skill files.
 
 GSAP patterns and effects are in the `/gsap` skill.
