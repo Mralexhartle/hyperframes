@@ -99,8 +99,17 @@ function stripBeginFrameFlags(args: string[]): string[] {
 
 /**
  * Probe whether the browser still speaks HeadlessExperimental.beginFrame.
- * Chromium 132+ removed the domain; calling enable() on a fresh page throws
- * "'HeadlessExperimental.enable' wasn't found". Returns true if supported.
+ *
+ * Some Chromium builds keep the domain registered (HeadlessExperimental.enable
+ * succeeds) but drop the beginFrame method itself — in that case the capture
+ * loop dies on first frame with `'HeadlessExperimental.beginFrame' wasn't
+ * found`. So we probe BOTH: enable + one cheap beginFrame. The beginFrame is
+ * raced against a 2s timeout because in beginframe-control mode the command
+ * completes as soon as the compositor acks — no network or GPU work involved.
+ *
+ * Any failure (method missing, timeout, protocol error) is treated as
+ * unsupported. Real errors after launch would surface in the warmup loop and
+ * fall out through the caller's try/catch.
  */
 async function probeBeginFrameSupport(browser: Browser): Promise<boolean> {
   let page;
@@ -108,14 +117,19 @@ async function probeBeginFrameSupport(browser: Browser): Promise<boolean> {
     page = await browser.newPage();
     const client = await page.createCDPSession();
     await client.send("HeadlessExperimental.enable");
+    const beginFrame = client.send("HeadlessExperimental.beginFrame", {
+      frameTimeTicks: 0,
+      interval: 33,
+      noDisplayUpdates: true,
+    });
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("beginFrame probe timeout")), 2000),
+    );
+    await Promise.race([beginFrame, timeout]);
     await client.detach().catch(() => {});
     return true;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/HeadlessExperimental\b.*(wasn't found|not found|not enabled)/i.test(msg)) {
-      return false;
-    }
-    throw err;
+  } catch {
+    return false;
   } finally {
     await page?.close().catch(() => {});
   }
