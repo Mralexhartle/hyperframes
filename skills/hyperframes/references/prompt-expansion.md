@@ -27,6 +27,14 @@ Expand into a full production prompt with these sections:
 6. **Pacing curve** — where energy builds, peaks, and releases
 7. **Negative prompt** — what to avoid
 
-## User review
+## Output
 
-Present the expanded prompt to the user for review before proceeding. They may edit scenes, adjust pacing, or change the tone. Only move to the design system step after they approve.
+Write the expanded prompt to `.hyperframes/expanded-prompt.md` in the project directory. Do NOT dump it into the chat — it will be hundreds of lines.
+
+Tell the user:
+
+> "I've expanded your prompt into a full production breakdown. Review it here: `.hyperframes/expanded-prompt.md`
+>
+> It has [N] scenes across [duration] seconds with specific visual elements, transitions, and pacing. Edit anything you want, then let me know when you're ready to proceed to the design picker."
+
+Only move to the design system step after the user approves or says to continue.
