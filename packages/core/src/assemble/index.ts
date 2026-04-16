@@ -114,7 +114,7 @@ function splitFragment(content: string): FragmentSections {
 // ── Scaffold markers ────────────────────────────────────────────────────────
 
 const SCENE_CONTENT_RE =
-  /(<div id="scene(\d+)" class="scene">)\s*<!--\s*SCENE\s+\d+\s+CONTENT\s*-->\s*(<\/div>)/g;
+  /(<div id="scene(\d+)" class="scene"[^>]*>)\s*<!--\s*SCENE\s+\d+\s+CONTENT\s*-->\s*(<\/div>)/g;
 const STYLE_MARKER = "/* SCENE STYLES */";
 const GSAP_MARKER = "// SCENE TWEENS";
 
