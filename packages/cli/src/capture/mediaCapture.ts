@@ -8,8 +8,9 @@
  */
 
 import type { Browser, Page } from "puppeteer-core";
-import { mkdirSync, writeFileSync, readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { isPrivateUrl } from "./assetDownloader.js";
 
 /** Discovered Lottie item from network interception or DOM scan. */
 export interface DiscoveredLottie {
@@ -41,6 +42,8 @@ export async function saveLottieAnimations(
         // Already have the JSON data from network interception
         jsonData = JSON.stringify(lottieItem.data);
       } else if (lottieItem.url) {
+        // SSRF guard — don't fetch private/internal URLs
+        if (isPrivateUrl(lottieItem.url)) continue;
         // Download the file
         const res = await fetch(lottieItem.url, {
           signal: AbortSignal.timeout(10000),
@@ -137,8 +140,13 @@ export async function renderLottiePreviews(
       const previewName = file.replace(".json", "-preview.png");
 
       // Render a mid-frame thumbnail using Puppeteer + lottie-web
+      // Skip huge Lottie files for preview (CDP has a ~256MB message limit)
+      const fileSize = statSync(join(lottieDir, file)).size;
+      if (fileSize > 2_000_000) continue;
+
+      let previewPage;
       try {
-        const previewPage = await chromeBrowser.newPage();
+        previewPage = await chromeBrowser.newPage();
         await previewPage.setViewport({ width: 400, height: 400 });
         const animData = JSON.parse(readFileSync(join(lottieDir, file), "utf-8"));
         const midFrame = Math.floor(((raw.op || 0) - (raw.ip || 0)) * 0.3);
@@ -177,9 +185,10 @@ export async function renderLottiePreviews(
           type: "png",
           omitBackground: true,
         });
-        await previewPage.close();
       } catch {
         /* preview rendering failed — non-critical */
+      } finally {
+        await previewPage?.close().catch(() => {});
       }
 
       manifest.push({

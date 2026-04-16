@@ -8,7 +8,32 @@
 - **[techniques.md](techniques.md)** — code patterns for the 10 visual techniques. When the storyboard says "SVG path drawing" or "per-word kinetic typography" — read the code pattern from this file and adapt it.
 - **transcript.json** — word-level timestamps that drive scene durations.
 
-Build one composition at a time, following the storyboard beat by beat. After each: self-review before moving on.
+**Split the work: spawn a sub-agent for each beat.** By this step your context is full of captured data, DESIGN.md, SCRIPT, STORYBOARD, and transcript. Building compositions on top of all that means the detailed rules below compete with thousands of tokens of prior work. Each sub-agent gets a fresh context focused on one beat — dramatically better output.
+
+**How to dispatch each sub-agent:**
+
+Pass file PATHS, not file contents. The #1 failure mode is reading an asset file and pasting its SVG/image data into the sub-agent prompt. The sub-agent then uses inline content instead of referencing the file on disk. Same with fonts — pass the local woff2 path, don't substitute Google Fonts.
+
+```
+Build the composition for beat 1. Save to compositions/beat-1-hook.html.
+
+STORYBOARD for this beat:
+[paste the beat section from STORYBOARD.md]
+
+ASSETS — reference by path, do NOT read/inline the file contents:
+- Logo: <img src="../assets/favicon.svg"> (top-left, 40x40px)
+- Hero image: <img src="../assets/hero-bg.png"> (full-bleed background)
+- Noise texture: ../assets/noise.png (full-frame overlay, 3% opacity)
+
+FONTS — use @font-face with the captured font files, NOT Google Fonts:
+@font-face { font-family: 'BrandFont'; src: url('../assets/fonts/BrandFont-Regular.woff2'); }
+
+Read DESIGN.md for exact colors and Do's/Don'ts.
+Read techniques.md for animation code patterns.
+Invoke /hyperframes for composition structure rules.
+```
+
+After each sub-agent finishes, verify the composition references `../assets/` — if it used inline SVGs or Google Fonts instead of the captured files, fix it before moving on.
 
 Invoke the `/hyperframes` skill first — it has the rules for data attributes, timeline contracts, deterministic rendering, and layout. Everything below supplements those rules, not replaces them.
 
@@ -68,10 +93,12 @@ Before self-review, verify you actually used the assets you planned to:
 
 1. Open STORYBOARD.md and find this beat's asset assignments
 2. List every asset that was assigned to this beat
-3. Search your composition HTML for each filename (e.g., grep for "wave-fallback-desktop")
-4. If any assigned asset is missing from the HTML, add it now — this is the most common failure mode
+3. Search the composition HTML for each filename (e.g., grep for "wave-fallback-desktop")
+4. If any assigned asset is missing from the HTML, add it now
+5. Check for the inline anti-pattern: if the HTML contains `<svg xmlns=` or `data:image/` but no `../assets/` references, the assets were inlined instead of referenced. Replace inline content with `<img src="../assets/filename.svg">`
+6. Check fonts: if the HTML uses `fonts.googleapis.com` but there are captured fonts in `assets/fonts/`, replace with `@font-face` pointing to the local files
 
-This step exists because the storyboard often assigns assets correctly but compositions end up text-only anyway. Don't skip it.
+This step catches the two most common failures: compositions ending up text-only, and assets being inlined instead of file-referenced.
 
 ### 8. Self-review
 

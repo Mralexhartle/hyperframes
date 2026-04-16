@@ -257,7 +257,7 @@ export async function downloadAndRewriteFonts(css: string, outputDir: string): P
 }
 
 /** Block requests to private/internal IP ranges to prevent SSRF */
-function isPrivateUrl(url: string): boolean {
+export function isPrivateUrl(url: string): boolean {
   try {
     const { hostname } = new URL(url);
     // Block cloud metadata, localhost, and private IP ranges

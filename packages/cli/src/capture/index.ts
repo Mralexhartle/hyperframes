@@ -48,7 +48,7 @@ export async function captureWebsite(
     outputDir,
     viewportWidth = 1920,
     viewportHeight = 1080,
-    timeout = 30000,
+    timeout = 120000,
     settleTime = 3000,
     maxScreenshots: _maxScreenshots = 24,
     skipAssets = false,

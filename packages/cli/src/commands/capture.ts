@@ -35,7 +35,7 @@ export default defineCommand({
     },
     timeout: {
       type: "string",
-      description: "Page load timeout in ms (default: 30000)",
+      description: "Page load timeout in ms (default: 120000)",
     },
     json: {
       type: "boolean",

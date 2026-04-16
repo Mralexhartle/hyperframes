@@ -18,7 +18,7 @@ export interface CaptureOptions {
   viewportWidth?: number;
   /** Viewport height (default: 1080) */
   viewportHeight?: number;
-  /** Page load timeout in ms (default: 30000) */
+  /** Page load timeout in ms (default: 120000) */
   timeout?: number;
   /** Extra wait after load for JS to settle (default: 3000) */
   settleTime?: number;

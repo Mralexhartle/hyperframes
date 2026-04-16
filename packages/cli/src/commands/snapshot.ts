@@ -76,13 +76,13 @@ async function captureSnapshots(
   });
 
   const port = await new Promise<number>((resolvePort, rejectPort) => {
+    server.on("error", rejectPort); // register before listen to catch sync bind errors
     server.listen(0, () => {
       const addr = server.address();
       const p = typeof addr === "object" && addr ? addr.port : 0;
       if (!p) rejectPort(new Error("Failed to bind local HTTP server"));
       else resolvePort(p);
     });
-    server.on("error", rejectPort);
   });
 
   const savedPaths: string[] = [];

@@ -180,6 +180,8 @@ export async function captionImagesWithGemini(
       const results = await Promise.allSettled(
         batch.map(async (file: string) => {
           const filePath = join(outputDir, "assets", file);
+          const stat = statSync(filePath);
+          if (stat.size > 4_000_000) return { file, caption: "" }; // skip images > 4 MB (Gemini inline limit)
           const buffer = readFileSync(filePath);
           const base64 = buffer.toString("base64");
           const ext = file.split(".").pop()?.toLowerCase() || "png";
