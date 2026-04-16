@@ -464,4 +464,207 @@ describe("GSAP rules", () => {
     const finding = result.findings.find((f) => f.code === "gsap_infinite_repeat");
     expect(finding).toBeUndefined();
   });
+
+  // ── tl_from_in_multiscene ────────────────────────────────────────────────
+
+  it("flags tl.from() in multi-scene composition (positive)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene" style="opacity:0"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.from("#s2-heading", { opacity: 0, y: 30, duration: 0.4 }, 5.2);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "tl_from_in_multiscene");
+    expect(finding).toBeDefined();
+  });
+
+  it("does NOT flag tl.from() in single-scene composition (negative)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.from("#heading", { opacity: 0, y: 30, duration: 0.4 }, 0.2);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "tl_from_in_multiscene");
+    expect(finding).toBeUndefined();
+  });
+
+  it("does NOT flag tl.from() targeting scene 1 elements in multi-scene (edge case)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene" style="opacity:0"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.from("#s1-heading", { opacity: 0, duration: 0.4 }, 0.2);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "tl_from_in_multiscene");
+    expect(finding).toBeUndefined();
+  });
+
+  it("does NOT false-positive on scene 10 when scene 1 is first (s1- vs s10- edge case)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene10" class="scene" style="opacity:0"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.from("#s10-title", { opacity: 0, duration: 0.4 }, 60.0);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "tl_from_in_multiscene");
+    expect(finding).toBeDefined();
+  });
+
+  // ── late_init_set ────────────────────────────────────────────────────────
+
+  it("flags tl.set with opacity:0 at time > 0 in multi-scene (positive)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene" style="opacity:0"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.set("#s2-heading", { opacity: 0, y: 30 }, 5.0);
+    tl.to("#s2-heading", { opacity: 1, y: 0, duration: 0.4 }, 5.5);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "late_init_set");
+    expect(finding).toBeDefined();
+  });
+
+  it("does NOT flag tl.set with opacity:0 at time 0 (negative)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene" style="opacity:0"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.set("#s2-heading", { opacity: 0, y: 30 }, 0);
+    tl.to("#s2-heading", { opacity: 1, y: 0, duration: 0.4 }, 5.5);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "late_init_set");
+    expect(finding).toBeUndefined();
+  });
+
+  it("does NOT false-positive on opacity: 0.5 (fractional edge case)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene" style="opacity:0"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.set("#s2-heading", { opacity: 0.5 }, 5.0);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "late_init_set");
+    expect(finding).toBeUndefined();
+  });
+
+  // ── scene_position_override ──────────────────────────────────────────────
+
+  it("flags position: relative on scene container (positive)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene" style="opacity:0"></div>
+  </div>
+  <style>
+    #scene2 { position: relative; background: #000; }
+  </style>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "scene_position_override");
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("error");
+  });
+
+  it("does NOT flag when no position override exists (negative)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene" style="opacity:0"></div>
+  </div>
+  <style>
+    #scene2 { background: #000; }
+  </style>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "scene_position_override");
+    expect(finding).toBeUndefined();
+  });
+
+  it("does NOT flag in single-scene composition (edge case)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+  </div>
+  <style>
+    #scene1 { position: relative; }
+  </style>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "scene_position_override");
+    expect(finding).toBeUndefined();
+  });
 });
