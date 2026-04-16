@@ -21,6 +21,12 @@ If yes → generate a design picker page and serve it for the user to choose fro
 
 **Creating a design.md:**
 
+Before generating options, read the style references — all generated options must comply with these rules:
+
+- [references/typography.md](references/typography.md) — banned font list, cross-category pairing (serif + sans or sans + mono, never two sans-serifs), weight contrast (300-400 body / 700-900 headline), video-sized text (60px+ headlines, 20px+ body, 16px+ labels)
+- [house-style.md](house-style.md) — lazy defaults to avoid (no gradient text, no left-edge accent stripes, no pure #000/#fff, no identical card grids, no banned fonts)
+- [references/motion-principles.md](references/motion-principles.md) — ease diversity, varied entry directions, scene structure
+
 1. Generate 2-3 visual directions based on the prompt. Each direction needs: name, mood, colors (bg/fg/accent), fonts (headline/body), energy level, and transition style.
 2. Copy [templates/design-picker.html](templates/design-picker.html) to the project directory as `.hyperframes/pick-design.html`.
 3. Replace `__ARCHITECTURES_JSON__`, `__PALETTES_JSON__`, and `__TYPEPAIRS_JSON__` with your generated options. The user picks one from each category independently — structure, palette, type pairing, plus theme (dark/light/full palette), corners, density, and depth.
