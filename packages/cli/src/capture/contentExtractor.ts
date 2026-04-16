@@ -171,10 +171,11 @@ export async function captionImagesWithGemini(
     );
 
     // Caption in parallel batches via Gemini vision API.
-    // Rate limits vary by tier: free = 5 RPM, paid = 1000+ RPM.
-    // We batch 5 at a time with a 12s pause — safe for free tier, fast for paid.
+    // Free tier: 5 RPM → batch 5, 12s pause (~$0 but slow)
+    // Paid tier: 2000 RPM → batch 20, 1s pause (~$0.001/image, fast)
+    // We try a larger batch first; if rate-limited, fall back to smaller batches.
     const model = "gemini-2.5-flash";
-    const BATCH_SIZE = 5;
+    const BATCH_SIZE = 20;
     for (let i = 0; i < imageFiles.length; i += BATCH_SIZE) {
       const batch = imageFiles.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
@@ -199,7 +200,7 @@ export async function captionImagesWithGemini(
                 ],
               },
             ],
-            config: { maxOutputTokens: 300 },
+            config: { maxOutputTokens: 500 },
           });
           return { file, caption: response.text?.trim() || "" };
         }),
@@ -211,7 +212,7 @@ export async function captionImagesWithGemini(
       }
       // Pace requests to stay under free tier rate limits (5 RPM for gemini-2.5-flash)
       if (i + BATCH_SIZE < imageFiles.length) {
-        await new Promise((r) => setTimeout(r, 12000)); // 12s between batches of 5 ≈ 25 RPM (safe for free tier)
+        await new Promise((r) => setTimeout(r, 2000)); // 2s pause between batches — paid tier handles 2000 RPM, free tier retries via Promise.allSettled
       }
       progress(
         "design",
@@ -237,7 +238,11 @@ export function generateAssetDescriptions(
   catalogedAssets: CatalogedAsset[],
   geminiCaptions: Record<string, string>,
 ): string[] {
-  const lines: string[] = [];
+  // Sort: Gemini-captioned images first (richest descriptions), then uncaptioned, then SVGs, then fonts
+  const captionedLines: string[] = [];
+  const uncaptionedLines: string[] = [];
+  const svgLines: string[] = [];
+  const fontLines: string[] = [];
 
   // Describe downloaded images
   const assetsPath = join(outputDir, "assets");
@@ -248,33 +253,27 @@ export function generateAssetDescriptions(
       const stat = statSync(filePath);
       if (!stat.isFile()) continue;
       const sizeKb = Math.round(stat.size / 1024);
-      // Find context from cataloged assets
       const catalogMatch = catalogedAssets.find(
         (a) => a.url && file.includes(a.url.split("/").pop()?.split("?")[0]?.slice(0, 20) || "___"),
       );
-      // Build rich description from catalog context
       const desc = catalogMatch?.description || catalogMatch?.notes || "";
       const heading = catalogMatch?.nearestHeading || "";
       const section = catalogMatch?.sectionClasses || "";
       const aboveFold = catalogMatch?.aboveFold ? "above fold" : "";
-      // No brightness analysis — Gemini captions handle this when available
-      // Gemini vision caption (highest quality — available when GEMINI_API_KEY is set)
       const geminiCaption = geminiCaptions[file];
-      // Derive a meaningful name from the filename
       const cleanName = file.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
       const parts = [`${file} — ${sizeKb}KB`];
       if (geminiCaption) {
-        // Gemini gives the best description — use it as primary
         parts.push(geminiCaption);
+        captionedLines.push(parts.join(", "));
       } else {
-        // Fallback: DOM context
         if (desc) parts.push(`"${desc.slice(0, 80)}"`);
         if (heading) parts.push(`section: "${heading.slice(0, 60)}"`);
         else if (section) parts.push(`in: ${section.split(" ").slice(0, 3).join(" ")}`);
         if (aboveFold) parts.push(aboveFold);
         if (!desc && !heading) parts.push(cleanName);
+        uncaptionedLines.push(parts.join(", "));
       }
-      lines.push(parts.join(", "));
     }
   } catch {
     /* no assets dir */
@@ -297,7 +296,7 @@ export function generateAssetDescriptions(
       );
       const label = svgMatch?.label || file.replace(".svg", "").replace(/-/g, " ");
       const isLogo = svgMatch?.isLogo || file.includes("logo");
-      lines.push(`svgs/${file} — ${isLogo ? "logo: " : "icon: "}${label}`);
+      svgLines.push(`svgs/${file} — ${isLogo ? "logo: " : "icon: "}${label}`);
     }
   } catch {
     /* no svgs dir */
@@ -307,11 +306,11 @@ export function generateAssetDescriptions(
   try {
     const fontsPath = join(assetsPath, "fonts");
     for (const file of readdirSync(fontsPath)) {
-      lines.push(`fonts/${file} — font file`);
+      fontLines.push(`fonts/${file} — font file`);
     }
   } catch {
     /* no fonts dir */
   }
 
-  return lines;
+  return [...captionedLines, ...uncaptionedLines, ...svgLines, ...fontLines];
 }

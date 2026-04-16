@@ -234,6 +234,38 @@ const EXTRACT_SCRIPT = `(() => {
   var svgEls = Array.from(document.querySelectorAll("svg"));
   var svgs = svgEls.map(function(svg) {
     var label = svg.getAttribute("aria-label") || svg.getAttribute("title") || svg.getAttribute("alt");
+    // Try harder to find a name: check class, id, parent context, inner text
+    if (!label) {
+      // Extract meaningful class name, skipping utility classes (tailwind, size, color)
+      var svgClasses = (svg.getAttribute("class") || "").split(/\\s+/);
+      var utilityPattern = /^(w-|h-|p-|m-|text-|bg-|border-|flex|grid|block|hidden|inline|absolute|relative|transition|duration|rotate|scale|opacity|group|sm:|md:|lg:|xl:)/;
+      for (var ci = 0; ci < svgClasses.length; ci++) {
+        var cls = svgClasses[ci];
+        if (cls.length > 3 && cls.length < 40 && !utilityPattern.test(cls) && cls !== "lucide") {
+          label = cls;
+          break;
+        }
+      }
+    }
+    if (!label) {
+      var svgId = svg.getAttribute("id") || "";
+      if (svgId && svgId.length > 2 && svgId.length < 40) label = svgId;
+    }
+    if (!label) {
+      // Check parent element for clues
+      var parent = svg.closest("[class*='icon'], [class*='logo'], [class*='nav'], [class*='btn'], [class*='social']");
+      if (parent) {
+        var parentClass = (parent.getAttribute("class") || "").split(" ").find(function(c) { return c.length > 3 && c.length < 30; });
+        if (parentClass) label = parentClass;
+      }
+    }
+    if (!label) {
+      // Check for text content inside the SVG (e.g. <text>NeetCode</text>)
+      var textEl = svg.querySelector("text");
+      if (textEl && textEl.textContent && textEl.textContent.trim().length > 1 && textEl.textContent.trim().length < 30) {
+        label = textEl.textContent.trim();
+      }
+    }
     var w = svg.getAttribute("width");
     // Keep SVGs that have a label OR are at least 16px wide OR are inside a logo/brand context
     var inLogoContext = svg.closest('[class*="logo"], [class*="brand"], [class*="partner"], [class*="customer"], [class*="marquee"]') !== null;

@@ -180,7 +180,10 @@ export async function captureWebsite(
       }
     });
 
-    await page1.goto(url, { waitUntil: "networkidle0", timeout });
+    // Use networkidle2 (allows 2 ongoing connections) instead of networkidle0 —
+    // modern SPAs often have persistent WebSocket/analytics connections that
+    // prevent networkidle0 from ever resolving.
+    await page1.goto(url, { waitUntil: "networkidle2", timeout });
     await new Promise((r) => setTimeout(r, settleTime));
 
     // Check if the page loaded real content or an anti-bot challenge
@@ -211,11 +214,28 @@ export async function captureWebsite(
     }
 
     // Scroll through page to trigger lazy-loaded images and Lottie animations
+    // Framer and other modern sites use IntersectionObserver — images only load
+    // when scrolled into view. We scroll the full page, then wait for all images
+    // to finish loading before proceeding.
     await page1.evaluate(`(async () => {
       var h = document.body.scrollHeight;
       for (var y = 0; y < h; y += window.innerHeight * 0.7) {
         window.scrollTo(0, y);
-        await new Promise(function(r) { setTimeout(r, 300); });
+        await new Promise(function(r) { setTimeout(r, 400); });
+      }
+      // Scroll to very bottom to catch footer lazy-loads
+      window.scrollTo(0, document.body.scrollHeight);
+      await new Promise(function(r) { setTimeout(r, 800); });
+      // Wait for all images to finish loading
+      var imgs = Array.from(document.querySelectorAll('img'));
+      var pending = imgs.filter(function(img) { return !img.complete; });
+      if (pending.length > 0) {
+        await Promise.race([
+          Promise.all(pending.map(function(img) {
+            return new Promise(function(r) { img.onload = r; img.onerror = r; });
+          })),
+          new Promise(function(r) { setTimeout(r, 5000); })
+        ]);
       }
       window.scrollTo(0, 0);
       await new Promise(function(r) { setTimeout(r, 500); });
@@ -289,9 +309,9 @@ export async function captureWebsite(
       /* shader extraction failed — non-critical */
     }
 
-    // Extract HTML + CSS (this scrolls the page for lazy loading)
-    progress("extract", "Extracting HTML & CSS...");
-    const extracted = await extractHtml(page1, { settleTime: 1000 });
+    // ── READ-ONLY phase: extract data from the live DOM before any mutations ──
+    // extractHtml (below) converts image src to data URLs and removes scripts —
+    // all read-only operations must run BEFORE it to see the original DOM.
 
     // Extract design tokens
     progress("tokens", "Extracting design tokens...");
@@ -302,16 +322,30 @@ export async function captureWebsite(
       "utf-8",
     );
 
-    // Collect animation catalog (scrolls through page — must be after HTML extraction)
+    // Collect animation catalog
     progress("animations", "Cataloging animations...");
     animationCatalog = await collectAnimationCatalog(page1, cdpAnims, cdp);
 
-    // Capture scroll-position viewport screenshots (1920x1080 at 10 scroll depths)
-    // These show the page in its natural state — sticky headers, scroll animations fired.
+    // Capture scroll-position viewport screenshots
     progress("screenshots", "Capturing scroll screenshots...");
     const { captureScrollScreenshots } = await import("./screenshotCapture.js");
     const screenshots = await captureScrollScreenshots(page1, outputDir);
     progress("screenshots", `${screenshots.length} scroll screenshots captured`);
+
+    // Catalog all assets (must run before extractHtml which converts img src to data URLs)
+    progress("design", "Cataloging assets...");
+    let catalogedAssets: import("./assetCataloger.js").CatalogedAsset[] = [];
+    try {
+      const { catalogAssets } = await import("./assetCataloger.js");
+      catalogedAssets = await catalogAssets(page1);
+      progress("design", `${catalogedAssets.length} assets cataloged`);
+    } catch (err) {
+      warnings.push(`Asset cataloging failed: ${err}`);
+    }
+
+    // ── MUTATION phase: extractHtml modifies the live DOM (converts images to data URLs) ──
+    progress("extract", "Extracting HTML & CSS...");
+    const extracted = await extractHtml(page1, { settleTime: 1000 });
 
     // Strip framework scripts from the extracted body — keep visual library scripts
     // IMPORTANT: Use non-greedy matching within individual script tags only
@@ -354,17 +388,6 @@ export async function captureWebsite(
         return match;
       },
     );
-
-    // Catalog all assets with HTML contexts (before closing page)
-    progress("design", "Cataloging assets...");
-    let catalogedAssets: import("./assetCataloger.js").CatalogedAsset[] = [];
-    try {
-      const { catalogAssets } = await import("./assetCataloger.js");
-      catalogedAssets = await catalogAssets(page1);
-      progress("design", `${catalogedAssets.length} assets cataloged`);
-    } catch (err) {
-      warnings.push(`Asset cataloging failed: ${err}`);
-    }
 
     // Generate video manifest — screenshot each <video> element + extract surrounding context
     // so Claude Code can SEE what each video shows and WHERE it was used on the page.

@@ -119,6 +119,17 @@ export async function catalogAssets(page: Page): Promise<CatalogedAsset[]> {
       if (dataSrc) add(dataSrc, 'Image', 'data-src', el.alt || el.getAttribute('aria-label') || null, getElementContext(el));
     });
 
+    // ── CSS background-image on divs (Framer, Webflow, etc.) ──
+    document.querySelectorAll('div, section, [class*="hero"], [class*="card"], [class*="image"], [data-framer-background]').forEach(function(el) {
+      var bg = getComputedStyle(el).backgroundImage;
+      if (bg && bg !== 'none') {
+        var match = bg.match(/url\\(["']?(https?:\\/\\/[^"')]+)["']?\\)/);
+        if (match && match[1]) {
+          add(match[1], 'Background', 'css url()', el.getAttribute('aria-label') || null, getElementContext(el));
+        }
+      }
+    });
+
     // ── Picture sources: <source srcset="..."> ──
     document.querySelectorAll('source[srcset]').forEach(function(src) {
       src.srcset.split(',').forEach(function(entry) {

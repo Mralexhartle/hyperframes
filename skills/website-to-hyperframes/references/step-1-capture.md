@@ -6,12 +6,6 @@
 npx hyperframes capture <URL> -o captures/<project-name>
 ```
 
-If the built CLI isn't available, fall back to:
-
-```bash
-npx tsx packages/cli/src/cli.ts capture <URL> -o captures/<project-name>
-```
-
 No API keys required. The capture extracts design tokens, screenshots, fonts, and assets with DOM-context descriptions automatically.
 
 **Optional:** Set `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) in a `.env` file at the repo root for richer AI-powered image descriptions via Gemini 2.5 Flash vision. Free tier: 5 RPM; paid tier removes the bottleneck.
