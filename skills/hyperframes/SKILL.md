@@ -15,7 +15,7 @@ If the user's prompt lacks scene-by-scene structure, expand it into a full produ
 
 ### Step 0b: Design system
 
-Check for a `design.md` in the project root. If one exists, read it — it defines colors, typography, motion, and mood for all compositions in this project.
+Check for a `design.md` in the project root (also check `visual-style.md` — legacy name, treat identically). If one exists, read it — it defines colors, typography, motion, and mood for all compositions in this project.
 
 If none exists, **ask the user:**
 

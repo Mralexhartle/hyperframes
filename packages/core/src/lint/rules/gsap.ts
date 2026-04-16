@@ -595,7 +595,7 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
 
     for (const script of scripts) {
       const content = script.content;
-      const fromPattern = /tl\.(from|fromTo)\s*\(\s*["']([^"']+)["']/g;
+      const fromPattern = /tl\.(from|fromTo)\s*\(\s*["'`]([^"'`]+)["'`]/g;
       let match: RegExpExecArray | null;
       while ((match = fromPattern.exec(content)) !== null) {
         const method = match[1];
@@ -603,10 +603,10 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
 
         // Skip scene 1 — tl.from is safe at time 0
         if (selector === `#${firstSceneId}` || selector.startsWith(`#${firstSceneId} `)) continue;
-        // Skip selectors that start with the first scene's prefix
+        // Skip selectors that match the first scene's number prefix (exact match, not prefix)
+        const selectorNum = selector.match(/^[#.]s(\d+)-/)?.[1];
         const firstNum = firstSceneId.replace("scene", "");
-        if (selector.startsWith(`#s${firstNum}-`) || selector.startsWith(`.s${firstNum}-`))
-          continue;
+        if (selectorNum === firstNum) continue;
 
         findings.push({
           code: "tl_from_in_multiscene",
@@ -638,15 +638,16 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
       const content = script.content;
       // Match tl.set("selector", { ... opacity: 0 ... }, timePosition)
       const setPattern =
-        /tl\.set\s*\(\s*["']([^"']+)["']\s*,\s*\{([^}]+)\}\s*,\s*([\w.+\-* ]+)\s*\)/g;
+        /tl\.set\s*\(\s*["'`]([^"'`]+)["'`]\s*,\s*\{([^}]+)\}\s*,\s*([\w.+\-* ]+)\s*\)/g;
       let match: RegExpExecArray | null;
       while ((match = setPattern.exec(content)) !== null) {
         const selector = match[1] || "";
         const vars = match[2] || "";
         const timeExpr = (match[3] || "").trim();
 
-        // Only care about sets that include opacity: 0 (initialization sets)
-        if (!/opacity\s*:\s*0/.test(vars)) continue;
+        // Only care about sets that include opacity: 0 or autoAlpha: 0 (initialization sets)
+        // Use negative lookahead to avoid matching opacity: 0.5, 0.3, etc.
+        if (!/(?:opacity|autoAlpha)\s*:\s*0(?![.\d])/.test(vars)) continue;
         // Skip visibility: hidden kills
         if (/visibility/.test(vars)) continue;
         // Skip if time is 0

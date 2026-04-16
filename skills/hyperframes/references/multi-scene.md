@@ -22,6 +22,8 @@ Dispatch one subagent per scene, running in parallel. Each subagent receives:
 - That scene's specific prompt section only
 - Instructions: "Write your output to `.hyperframes/scenes/sceneN.html` as a single file with three clearly marked sections: `<!-- HTML -->`, `<!-- CSS -->`, `<!-- GSAP -->`. Use the timeline variable `tl`. Start tweens at `{start_time}`. Do not create the timeline or register it — the parent handles that. **Do NOT use `tl.from()` in multi-scene compositions** — use `tl.set()` + `tl.to()` instead. The `tl.set` hides the element at **time 0** (not scene start — time 0 ensures elements are hidden before any transition reveals the scene), then `tl.to` animates it in at the scene time. Example: `tl.set('#el', { opacity: 0, y: 30 }, 0); tl.to('#el', { opacity: 1, y: 0, duration: 0.4 }, sceneStart + 0.5);`. The `tl.from` approach causes elements to flash visible at their CSS default state before the entrance tween fires. **Do NOT set `position`, `top`, `left`, `width`, `height`, `opacity`, or `z-index` on the `#sceneN` container in your CSS** — the scaffold owns those properties. Only style elements INSIDE the scene."
 
+**ID convention:** All scene-internal IDs must use the `s{N}-` prefix (e.g., `#s3-heading`, `#s7-chart`). This prevents collisions during assembly and allows lint rules to match scene ownership.
+
 Each subagent focuses its entire context on making ONE scene visually rich: parallax layers, micro-animations, kinetic typography, ambient motion, background decoratives. No boilerplate, no other scenes. **Each subagent must write to a file** — text returned in conversation is not accessible to the assembly agent.
 
 ## Phase 2b: Streaming evaluation
@@ -39,7 +41,7 @@ The evaluator checks:
 - **Rule compliance**: No `tl.from`, no `position` on scene container, `tl.set` at time 0, all repeats finite.
 - **Density**: 15+ animated elements? 3 parallax layers?
 
-The evaluator writes a verdict to `.hyperframes/scenes/sceneN.eval.md`: PASS or FAIL with specific issues. If FAIL, re-dispatch the scene subagent with the evaluator's feedback appended to the original instructions. If PASS, the scene is ready for assembly.
+The evaluator writes a verdict to `.hyperframes/scenes/sceneN.eval.md`: PASS or FAIL with specific issues. If FAIL, re-dispatch the scene subagent with the evaluator's feedback appended to the original instructions. Maximum 2 retries per scene — if a scene fails 3 times, escalate to the user with the evaluator's feedback and ask how to proceed. If PASS, the scene is ready for assembly.
 
 Run evaluators concurrently with scene builds — a scene that finishes first gets evaluated first. The pipeline streams, not batches.
 
