@@ -66,9 +66,26 @@ export function refreshRuntimeMediaCache(params?: {
   return { timedMediaEls: mediaEls, mediaClips, videoClips, maxMediaEnd };
 }
 
-// Elements with a pending deferred play — prevents re-calling load()/addEventListener
-// on every tick while the media is still buffering.
-const pendingPlay = new WeakSet<HTMLMediaElement>();
+// Per-element timeline→media offset from the previous tick. Used to tell a
+// gradual drift (initial buffer catch-up, where offset grows ~16ms/tick) from
+// a scrub (where offset jumps in one tick). Cleared when a clip becomes
+// inactive so the next activation gets a hard resync on its first tick.
+const lastOffset = new WeakMap<HTMLMediaElement, number>();
+
+// Elements whose play() is in flight. The sync runs on a 50 ms poll and with
+// a 1–2 s buffer that would fire 20–40 spurious play() calls per element —
+// noise in devtools and, worse, each `.catch(() => {})` would swallow a real
+// AbortError / NotAllowedError that should surface. Cleared on the `playing`
+// event (actual playback started) or on `pause`/`error` (state ended).
+const playRequested = new WeakSet<HTMLMediaElement>();
+function markPlayRequested(el: HTMLMediaElement): void {
+  if (playRequested.has(el)) return;
+  playRequested.add(el);
+  const clear = () => playRequested.delete(el);
+  el.addEventListener("playing", clear, { once: true });
+  el.addEventListener("pause", clear, { once: true });
+  el.addEventListener("error", clear, { once: true });
+}
 
 export function syncRuntimeMedia(params: {
   clips: RuntimeMediaClip[];
@@ -97,36 +114,73 @@ export function syncRuntimeMedia(params: {
       } catch {
         // ignore unsupported playbackRate
       }
-      if (Math.abs((el.currentTime || 0) - relTime) > 0.3) {
+      // Drift correction. Forcing `el.currentTime = relTime` every frame
+      // causes an audible seek+rebuffer hiccup (readyState drops briefly).
+      //
+      // We only want to correct drift that came from an *event* — an explicit
+      // user seek, a sub-composition activation, or a timeline jump — not
+      // drift that grew naturally from initial-buffer latency. Telling them
+      // apart by timing: scrubs move the timeline-to-media offset by seconds
+      // in a single tick; buffer catch-up grows the offset by ~one frame
+      // (<20ms) per tick.
+      //
+      // The first tick a clip is active we don't have a previous offset to
+      // compare against — treat that as a hard resync so sub-compositions
+      // with non-zero `mediaStart` land on the right frame.
+      //
+      // Tradeoff: the 3 s catastrophic-drift valve means an unnoticed
+      // steady-state drift can accumulate up to ~3 s before we correct.
+      // For music / motion graphics this is inaudible; for lip-synced
+      // dialogue it is not. If that becomes a target use case, switch to
+      // a short-window tight threshold (e.g. tighten to 0.15 s when the
+      // last play/pause transition was >500 ms ago).
+      const currentElTime = el.currentTime || 0;
+      const drift = Math.abs(currentElTime - relTime);
+      const offset = relTime - currentElTime;
+      const prevOffset = lastOffset.get(el);
+      lastOffset.set(el, offset);
+      const firstTickOfClip = prevOffset === undefined;
+      const offsetJumped = !firstTickOfClip && Math.abs(offset - prevOffset!) > 0.5;
+      const catastrophicDrift = drift > 3;
+      if (drift > 0.5 && (firstTickOfClip || offsetJumped || catastrophicDrift)) {
         try {
           el.currentTime = relTime;
         } catch {
           // ignore browser seek restrictions
         }
       }
-      if (params.playing && el.paused && !pendingPlay.has(el)) {
-        if (el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
-          void el.play().catch(() => {});
-        } else {
-          pendingPlay.add(el);
-          if (el.preload !== "auto") el.preload = "auto";
-          el.addEventListener(
-            "canplay",
-            () => {
-              pendingPlay.delete(el);
-              if (!el.paused) return;
-              void el.play().catch(() => {});
-            },
-            { once: true },
-          );
-          el.addEventListener("error", () => pendingPlay.delete(el), { once: true });
-          el.load();
-        }
+      if (params.playing && el.paused && !playRequested.has(el)) {
+        // `HTMLMediaElement.play()` is spec'd to queue playback and resolve
+        // once enough data is buffered, so we can unconditionally call it —
+        // no need to gate on `readyState` or defer to a `canplay` listener.
+        //
+        // The old `readyState < HAVE_FUTURE_DATA` branch called `el.load()`
+        // inside the listener, which *aborts* the in-flight fetch that
+        // `bindMediaMetadataListeners` already started at init time and
+        // restarts from zero. On slow networks this delayed playback by
+        // seconds. The canplay listener was also racey — the event could
+        // fire between `load()` and `addEventListener` attachment, wedging
+        // the element waiting for a callback that never came.
+        //
+        // preload="auto" is already set at bind time in init.ts; the
+        // re-assignment here is defensive for media elements that were
+        // inserted after the runtime bound its listeners.
+        if (el.preload !== "auto") el.preload = "auto";
+        markPlayRequested(el);
+        void el.play().catch(() => {
+          // If play() rejects — e.g. autoplay blocked, element removed
+          // mid-flight — drop the in-flight flag so a future sync tick can
+          // retry rather than getting stuck waiting for `playing`/`pause`.
+          playRequested.delete(el);
+        });
       } else if (!params.playing && !el.paused) {
         el.pause();
       }
       continue;
     }
+    // Clip left its active window — drop the offset baseline so the next
+    // activation (e.g. re-entering a sub-composition) gets a hard resync.
+    lastOffset.delete(el);
     if (!el.paused) el.pause();
   }
 }

@@ -145,6 +145,17 @@ describe("refreshRuntimeMediaCache", () => {
 });
 
 describe("syncRuntimeMedia", () => {
+  function fakePlayedRanges(el: HTMLMediaElement, ranges: Array<[number, number]>): void {
+    Object.defineProperty(el, "played", {
+      configurable: true,
+      get: () => ({
+        length: ranges.length,
+        start: (i: number) => ranges[i][0],
+        end: (i: number) => ranges[i][1],
+      }),
+    });
+  }
+
   function createMockClip(overrides?: Partial<RuntimeMediaClip>): RuntimeMediaClip {
     const el = document.createElement("video") as HTMLVideoElement;
     document.body.appendChild(el);
@@ -153,6 +164,9 @@ describe("syncRuntimeMedia", () => {
     el.pause = vi.fn();
     Object.defineProperty(el, "currentTime", { value: 0, writable: true, configurable: true });
     Object.defineProperty(el, "playbackRate", { value: 1, writable: true, configurable: true });
+    // Default: audio has been playing — so drift-seek forward is allowed.
+    // Tests that exercise the "cold first play" guard call fakePlayedRanges(el, []).
+    fakePlayedRanges(el, [[0, 1]]);
     return {
       el,
       start: 0,
@@ -178,35 +192,42 @@ describe("syncRuntimeMedia", () => {
     expect(clip.el.play).toHaveBeenCalled();
   });
 
-  it("defers play on unbuffered media and calls load()", () => {
+  it("plays synchronously even when media is unbuffered (preserves user gesture)", () => {
+    // Calling play() synchronously inside the user-gesture call chain lets the
+    // browser queue playback until data buffers, while consuming the transient
+    // user activation. Deferring to an async canplay handler would let the
+    // activation expire and the autoplay policy silently reject — producing
+    // the "silent first play, audio only after second click" bug.
     const clip = createMockClip({ start: 0, end: 10 });
     Object.defineProperty(clip.el, "readyState", { value: 0, writable: true });
-    const loadSpy = vi.spyOn(clip.el, "load").mockImplementation(() => {});
-    const addEventSpy = vi.spyOn(clip.el, "addEventListener");
     syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
-    expect(clip.el.play).not.toHaveBeenCalled();
-    expect(loadSpy).toHaveBeenCalledOnce();
-    expect(addEventSpy).toHaveBeenCalledWith("canplay", expect.any(Function), { once: true });
-  });
-
-  it("plays when canplay fires after deferred play", () => {
-    const clip = createMockClip({ start: 0, end: 10 });
-    Object.defineProperty(clip.el, "readyState", { value: 0, writable: true });
-    vi.spyOn(clip.el, "load").mockImplementation(() => {});
-    syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
-    expect(clip.el.play).not.toHaveBeenCalled();
-    clip.el.dispatchEvent(new Event("canplay"));
     expect(clip.el.play).toHaveBeenCalled();
   });
 
-  it("does not re-register listener on repeated ticks while unbuffered", () => {
+  it("nudges preload to auto AND calls play() on unbuffered media in one pass", () => {
+    // Assets added after the runtime already bound its metadata listeners
+    // (e.g. a sub-composition that injects a late <audio>) need both the
+    // preload nudge and the play() call from the same sync tick — the
+    // reviewer flagged that these two concerns must not drift.
     const clip = createMockClip({ start: 0, end: 10 });
     Object.defineProperty(clip.el, "readyState", { value: 0, writable: true });
-    const loadSpy = vi.spyOn(clip.el, "load").mockImplementation(() => {});
+    Object.defineProperty(clip.el, "preload", { value: "metadata", writable: true });
     syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
-    syncRuntimeMedia({ clips: [clip], timeSeconds: 5.1, playing: true, playbackRate: 1 });
-    syncRuntimeMedia({ clips: [clip], timeSeconds: 5.2, playing: true, playbackRate: 1 });
-    expect(loadSpy).toHaveBeenCalledOnce();
+    expect(clip.el.preload).toBe("auto");
+    expect(clip.el.play).toHaveBeenCalled();
+  });
+
+  it("does not re-fire play() while a previous play() is in flight", () => {
+    // Without a play-request dedup, the 50ms runtime poll would fire 20–40
+    // spurious play() calls per element during the 1–2s initial buffer, each
+    // with a catch() that would swallow any real AbortError / NotAllowedError
+    // the developer needs to see.
+    const clip = createMockClip({ start: 0, end: 10 });
+    Object.defineProperty(clip.el, "readyState", { value: 4, writable: true });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5.02, playing: true, playbackRate: 1 });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5.04, playing: true, playbackRate: 1 });
+    expect(clip.el.play).toHaveBeenCalledTimes(1);
   });
 
   it("pauses active clip when not playing", () => {
@@ -229,19 +250,78 @@ describe("syncRuntimeMedia", () => {
     expect(clip.el.volume).toBe(0.7);
   });
 
-  it("seeks when currentTime drifts > 0.3s", () => {
+  it("hard-syncs on the first active tick (sub-composition activation, mediaStart offsets)", () => {
     const clip = createMockClip({ start: 0, end: 10, mediaStart: 0 });
     Object.defineProperty(clip.el, "currentTime", { value: 0, writable: true });
     syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: false, playbackRate: 1 });
     expect(clip.el.currentTime).toBe(5);
   });
 
-  it("does not seek when currentTime is close enough", () => {
+  it("does not seek on sub-0.5s drift in steady-state — avoids pause/play hiccups", () => {
     const clip = createMockClip({ start: 0, end: 10, mediaStart: 0 });
-    Object.defineProperty(clip.el, "currentTime", { value: 5.1, writable: true });
-    const original = clip.el.currentTime;
-    syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: false, playbackRate: 1 });
-    expect(clip.el.currentTime).toBe(original);
+    Object.defineProperty(clip.el, "currentTime", { value: 5.4, writable: true });
+    // Establish a baseline offset of 0 with a steady-state tick first.
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5.4, playing: true, playbackRate: 1 });
+    // Now a small transient drift: timeline backs up 0.4s (typical of
+    // pause/play ordering). Below the 0.5s threshold — don't seek.
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
+    expect(clip.el.currentTime).toBe(5.4);
+  });
+
+  it("does not force audio forward while it's still buffering (gradual drift growth)", () => {
+    // Cold-play: audio stuck buffering at 0, timeline advances ~16ms per tick.
+    // The offset grows gradually; no single tick jumps by 0.5s, so the
+    // drift-correction seek must NOT fire. Without this guard the runtime
+    // would force-seek audio forward and the user would miss the opening
+    // words of the narration.
+    const clip = createMockClip({ start: 0, end: 10, mediaStart: 0 });
+    Object.defineProperty(clip.el, "currentTime", { value: 0, writable: true });
+    // First tick: timeline at 0, audio at 0, no drift — first-tick hard-sync is a no-op.
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 0, playing: true, playbackRate: 1 });
+    // Subsequent ticks: timeline advances, audio stays buffering at 0.
+    for (let t = 0.016; t < 0.7; t += 0.016) {
+      syncRuntimeMedia({ clips: [clip], timeSeconds: t, playing: true, playbackRate: 1 });
+    }
+    expect(clip.el.currentTime).toBe(0);
+  });
+
+  it("re-syncs on a scrub — offset jumps in one tick", () => {
+    const clip = createMockClip({ start: 0, end: 20, mediaStart: 0 });
+    Object.defineProperty(clip.el, "currentTime", { value: 2, writable: true });
+    // Steady-state.
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 2, playing: true, playbackRate: 1 });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 2.02, playing: true, playbackRate: 1 });
+    // User scrubs forward to 15 — offset jumps from ~0 to ~13 in one tick.
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 15, playing: true, playbackRate: 1 });
+    expect(clip.el.currentTime).toBe(15);
+  });
+
+  it("catastrophic-drift safety valve eventually resyncs a stuck element", () => {
+    const clip = createMockClip({ start: 0, end: 100, mediaStart: 0 });
+    Object.defineProperty(clip.el, "currentTime", { value: 0, writable: true });
+    // Establish baseline at t=0.
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 0, playing: true, playbackRate: 1 });
+    // Gradually advance timeline by 0.3s per tick without audio moving.
+    // Each tick's offset delta is 0.3 (< 0.5s jump threshold), so only the
+    // >3s catastrophic-drift safety valve can trigger the resync.
+    for (let t = 0.3; t <= 4; t += 0.3) {
+      syncRuntimeMedia({ clips: [clip], timeSeconds: t, playing: true, playbackRate: 1 });
+    }
+    expect(clip.el.currentTime).toBeGreaterThan(3);
+  });
+
+  it("clears offset baseline when clip deactivates — re-entry hard-syncs", () => {
+    const clip = createMockClip({ start: 0, end: 5, mediaStart: 0 });
+    Object.defineProperty(clip.el, "currentTime", { value: 0, writable: true });
+    // Active pass: establish baseline at t=2.
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 2, playing: true, playbackRate: 1 });
+    // Deactivate: timeline moves past the clip window.
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 6, playing: true, playbackRate: 1 });
+    // Re-activate at t=3 — first-tick hard-sync should fire despite having
+    // a previous baseline, because the clip was inactive in between.
+    Object.defineProperty(clip.el, "currentTime", { value: 0, writable: true });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 3, playing: true, playbackRate: 1 });
+    expect(clip.el.currentTime).toBe(3);
   });
 
   it("sets per-element playbackRate × global rate", () => {
