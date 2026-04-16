@@ -37,6 +37,7 @@ tl.to('#s3-heading', { opacity: 1, y: 0, duration: 0.4 }, S3 + 0.5);
 ### Prohibited
 
 - `<!DOCTYPE`, `<html`, `<head`, `<body` — this is a fragment, not a document
+- `<script>` or `</script>` tags — the GSAP section is raw JS, not wrapped in script tags. The scaffold's single `<script>` block receives the content directly. Nested script tags cause `Unexpected token '<'` parse errors.
 - `<script src=` — no external script loading
 - `gsap.timeline(` — the scaffold creates the timeline
 - `window.__timelines` — the scaffold registers it
@@ -44,7 +45,18 @@ tl.to('#s3-heading', { opacity: 1, y: 0, duration: 0.4 }, S3 + 0.5);
 - `body {` in CSS — the scaffold owns body styles
 - `.scene {` in CSS — the scaffold owns scene base styles
 - `position`, `top`, `left`, `width`, `height`, `opacity`, or `z-index` on `#sceneN` — the scaffold owns the scene container; only style elements INSIDE the scene
-- Bare class names without `s{N}-` prefix (`.heading`, `.card`) — causes cross-scene collisions
+- Bare class names without `s{N}-` prefix (`.heading`, `.card`, `.tendril`, `.crack`) — causes cross-scene collisions when two scenes use the same name
+- CSS `transform` for centering (`translate(-50%, -50%)`) on elements that GSAP animates — GSAP overwrites the entire `transform` property, destroying the CSS centering. Use GSAP `xPercent: -50, yPercent: -50` in the `tl.set()` at time 0 instead.
+
+### Contrast
+
+All text elements must achieve **4.5:1 contrast ratio** (WCAG AA) against their scene background. Check especially:
+
+- HUD labels, stats, and values against dark backgrounds
+- Light-colored text on tinted/colored backgrounds
+- Small text (under 24px) has no large-text exemption
+
+Use the design.md foreground color for text. If an element needs a different color for visual effect, verify contrast manually.
 
 ### Assembly contract
 
@@ -67,6 +79,7 @@ Build the HTML skeleton yourself:
 - All transition code between scenes (read [transitions.md](transitions.md))
 - Global CSS: body reset, scene positioning, font declarations, the `design.md` palette as CSS
 - Leave each scene's inner content empty: `<div id="scene1" class="scene"><!-- SCENE 1 CONTENT --></div>`
+- **Visibility kills for every scene** including the last — after each scene's exit transition, add `tl.set("#sceneN", { visibility: "hidden" }, exitEndTime)`. The final scene needs this too (after its fade-out), or it remains partially visible when scrubbing.
 
 ## Phase 2: Scene subagents
 
@@ -94,7 +107,7 @@ As each scene file appears in `.hyperframes/scenes/`, dispatch an evaluator suba
 **Step 1 — Format validation (instant FAIL if any check fails):**
 
 - Exactly 3 markers (`<!-- HTML -->`, `<!-- CSS -->`, `<!-- GSAP -->`), each appearing once
-- No prohibited patterns (DOCTYPE, html/head/body tags, script src, gsap.timeline, window.\_\_timelines, tl.from, body/scene CSS rules)
+- No prohibited patterns (DOCTYPE, html/head/body tags, `<script>`/`</script>` tags, script src, gsap.timeline, window.\_\_timelines, tl.from, body/scene CSS rules, CSS `transform` on GSAP-animated elements)
 - All IDs and classes use `s{N}-` prefix
 - No position/top/left/width/height/opacity/z-index on `#sceneN` in CSS
 - All `repeat` values are finite numbers
@@ -103,6 +116,7 @@ As each scene file appears in `.hyperframes/scenes/`, dispatch an evaluator suba
 
 - **Prompt adherence**: Does the scene include the elements the prompt described? List what's present and what's missing.
 - **Design compliance**: Are the design.md colors, fonts, corners, and spacing used? Any invented values?
+- **Contrast**: All text elements meet 4.5:1 against the scene background color. Check HUD labels, stats, and small text especially.
 - **Density**: 15+ animated elements? 3 parallax layers?
 
 The evaluator writes a verdict to `.hyperframes/scenes/sceneN.eval.md`: PASS or FAIL with specific issues. If FAIL, re-dispatch the scene subagent with the evaluator's feedback appended to the original instructions. Maximum 2 retries per scene — if a scene fails 3 times, escalate to the user with the evaluator's feedback and ask how to proceed. If PASS, the scene is ready for assembly.
