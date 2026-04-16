@@ -66,9 +66,6 @@ export async function captureWebsite(
   mkdirSync(join(outputDir, "extracted"), { recursive: true });
   mkdirSync(join(outputDir, "screenshots"), { recursive: true });
   mkdirSync(join(outputDir, "assets"), { recursive: true });
-  if (!opts.skipSplit) {
-    mkdirSync(join(outputDir, "compositions"), { recursive: true });
-  }
 
   // Launch browser
   progress("browser", "Launching headless Chrome...");
@@ -385,13 +382,6 @@ export async function captureWebsite(
     // Download fonts and rewrite URLs to local paths
     extracted.headHtml = await downloadAndRewriteFonts(extracted.headHtml, outputDir);
 
-    // Save extracted data (full HTML/CSS only needed for --split; skip to keep capture folder clean)
-    if (!opts.skipSplit) {
-      writeFileSync(join(outputDir, "extracted", "full-head.html"), extracted.headHtml, "utf-8");
-      writeFileSync(join(outputDir, "extracted", "full-body.html"), extracted.bodyHtml, "utf-8");
-      writeFileSync(join(outputDir, "extracted", "cssom.css"), extracted.cssomRules, "utf-8");
-    }
-
     // Save animation catalog — lean version for the agent (not 745 raw CSS declarations)
     if (animationCatalog) {
       // Extract just what's useful: counts, named animations, a few representative keyframed entries
@@ -417,15 +407,6 @@ export async function captureWebsite(
         JSON.stringify(leanCatalog, null, 2),
         "utf-8",
       );
-
-      // Full raw catalog only when --split is used
-      if (!opts.skipSplit) {
-        writeFileSync(
-          join(outputDir, "extracted", "animations-raw.json"),
-          JSON.stringify(animationCatalog, null, 2),
-          "utf-8",
-        );
-      }
     }
 
     // Download assets — single pass using the catalog for best image quality
@@ -482,56 +463,6 @@ export async function captureWebsite(
 
     progress("design", "DESIGN.md will be created by your AI agent");
 
-    // Split into sections (if not skipped)
-    let sections: CaptureResult["sections"];
-    if (!opts.skipSplit) {
-      progress("split", "Splitting into sections...");
-      const { splitCapture } = await import("./splitter/index.js");
-      const captureForSplit: CaptureResult = {
-        ok: true,
-        projectDir: outputDir,
-        url,
-        title: tokens.title,
-        extracted,
-        screenshots,
-        tokens,
-        assets,
-        animationCatalog,
-        warnings,
-      };
-      sections = await splitCapture(captureForSplit, opts.maxSections);
-      progress("split", `${sections.length} sections created`);
-
-      // Verify sections (if not skipped)
-      if (!opts.skipVerify && sections.length > 0) {
-        progress("verify", "Verifying sections...");
-        const { verifyCapture } = await import("./verify/index.js");
-        const verifyResult = await verifyCapture({ ...captureForSplit, sections }, (detail) =>
-          progress("verify", detail),
-        );
-        progress(
-          "verify",
-          `${verifyResult.summary.passed} passed, ${verifyResult.summary.failed} failed`,
-        );
-      }
-
-      // Purge unused CSS from section compositions
-      progress("purge", "Purging unused CSS...");
-      const { purgeCompositionCss } = await import("./cssPurger.js");
-      const purgeResults = await purgeCompositionCss(join(outputDir, "compositions"), (detail) =>
-        progress("purge", detail),
-      );
-      if (purgeResults.length > 0) {
-        const totalBefore = purgeResults.reduce((s, r) => s + r.originalBytes, 0);
-        const totalAfter = purgeResults.reduce((s, r) => s + r.purgedBytes, 0);
-        const pct = (((totalBefore - totalAfter) / totalBefore) * 100).toFixed(0);
-        progress(
-          "purge",
-          `${purgeResults.length} files purged (${(totalBefore / 1024).toFixed(0)} KB -> ${(totalAfter / 1024).toFixed(0)} KB, -${pct}%)`,
-        );
-      }
-    }
-
     // Generate project scaffold (index.html, meta.json, CLAUDE.md)
     await generateProjectScaffold(
       outputDir,
@@ -557,7 +488,6 @@ export async function captureWebsite(
       screenshots,
       tokens,
       assets,
-      sections,
       animationCatalog,
       warnings,
     };

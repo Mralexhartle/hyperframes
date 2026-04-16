@@ -26,12 +26,6 @@ export interface CaptureOptions {
   maxScreenshots?: number;
   /** Skip asset downloads */
   skipAssets?: boolean;
-  /** Skip section splitting (Phase 2) */
-  skipSplit?: boolean;
-  /** Skip section verification (Phase 3) */
-  skipVerify?: boolean;
-  /** Maximum sections to extract (default: 12) */
-  maxSections?: number;
   /** Output JSON for programmatic use */
   json?: boolean;
 }
@@ -53,8 +47,6 @@ export interface CaptureResult {
   tokens: DesignTokens;
   /** Downloaded asset paths (relative to projectDir) */
   assets: DownloadedAsset[];
-  /** Section split results (if splitting was performed) */
-  sections?: SectionResult[];
   /** Animation catalog (captured during full-JS page load) */
   animationCatalog?: import("./animationCataloger.js").AnimationCatalog;
   /** Errors/warnings encountered during capture */
@@ -141,23 +133,4 @@ export interface DownloadedAsset {
   localPath: string;
   /** Asset type */
   type: "svg" | "image" | "favicon";
-}
-
-// ── Phase 2: Split ──────────────────────────────────────────────────────────
-
-export interface SectionResult {
-  /** Section identifier (kebab-case) */
-  id: string;
-  /** Detected section type */
-  type: string;
-  /** First heading in the section */
-  heading: string;
-  /** Composition file path (relative to projectDir) */
-  compositionPath: string;
-  /** Whether this section was verified to render correctly */
-  verified: boolean;
-  /** If not verified, the fallback applied */
-  fallback?: "screenshot" | "css-fix" | "none";
-  /** Matching screenshot path */
-  screenshotPath?: string;
 }
