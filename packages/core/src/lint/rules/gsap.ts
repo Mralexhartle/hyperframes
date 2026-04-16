@@ -1,7 +1,12 @@
 import { parseGsapScript } from "../../parsers/gsapParser";
 import type { LintContext, HyperframeLintFinding } from "../context";
 import type { OpenTag } from "../utils";
-import { readAttr, truncateSnippet, WINDOW_TIMELINE_ASSIGN_PATTERN } from "../utils";
+import {
+  readAttr,
+  truncateSnippet,
+  getSceneElements,
+  WINDOW_TIMELINE_ASSIGN_PATTERN,
+} from "../utils";
 
 // ── GSAP-specific types ────────────────────────────────────────────────────
 
@@ -546,10 +551,7 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
     const findings: HyperframeLintFinding[] = [];
 
     // Detect multi-scene compositions: multiple elements with "scene" in their id
-    const sceneElements = tags.filter((t) => {
-      const id = readAttr(t.raw, "id") || "";
-      return /^scene\d+$/i.test(id);
-    });
+    const sceneElements = getSceneElements(tags);
     if (sceneElements.length < 2) return findings;
 
     for (const script of scripts) {
@@ -585,10 +587,7 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
   ({ scripts, tags }) => {
     const findings: HyperframeLintFinding[] = [];
 
-    const sceneElements = tags.filter((t) => {
-      const id = readAttr(t.raw, "id") || "";
-      return /^scene\d+$/i.test(id);
-    });
+    const sceneElements = getSceneElements(tags);
     if (sceneElements.length < 2) return findings;
 
     const firstSceneId = sceneElements[0] ? readAttr(sceneElements[0].raw, "id") || "" : "";
@@ -628,15 +627,11 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
   ({ scripts, tags }) => {
     const findings: HyperframeLintFinding[] = [];
 
-    const sceneElements = tags.filter((t) => {
-      const id = readAttr(t.raw, "id") || "";
-      return /^scene\d+$/i.test(id);
-    });
+    const sceneElements = getSceneElements(tags);
     if (sceneElements.length < 2) return findings;
 
     for (const script of scripts) {
       const content = script.content;
-      // Match tl.set("selector", { ... opacity: 0 ... }, timePosition)
       const setPattern =
         /tl\.set\s*\(\s*["'`]([^"'`]+)["'`]\s*,\s*\{([^}]+)\}\s*,\s*([\w.+\-* ]+)\s*\)/g;
       let match: RegExpExecArray | null;
@@ -650,12 +645,13 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
         if (!/(?:opacity|autoAlpha)\s*:\s*0(?![.\d])/.test(vars)) continue;
         // Skip visibility: hidden kills
         if (/visibility/.test(vars)) continue;
-        // Skip if time is 0
-        if (timeExpr === "0" || timeExpr === "0.0") continue;
 
-        // Try to evaluate if it's a literal number > 0
-        const numTime = Number(timeExpr);
-        if (Number.isFinite(numTime) && numTime > 0) {
+        // Check if time is zero — skip if so
+        const numTime = parseFloat(timeExpr);
+        if (numTime === 0) continue;
+
+        if (Number.isFinite(numTime)) {
+          // Literal number > 0
           findings.push({
             code: "late_init_set",
             severity: "warning",
@@ -664,11 +660,8 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
               "Elements must be hidden from time 0 to prevent flashing when transitions reveal scenes early.",
             fixHint: `Move to time 0: tl.set("${truncateSnippet(selector, 30)}", { opacity: 0, ... }, 0);`,
           });
-          continue;
-        }
-
-        // If it's a variable expression (not "0"), flag it as potentially late
-        if (!/^0(\.\d+)?$/.test(timeExpr)) {
+        } else {
+          // Variable expression — flag as potentially late
           findings.push({
             code: "late_init_set",
             severity: "warning",
@@ -687,10 +680,7 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
   ({ tags, styles }) => {
     const findings: HyperframeLintFinding[] = [];
 
-    const sceneElements = tags.filter((t) => {
-      const id = readAttr(t.raw, "id") || "";
-      return /^scene\d+$/i.test(id);
-    });
+    const sceneElements = getSceneElements(tags);
     if (sceneElements.length < 2) return findings;
 
     const sceneIds = new Set(sceneElements.map((t) => readAttr(t.raw, "id") || ""));
@@ -698,13 +688,12 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
     for (const style of styles) {
       const content = style.content;
       for (const sceneId of sceneIds) {
-        // Match #sceneN { ... position: relative ... }
         const rulePattern = new RegExp(`#${sceneId}\\s*\\{([^}]+)\\}`, "g");
         let match: RegExpExecArray | null;
         while ((match = rulePattern.exec(content)) !== null) {
           const body = match[1] || "";
-          if (/position\s*:\s*(relative|static|fixed)/.test(body)) {
-            const posMatch = body.match(/position\s*:\s*(relative|static|fixed)/);
+          const posMatch = body.match(/position\s*:\s*(relative|static|fixed)/);
+          if (posMatch) {
             findings.push({
               code: "scene_position_override",
               severity: "error",

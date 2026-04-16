@@ -114,6 +114,14 @@ export function isMediaTag(tagName: string): boolean {
   return tagName === "video" || tagName === "audio" || tagName === "img";
 }
 
+/** Filter tags to scene container elements (id="scene1", id="scene2", etc.) */
+export function getSceneElements(tags: OpenTag[]): OpenTag[] {
+  return tags.filter((t) => {
+    const id = readAttr(t.raw, "id") || "";
+    return /^scene\d+$/i.test(id);
+  });
+}
+
 export function truncateSnippet(value: string, maxLength = 220): string | undefined {
   const normalized = value.replace(/\s+/g, " ").trim();
   if (!normalized) return undefined;

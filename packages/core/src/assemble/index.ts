@@ -101,22 +101,15 @@ function validateFragment(content: string, filename: string): AssembleError[] {
   return errors;
 }
 
-function stripWrapperTags(text: string, openTag: RegExp, closeTag: RegExp): string {
-  return text.replace(openTag, "").replace(closeTag, "").trim();
-}
-
 function splitFragment(content: string): FragmentSections {
   const htmlStart = content.indexOf("<!-- HTML -->") + "<!-- HTML -->".length;
   const cssStart = content.indexOf("<!-- CSS -->");
   const gsapStart = content.indexOf("<!-- GSAP -->");
 
-  const rawCss = content.substring(cssStart + "<!-- CSS -->".length, gsapStart).trim();
-  const rawGsap = content.substring(gsapStart + "<!-- GSAP -->".length).trim();
-
   return {
     html: content.substring(htmlStart, cssStart).trim(),
-    css: stripWrapperTags(rawCss, /<style[^>]*>/gi, /<\/style>/gi),
-    gsap: stripWrapperTags(rawGsap, /<script[^>]*>/gi, /<\/script>/gi),
+    css: content.substring(cssStart + "<!-- CSS -->".length, gsapStart).trim(),
+    gsap: content.substring(gsapStart + "<!-- GSAP -->".length).trim(),
   };
 }
 
