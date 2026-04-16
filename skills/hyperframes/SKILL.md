@@ -79,7 +79,24 @@ For compositions with 4 or more scenes, build in three phases instead of one pas
 
 Each subagent focuses its entire context on making ONE scene visually rich: parallax layers, micro-animations, kinetic typography, ambient motion, background decoratives. No boilerplate, no other scenes. **Each subagent must write to a file** — text returned in conversation is not accessible to the assembly agent.
 
-**Phase 3: Assembly.** Read each scene file from `.hyperframes/scenes/` and:
+**Phase 2b: Evaluate as scenes arrive.** As each scene file appears in `.hyperframes/scenes/`, dispatch an evaluator subagent immediately — don't wait for all scenes to finish. The evaluator receives:
+
+- The scene file
+- That scene's section from the original prompt
+- The `design.md`
+
+The evaluator checks:
+
+- **Prompt adherence**: Does the scene include the elements the prompt described? List what's present and what's missing.
+- **Design compliance**: Are the design.md colors, fonts, corners, and spacing used? Any invented values?
+- **Rule compliance**: No `tl.from`, no `position` on scene container, `tl.set` at time 0, all repeats finite.
+- **Density**: 15+ animated elements? 3 parallax layers?
+
+The evaluator writes a verdict to `.hyperframes/scenes/sceneN.eval.md`: PASS or FAIL with specific issues. If FAIL, re-dispatch the scene subagent with the evaluator's feedback appended to the original instructions. If PASS, the scene is ready for assembly.
+
+Run evaluators concurrently with scene builds — a scene that finishes first gets evaluated first. The pipeline streams, not batches.
+
+**Phase 3: Assembly.** Once all scenes have PASS evaluations, read each scene file from `.hyperframes/scenes/` and:
 
 - Extract the HTML, CSS, and GSAP blocks from each `sceneN.html`
 - Inject HTML into the scaffold's empty scene divs
