@@ -11,60 +11,17 @@ HTML is the source of truth for video. A composition is an HTML file with `data-
 
 ### Step 0a: Prompt expansion
 
-If the user's prompt is a brief description rather than a detailed scene-by-scene breakdown, expand it before proceeding. A prompt needs expansion if it lacks: scene-by-scene structure, specific visual elements per scene, transition descriptions, or timing.
-
-**Example of a sparse prompt:** "make me a trailer about a killer alien on a spaceship" or "coconut water promo, tropical, 45 seconds"
-
-**Example of an already-expanded prompt:** Has numbered scenes with timing, specific elements, transition rules, and animation direction — skip this step.
-
-To expand, generate a full production prompt that includes:
-
-1. **Title + style block** — genre, visual style, format, color direction, typography direction, mood, audio feel
-2. **Global animation rules** — parallax layers, micro-motion requirements, kinetic typography, pacing rules, transition style
-3. **Scene-by-scene breakdown** — for each scene:
-   - Time range and title
-   - Specific visual elements (not generic — "alien claw slides across wall" not "scary things happen")
-   - Text/typography that appears with animation style
-   - Background, midground, foreground layer descriptions
-   - Transition to next scene as a specific morph (what object becomes what)
-4. **Recurring motifs** — visual threads that appear across multiple scenes
-5. **Transition rules** — every scene-to-scene connection described as object morphing
-6. **Pacing curve** — where energy builds, peaks, and releases
-7. **Negative prompt** — what to avoid
-
-Present the expanded prompt to the user for review before proceeding. They may edit scenes, adjust pacing, or change the tone. Only move to Step 0b (design system) after they approve.
+If the user's prompt lacks scene-by-scene structure, expand it into a full production prompt first. Read [references/prompt-expansion.md](references/prompt-expansion.md) for the full process and output format. Present the expanded prompt to the user for approval before proceeding.
 
 ### Step 0b: Design system
 
 Check for a `design.md` in the project root. If one exists, read it — it defines colors, typography, motion, and mood for all compositions in this project.
 
-If none exists, **ask the user before proceeding:**
+If none exists, **ask the user:**
 
-> "No design system found for this project. I can create one — I'll show you 2-3 visual directions to choose from, and the one you pick becomes the design system for all compositions. This takes a minute but makes every composition more consistent. Want to do that, or should I use defaults?"
+> "No design system found for this project. I can create one — I'll show you 2-3 visual directions to choose from, and the one you pick becomes the design system for all compositions. Want to do that, or should I use defaults?"
 
-If yes → generate a design picker page and serve it for the user to choose from. If no → follow [house-style.md](./house-style.md) defaults.
-
-**Creating a design.md:**
-
-Before generating options, read the style references — all generated options must comply with these rules:
-
-- [references/typography.md](references/typography.md) — banned font list, cross-category pairing (serif + sans or sans + mono, never two sans-serifs), weight contrast (300-400 body / 700-900 headline), video-sized text (60px+ headlines, 20px+ body, 16px+ labels)
-- [house-style.md](house-style.md) — lazy defaults to avoid (no gradient text, no left-edge accent stripes, no pure #000/#fff, no identical card grids, no banned fonts)
-- [references/motion-principles.md](references/motion-principles.md) — ease diversity, varied entry directions, scene structure
-
-1. Generate 2-3 visual directions based on the prompt. Each direction needs: name, mood, colors (bg/fg/accent), fonts (headline/body), energy level, and transition style.
-2. Copy [templates/design-picker.html](templates/design-picker.html) to the project directory as `.hyperframes/pick-design.html`.
-3. Replace `__ARCHITECTURES_JSON__`, `__PALETTES_JSON__`, and `__TYPEPAIRS_JSON__` with your generated options. The user picks one from each category independently — structure, palette, type pairing, plus theme (dark/light/full palette), corners, density, and depth.
-   - Each architecture object must include a `preview_html` field — the HTML that renders in the preview panel. Use token placeholders that the template replaces at runtime: `{{bg}}`, `{{fg}}`, `{{ac}}`, `{{mt}}`, `{{hf}}`, `{{hw}}`, `{{bf}}`, `{{bw}}`, `{{cr}}` (corner radius), `{{pad}}`, `{{gap}}`, `{{shadow}}`, `{{g}}` (grid line color), `{{fg3}}`/`{{fg6}}`/`{{fg8}}`/`{{fg15}}` (fg at opacity), `{{ac3}}`/`{{ac5}}`/`{{ac25}}` (accent at opacity).
-   - **Every token must be used.** Apply `{{cr}}` to all cards, buttons, and containers. Apply `{{shadow}}` to elevated elements (cards, buttons, code blocks). Apply `{{pad}}` and `{{gap}}` to control spacing. If a token isn't used in the preview_html, that option will have no visible effect.
-   - **Density matters.** Each architecture preview must include 15+ distinct elements to give the user a real sense of the layout. Include: headline, subhead, body paragraph, label/overline, stat with number, secondary stat, quote/testimonial, attribution, card with title+body, second card (different treatment), code/command block, primary button, secondary button, list or tags, accent divider/rule, and a data element (table row, progress bar, or chart). The preview should feel like a full composition, not a sparse mockup.
-   - Optionally include `components` (component styling rules) and `dos` (do's and don'ts) as strings — these appear in the generated design.md.
-   - **Layout constraint:** All preview HTML must use percentage widths or `max-width: 100%`. Use `flex-wrap: wrap` on all flex rows. Absolute-positioned decoratives must stay within a parent with `overflow: hidden`.
-   - **Palette variety:** Always include a mix of light, dark, and tinted backgrounds across the 6 palettes — even for calm/wellness prompts. A meditation app can be deep indigo + soft gold, not just cream + sage. This ensures the "Full palette" theme mode produces meaningfully different results per palette.
-4. Serve the page: `npx hyperframes preview` or `python3 -m http.server <port>`. Before giving the user the URL, verify the server is responding: `curl -s -o /dev/null -w "%{http_code}" http://localhost:<port>/pick-design.html` — only share the link if it returns 200.
-5. Once the user picks, tell them: "Copy the design.md from the picker and paste it here." The user pastes the markdown back into the conversation. Save it to `design.md` in the project root, then proceed with construction.
-
-The design.md format is generated by the picker template — it includes mood, theme, structure, colors, typography, corners, spacing, depth, components, and do's/don'ts based on the user's selections.
+If yes → read [references/design-picker.md](references/design-picker.md) for the full picker workflow. If no → follow [house-style.md](./house-style.md) defaults.
 
 ### Using design.md during construction
 
@@ -84,51 +41,7 @@ For small edits (fix a color, adjust timing, add one element), skip straight to 
 
 ### Multi-scene builds (4+ scenes)
 
-For compositions with 4 or more scenes, build in three phases instead of one pass. A single pass produces shallow results — detail drops as context fills with boilerplate.
-
-**Phase 1: Scaffold.** Build the HTML skeleton yourself:
-
-- All scene `<div>` elements with `data-start`, `data-duration`, `data-track-index`
-- The root composition container with `data-composition-id`, `data-width`, `data-height`
-- The GSAP timeline backbone: `gsap.timeline({ paused: true })`, `window.__timelines` registration
-- All transition code between scenes (read [references/transitions.md](references/transitions.md))
-- Global CSS: body reset, scene positioning, font declarations, the `design.md` palette as CSS
-- Leave each scene's inner content empty: `<div id="scene1" class="scene"><!-- SCENE 1 CONTENT --></div>`
-
-**Phase 2: Scene subagents.** Dispatch one subagent per scene, running in parallel. Each subagent receives:
-
-- The `design.md` (or its values summarized)
-- The global animation rules from the prompt
-- That scene's specific prompt section only
-- Instructions: "Write your output to `.hyperframes/scenes/sceneN.html` as a single file with three clearly marked sections: `<!-- HTML -->`, `<!-- CSS -->`, `<!-- GSAP -->`. Use the timeline variable `tl`. Start tweens at `{start_time}`. Do not create the timeline or register it — the parent handles that. **Do NOT use `tl.from()` in multi-scene compositions** — use `tl.set()` + `tl.to()` instead. The `tl.set` hides the element at **time 0** (not scene start — time 0 ensures elements are hidden before any transition reveals the scene), then `tl.to` animates it in at the scene time. Example: `tl.set('#el', { opacity: 0, y: 30 }, 0); tl.to('#el', { opacity: 1, y: 0, duration: 0.4 }, sceneStart + 0.5);`. The `tl.from` approach causes elements to flash visible at their CSS default state before the entrance tween fires. **Do NOT set `position`, `top`, `left`, `width`, `height`, `opacity`, or `z-index` on the `#sceneN` container in your CSS** — the scaffold owns those properties. Only style elements INSIDE the scene."
-
-Each subagent focuses its entire context on making ONE scene visually rich: parallax layers, micro-animations, kinetic typography, ambient motion, background decoratives. No boilerplate, no other scenes. **Each subagent must write to a file** — text returned in conversation is not accessible to the assembly agent.
-
-**Phase 2b: Evaluate as scenes arrive.** As each scene file appears in `.hyperframes/scenes/`, dispatch an evaluator subagent immediately — don't wait for all scenes to finish. The evaluator receives:
-
-- The scene file
-- That scene's section from the original prompt
-- The `design.md`
-
-The evaluator checks:
-
-- **Prompt adherence**: Does the scene include the elements the prompt described? List what's present and what's missing.
-- **Design compliance**: Are the design.md colors, fonts, corners, and spacing used? Any invented values?
-- **Rule compliance**: No `tl.from`, no `position` on scene container, `tl.set` at time 0, all repeats finite.
-- **Density**: 15+ animated elements? 3 parallax layers?
-
-The evaluator writes a verdict to `.hyperframes/scenes/sceneN.eval.md`: PASS or FAIL with specific issues. If FAIL, re-dispatch the scene subagent with the evaluator's feedback appended to the original instructions. If PASS, the scene is ready for assembly.
-
-Run evaluators concurrently with scene builds — a scene that finishes first gets evaluated first. The pipeline streams, not batches.
-
-**Phase 3: Assembly.** Once all scenes have PASS evaluations, read each scene file from `.hyperframes/scenes/` and:
-
-- Extract the HTML, CSS, and GSAP blocks from each `sceneN.html`
-- Inject HTML into the scaffold's empty scene divs
-- Merge CSS blocks into the style element (check for ID conflicts — prefix with scene ID if needed)
-- Merge GSAP tweens into the single timeline (adjust start times if subagent used relative offsets)
-- Run `npx hyperframes lint` and fix any structural issues
-- Run `npx hyperframes validate` if available
+For compositions with 4 or more scenes, use the parallel subagent pipeline instead of a single pass. Read [references/multi-scene.md](references/multi-scene.md) for the full 4-phase process: scaffold → scene subagents → streaming evaluation → assembly.
 
 ## Layout Before Animation
 
@@ -416,21 +329,30 @@ Skip on small edits (fixing a color, adjusting one duration). Run on new composi
 
 ## References (loaded on demand)
 
-- **[references/captions.md](references/captions.md)** — Captions, subtitles, lyrics, karaoke synced to audio. Tone-adaptive style detection, per-word styling, text overflow prevention, caption exit guarantees, word grouping. Read when adding any text synced to audio timing.
-- **[references/tts.md](references/tts.md)** — Text-to-speech with Kokoro-82M. Voice selection, speed tuning, TTS+captions workflow. Read when generating narration or voiceover.
-- **[references/audio-reactive.md](references/audio-reactive.md)** — Audio-reactive animation: map frequency bands and amplitude to GSAP properties. Read when visuals should respond to music, voice, or sound.
-- **[references/marker-highlight.md](references/marker-highlight.md)** — Animated text highlighting via canvas overlays: marker pen, circle, burst, scribble, sketchout. Read when adding visual emphasis to text.
+### Workflow (conditional)
+
+- **[references/prompt-expansion.md](references/prompt-expansion.md)** — Expand sparse user prompts into full scene-by-scene production prompts. Read when the user gives a brief description instead of a detailed breakdown.
+- **[references/design-picker.md](references/design-picker.md)** — Create a design.md via visual picker. Read when no design.md exists and the user wants to create one.
+- **[references/multi-scene.md](references/multi-scene.md)** — Multi-scene subagent pipeline: scaffold → parallel scene builds → streaming evaluation → assembly. Read for 4+ scene compositions.
+
+### Composition authoring
+
 - **[references/typography.md](references/typography.md)** — Typography: font pairing, OpenType features, dark-background adjustments, font discovery script. **Always read** — every composition has text.
 - **[references/motion-principles.md](references/motion-principles.md)** — Motion design principles: easing as emotion, timing as weight, choreography as hierarchy, scene pacing, ambient motion, anti-patterns. Read when choreographing GSAP animations.
-- **[house-style.md](house-style.md)** — Default motion, sizing, and color palettes when no style is specified.
+- **[references/css-patterns.md](references/css-patterns.md)** — CSS+GSAP marker highlighting: highlight, circle, burst, scribble, sketchout. Deterministic, fully seekable. Read when adding visual emphasis to text.
+- **[references/transitions.md](references/transitions.md)** — Scene transitions: crossfades, wipes, reveals, shader transitions. Energy/mood selection, CSS vs WebGL guidance. **Always read for multi-scene compositions.**
+  - [transitions/catalog.md](references/transitions/catalog.md) — Hard rules, scene template, and routing to per-type implementation code.
+  - Shader transitions are in `@hyperframes/shader-transitions` (`packages/shader-transitions/`) — read package source, not skill files.
+- **[house-style.md](house-style.md)** — Default motion, sizing, and color palettes when no design.md is specified.
 - **[patterns.md](patterns.md)** — PiP, title cards, slide show patterns.
 - **[data-in-motion.md](data-in-motion.md)** — Data, stats, and infographic patterns.
-- **[references/transcript-guide.md](references/transcript-guide.md)** — Transcription commands, whisper models, external APIs, troubleshooting.
-- **[references/dynamic-techniques.md](references/dynamic-techniques.md)** — Dynamic caption animation techniques (karaoke, clip-path, slam, scatter, elastic, 3D).
 
-- **[references/transitions.md](references/transitions.md)** — Scene transitions: crossfades, wipes, reveals, shader transitions. Energy/mood selection, CSS vs WebGL guidance. **Always read for multi-scene compositions** — scenes without transitions feel like jump cuts.
-  - [transitions/catalog.md](references/transitions/catalog.md) — Hard rules, scene template, and routing to per-type implementation code.
-  - [transitions/shader-setup.md](references/transitions/shader-setup.md) — WebGL boilerplate for shader transitions.
-  - [transitions/shader-transitions.md](references/transitions/shader-transitions.md) — 14 fragment shaders.
+### Media
+
+- **[references/captions.md](references/captions.md)** — Captions, subtitles, lyrics, karaoke synced to audio.
+- **[references/tts.md](references/tts.md)** — Text-to-speech with Kokoro-82M.
+- **[references/audio-reactive.md](references/audio-reactive.md)** — Audio-reactive animation: map frequency bands and amplitude to GSAP properties.
+- **[references/transcript-guide.md](references/transcript-guide.md)** — Transcription commands, whisper models, external APIs.
+- **[references/dynamic-techniques.md](references/dynamic-techniques.md)** — Dynamic caption animation techniques (karaoke, clip-path, slam, scatter, elastic, 3D).
 
 GSAP patterns and effects are in the `/gsap` skill.
