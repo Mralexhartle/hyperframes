@@ -100,12 +100,13 @@ function stripBeginFrameFlags(args: string[]): string[] {
 /**
  * Probe whether the browser still speaks HeadlessExperimental.beginFrame.
  *
- * Some Chromium builds keep the domain registered (HeadlessExperimental.enable
- * succeeds) but drop the beginFrame method itself — in that case the capture
- * loop dies on first frame with `'HeadlessExperimental.beginFrame' wasn't
- * found`. So we probe BOTH: enable + one cheap beginFrame. The beginFrame is
- * raced against a 2s timeout because in beginframe-control mode the command
- * completes as soon as the compositor acks — no network or GPU work involved.
+ * Recent chrome-headless-shell builds (observed on 147) expose the domain
+ * well enough that HeadlessExperimental.enable succeeds but drop the
+ * beginFrame method itself — the capture loop then dies on first frame with
+ * `'HeadlessExperimental.beginFrame' wasn't found`. So we probe BOTH: enable
+ * + one cheap beginFrame raced against a 2s timeout. In beginframe-control
+ * mode the command completes as soon as the compositor acks, so a real
+ * supported browser returns well under the timeout.
  *
  * Any failure (method missing, timeout, protocol error) is treated as
  * unsupported. Real errors after launch would surface in the warmup loop and
@@ -181,10 +182,11 @@ export async function acquireBrowser(
     protocolTimeout,
   });
 
-  // Probe HeadlessExperimental availability — Chromium 132+ removed it and
-  // we'd otherwise render blank frames because `--enable-begin-frame-control`
-  // leaves the compositor waiting for beginFrames we can't send. Auto-fall
-  // back to screenshot mode with the appropriate flags.
+  // Probe HeadlessExperimental.beginFrame — recent chrome-headless-shell
+  // builds (observed on 147) dropped the method while keeping the flags
+  // valid, so `--enable-begin-frame-control` leaves the compositor waiting
+  // for beginFrames the engine can no longer send. Auto-fall back to
+  // screenshot mode with the appropriate flags.
   if (captureMode === "beginframe") {
     const supported = await probeBeginFrameSupport(browser).catch(() => true);
     if (!supported) {
