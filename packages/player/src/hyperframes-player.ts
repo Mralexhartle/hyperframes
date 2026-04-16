@@ -563,8 +563,15 @@ class HyperframesPlayer extends HTMLElement {
       );
 
       for (const iframeEl of mediaEls) {
-        const src = iframeEl.getAttribute("src") || iframeEl.querySelector("source")?.src;
-        if (!src) continue;
+        const rawSrc =
+          iframeEl.getAttribute("src") || iframeEl.querySelector("source")?.getAttribute("src");
+        if (!rawSrc) continue;
+
+        // Resolve against the iframe's baseURI. The parent-frame <audio>/<video>
+        // we create next lives in the host document, whose base URL differs from
+        // the iframe's — without this, a relative src like "assets/narration.wav"
+        // would resolve against the studio root and 404.
+        const src = new URL(rawSrc, iframeEl.ownerDocument.baseURI).href;
 
         const start = parseFloat(iframeEl.getAttribute("data-start") || "0");
         const duration = parseFloat(iframeEl.getAttribute("data-duration") || "Infinity");
