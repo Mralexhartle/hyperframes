@@ -580,4 +580,72 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
     }
     return findings;
   },
+
+  // missing_immediate_render_false
+  ({ scripts, tags }) => {
+    const findings: HyperframeLintFinding[] = [];
+
+    // Only applies to multi-scene compositions
+    const sceneElements = tags.filter((t) => {
+      const id = readAttr(t.raw, "id") || "";
+      return /^scene\d+$/i.test(id);
+    });
+    if (sceneElements.length < 2) return findings;
+
+    // Scene IDs that start hidden (opacity: 0 in inline style or CSS)
+    const hiddenSceneIds = new Set<string>();
+    for (const tag of sceneElements) {
+      const id = readAttr(tag.raw, "id") || "";
+      const style = readAttr(tag.raw, "style") || "";
+      // Check inline opacity: 0
+      if (/opacity\s*:\s*0/.test(style)) {
+        hiddenSceneIds.add(id);
+      }
+    }
+    // Also check first scene is NOT hidden (skip it)
+    const firstSceneId = sceneElements[0] ? readAttr(sceneElements[0].raw, "id") || "" : "";
+
+    for (const script of scripts) {
+      const content = script.content;
+      // Find tl.from() and tl.fromTo() calls
+      const fromPattern = /tl\.(from|fromTo)\s*\(\s*["']([^"']+)["']/g;
+      let match: RegExpExecArray | null;
+      while ((match = fromPattern.exec(content)) !== null) {
+        const method = match[1];
+        const selector = match[2] || "";
+
+        // Skip if targeting first scene (it's visible from the start)
+        if (selector === `#${firstSceneId}` || selector.startsWith(`#${firstSceneId} `)) continue;
+
+        // Check if selector targets an element inside a hidden scene
+        let insideHiddenScene = false;
+        for (const sceneId of hiddenSceneIds) {
+          if (
+            selector.startsWith(`#${sceneId}`) ||
+            selector.startsWith(`.s${sceneId.replace("scene", "")}`)
+          ) {
+            insideHiddenScene = true;
+            break;
+          }
+        }
+        if (!insideHiddenScene) continue;
+
+        // Check the tween call for immediateRender: false
+        const callEnd = content.indexOf(")", match.index + match[0].length);
+        if (callEnd === -1) continue;
+        const fullCall = content.slice(match.index, callEnd + 1);
+        if (/immediateRender\s*:\s*false/.test(fullCall)) continue;
+
+        findings.push({
+          code: "missing_immediate_render_false",
+          severity: "warning",
+          message:
+            `tl.${method}("${truncateSnippet(selector, 40)}") targets a hidden scene but is missing \`immediateRender: false\`. ` +
+            "The FROM state will render at time 0, making the element invisible before the scene's transition reveals it.",
+          fixHint: `Add \`immediateRender: false\` to the vars object: \`tl.${method}("${truncateSnippet(selector, 30)}", { immediateRender: false, ... })\``,
+        });
+      }
+    }
+    return findings;
+  },
 ];

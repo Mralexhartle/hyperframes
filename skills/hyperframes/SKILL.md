@@ -103,15 +103,16 @@ For compositions with 4 or more scenes, build in three phases instead of one pas
 - The `design.md` (or its values summarized)
 - The global animation rules from the prompt
 - That scene's specific prompt section only
-- Instructions: "Return the HTML elements, `<style>` rules (scoped to `#sceneN`), and GSAP tween calls for this scene. Use the timeline variable `tl`. Start tweens at `{start_time}`. Do not create the timeline or register it — the parent handles that."
+- Instructions: "Write your output to `.hyperframes/scenes/sceneN.html` as a single file with three clearly marked sections: `<!-- HTML -->`, `<!-- CSS -->`, `<!-- GSAP -->`. Use the timeline variable `tl`. Start tweens at `{start_time}`. Do not create the timeline or register it — the parent handles that. **Use `immediateRender: false` on every `tl.from()` and `tl.fromTo()` call** — without it, the FROM state renders at time 0, making elements invisible before the scene's transition reveals them."
 
-Each subagent focuses its entire context on making ONE scene visually rich: parallax layers, micro-animations, kinetic typography, ambient motion, background decoratives. No boilerplate, no other scenes.
+Each subagent focuses its entire context on making ONE scene visually rich: parallax layers, micro-animations, kinetic typography, ambient motion, background decoratives. No boilerplate, no other scenes. **Each subagent must write to a file** — text returned in conversation is not accessible to the assembly agent.
 
-**Phase 3: Assembly.** Collect the subagent outputs and:
+**Phase 3: Assembly.** Read each scene file from `.hyperframes/scenes/` and:
 
-- Inject each scene's HTML into the scaffold's empty scene divs
-- Merge `<style>` blocks (check for ID conflicts — prefix with scene ID if needed)
-- Merge GSAP tweens into the single timeline (adjust `tl.from`/`tl.to` start times if subagent used relative offsets)
+- Extract the HTML, CSS, and GSAP blocks from each `sceneN.html`
+- Inject HTML into the scaffold's empty scene divs
+- Merge CSS blocks into the style element (check for ID conflicts — prefix with scene ID if needed)
+- Merge GSAP tweens into the single timeline (adjust start times if subagent used relative offsets)
 - Run `npx hyperframes lint` and fix any structural issues
 - Run `npx hyperframes validate` if available
 
