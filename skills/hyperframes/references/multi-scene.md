@@ -2,6 +2,61 @@
 
 For compositions with 4 or more scenes, build in phases instead of one pass. A single pass produces shallow results — detail drops as context fills with boilerplate.
 
+## Scene Fragment Spec
+
+Every scene file (`.hyperframes/scenes/sceneN.html`) must be a **fragment**, not a standalone document. The assembler splits on markers and injects verbatim — non-compliant files break assembly.
+
+### Structure
+
+Exactly three sections, in this order, each appearing exactly once:
+
+```
+<!-- HTML -->
+<div class="s3-heading">...</div>
+...
+
+<!-- CSS -->
+.s3-heading { color: var(--fg); ... }
+...
+
+<!-- GSAP -->
+var S3 = 14.3;
+tl.set('#s3-heading', { opacity: 0, y: 30 }, 0);
+tl.to('#s3-heading', { opacity: 1, y: 0, duration: 0.4 }, S3 + 0.5);
+...
+```
+
+### Required
+
+- **Three markers, one each:** `<!-- HTML -->`, `<!-- CSS -->`, `<!-- GSAP -->` — no duplicates
+- **ID prefix:** All IDs and classes use `s{N}-` prefix (e.g., `#s3-heading`, `.s7-chart`)
+- **GSAP pattern:** `tl.set()` at time 0 for initial state, `tl.to()` at scene time for animation
+- **Scene start var:** Define `var SN = {start_time};` at top of GSAP section, reference it for all tweens
+- **Finite repeats:** All `repeat` values must be explicit numbers, never `-1` or `Infinity`
+
+### Prohibited
+
+- `<!DOCTYPE`, `<html`, `<head`, `<body` — this is a fragment, not a document
+- `<script src=` — no external script loading
+- `gsap.timeline(` — the scaffold creates the timeline
+- `window.__timelines` — the scaffold registers it
+- `tl.from(` or `tl.fromTo(` — causes flash-of-default-state (use `tl.set` + `tl.to`)
+- `body {` in CSS — the scaffold owns body styles
+- `.scene {` in CSS — the scaffold owns scene base styles
+- `position`, `top`, `left`, `width`, `height`, `opacity`, or `z-index` on `#sceneN` — the scaffold owns the scene container; only style elements INSIDE the scene
+- Bare class names without `s{N}-` prefix (`.heading`, `.card`) — causes cross-scene collisions
+
+### Assembly contract
+
+If a scene file follows this spec, the assembler can:
+
+1. Split on `<!-- HTML -->`, `<!-- CSS -->`, `<!-- GSAP -->` markers
+2. Inject HTML between the scaffold's `<div id="sceneN" class="scene">` and `</div>`
+3. Append CSS to the scaffold's `<style>` block
+4. Append GSAP into the scaffold's `<script>` after transitions, before `window.__timelines` registration
+
+No parsing, no stripping, no guessing.
+
 ## Phase 1: Scaffold
 
 Build the HTML skeleton yourself:
@@ -17,12 +72,11 @@ Build the HTML skeleton yourself:
 
 Dispatch one subagent per scene, running in parallel. Each subagent receives:
 
+- The **Scene Fragment Spec** (above) — the subagent must follow this exactly
 - The `design.md` (or its values summarized)
 - The global animation rules from the prompt
 - That scene's specific prompt section only
-- Instructions: "Write your output to `.hyperframes/scenes/sceneN.html` as a single file with three clearly marked sections: `<!-- HTML -->`, `<!-- CSS -->`, `<!-- GSAP -->`. Use the timeline variable `tl`. Start tweens at `{start_time}`. Do not create the timeline or register it — the parent handles that. **Do NOT use `tl.from()` in multi-scene compositions** — use `tl.set()` + `tl.to()` instead. The `tl.set` hides the element at **time 0** (not scene start — time 0 ensures elements are hidden before any transition reveals the scene), then `tl.to` animates it in at the scene time. Example: `tl.set('#el', { opacity: 0, y: 30 }, 0); tl.to('#el', { opacity: 1, y: 0, duration: 0.4 }, sceneStart + 0.5);`. The `tl.from` approach causes elements to flash visible at their CSS default state before the entrance tween fires. **Do NOT set `position`, `top`, `left`, `width`, `height`, `opacity`, or `z-index` on the `#sceneN` container in your CSS** — the scaffold owns those properties. Only style elements INSIDE the scene."
-
-**ID convention:** All scene-internal IDs must use the `s{N}-` prefix (e.g., `#s3-heading`, `#s7-chart`). This prevents collisions during assembly and allows lint rules to match scene ownership.
+- The scene number `N` and start time — used for the `s{N}-` prefix and `var SN = {start_time};`
 
 Each subagent focuses its entire context on making ONE scene visually rich: parallax layers, micro-animations, kinetic typography, ambient motion, background decoratives. No boilerplate, no other scenes. **Each subagent must write to a file** — text returned in conversation is not accessible to the assembly agent.
 
@@ -31,14 +85,24 @@ Each subagent focuses its entire context on making ONE scene visually rich: para
 As each scene file appears in `.hyperframes/scenes/`, dispatch an evaluator subagent immediately — don't wait for all scenes to finish. The evaluator receives:
 
 - The scene file
+- The **Scene Fragment Spec** (above)
 - That scene's section from the original prompt
 - The `design.md`
 
-The evaluator checks:
+### Evaluation order: format first, then content
+
+**Step 1 — Format validation (instant FAIL if any check fails):**
+
+- Exactly 3 markers (`<!-- HTML -->`, `<!-- CSS -->`, `<!-- GSAP -->`), each appearing once
+- No prohibited patterns (DOCTYPE, html/head/body tags, script src, gsap.timeline, window.\_\_timelines, tl.from, body/scene CSS rules)
+- All IDs and classes use `s{N}-` prefix
+- No position/top/left/width/height/opacity/z-index on `#sceneN` in CSS
+- All `repeat` values are finite numbers
+
+**Step 2 — Content validation (only if format passes):**
 
 - **Prompt adherence**: Does the scene include the elements the prompt described? List what's present and what's missing.
 - **Design compliance**: Are the design.md colors, fonts, corners, and spacing used? Any invented values?
-- **Rule compliance**: No `tl.from`, no `position` on scene container, `tl.set` at time 0, all repeats finite.
 - **Density**: 15+ animated elements? 3 parallax layers?
 
 The evaluator writes a verdict to `.hyperframes/scenes/sceneN.eval.md`: PASS or FAIL with specific issues. If FAIL, re-dispatch the scene subagent with the evaluator's feedback appended to the original instructions. Maximum 2 retries per scene — if a scene fails 3 times, escalate to the user with the evaluator's feedback and ask how to proceed. If PASS, the scene is ready for assembly.
@@ -49,9 +113,9 @@ Run evaluators concurrently with scene builds — a scene that finishes first ge
 
 Once all scenes have PASS evaluations, read each scene file from `.hyperframes/scenes/` and:
 
-- Extract the HTML, CSS, and GSAP blocks from each `sceneN.html`
-- Inject HTML into the scaffold's empty scene divs
-- Merge CSS blocks into the style element (check for ID conflicts — prefix with scene ID if needed)
-- Merge GSAP tweens into the single timeline (adjust start times if subagent used relative offsets)
-- Run `npx hyperframes lint` and fix any structural issues
-- Run `npx hyperframes validate` if available
+1. Split each file on `<!-- HTML -->`, `<!-- CSS -->`, `<!-- GSAP -->` markers
+2. Inject HTML into the scaffold's empty scene divs
+3. Merge CSS blocks into the style element
+4. Merge GSAP tweens into the single `<script>` after transitions, before `window.__timelines` registration
+5. Run `npx hyperframes lint` and fix any structural issues
+6. Run `npx hyperframes validate` if available
