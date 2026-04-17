@@ -49,6 +49,8 @@ function isPortAvailableOnHost(port: number, host: string): Promise<boolean> {
   });
 }
 
+export const PORT_PROBE_HOSTS = ["127.0.0.1", "0.0.0.0", "::1", "::"] as const;
+
 /**
  * Test a port across IPv4 and IPv6 interfaces. A port is only available if
  * EVERY host binds and releases cleanly — that catches the devbox class of
@@ -64,11 +66,17 @@ function isPortAvailableOnHost(port: number, host: string): Promise<boolean> {
  * is deterministic; on macOS/Windows the behaviour is less consistent but
  * the race is there all the same. Serializing each bind past its close
  * callback eliminates the window entirely.
+ *
+ * `probe` is injectable for deterministic testing of the sequential
+ * contract — callers in production pass nothing and get the real socket
+ * probe. Tests can pass a recording fake that tracks in-flight probes.
  */
-export async function testPortOnAllHosts(port: number): Promise<boolean> {
-  const hosts = ["127.0.0.1", "0.0.0.0", "::1", "::"];
-  for (const host of hosts) {
-    const available = await isPortAvailableOnHost(port, host);
+export async function testPortOnAllHosts(
+  port: number,
+  probe: (port: number, host: string) => Promise<boolean> = isPortAvailableOnHost,
+): Promise<boolean> {
+  for (const host of PORT_PROBE_HOSTS) {
+    const available = await probe(port, host);
     if (!available) return false;
   }
   return true;
