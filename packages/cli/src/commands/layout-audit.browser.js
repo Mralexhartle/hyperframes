@@ -141,6 +141,15 @@ window.__layoutAudit = function (time) {
     });
   }
 
+  function fullyContainedWithin(inner, outer) {
+    return (
+      inner.left >= outer.left - 2 &&
+      inner.right <= outer.right + 2 &&
+      inner.top >= outer.top - 2 &&
+      inner.bottom <= outer.bottom + 2
+    );
+  }
+
   var findings = [];
   for (var a = 0; a < candidates.length; a++) {
     for (var b = a + 1; b < candidates.length; b++) {
@@ -155,6 +164,10 @@ window.__layoutAudit = function (time) {
 
       var ov = intersect(A.rect, B.rect);
       if (!ov) continue;
+
+      // Skip text-inside-media as intentional overlay (HUD caption, label on photo)
+      if (A.kind === "text" && B.kind === "media" && fullyContainedWithin(A.rect, B.rect)) continue;
+      if (B.kind === "text" && A.kind === "media" && fullyContainedWithin(B.rect, A.rect)) continue;
 
       var aArea = A.rect.width * A.rect.height;
       var bArea = B.rect.width * B.rect.height;
