@@ -104,6 +104,12 @@ export const PlayerControls = memo(function PlayerControls({
       // pen contact) should start a drag.
       if (e.button !== 0) return;
       e.preventDefault();
+      // preventDefault() on pointerdown also suppresses the implicit focus
+      // transfer that click normally grants a `tabIndex=0` element — which
+      // matches native `<input type="range">` behavior, but it also means a
+      // click-then-arrow-key workflow wouldn't work. Restore focus explicitly
+      // so seeking by click and nudging by arrow keys compose naturally.
+      e.currentTarget.focus();
       isDraggingRef.current = true;
 
       // `setPointerCapture` routes every subsequent pointermove/up to the
@@ -124,19 +130,33 @@ export const PlayerControls = memo(function PlayerControls({
         if (ev.pointerId !== pointerId) return;
         if (isDraggingRef.current) seekFromClientX(ev.clientX);
       };
-      const onUp = (ev: PointerEvent) => {
-        if (ev.pointerId !== pointerId) return;
+      const cleanup = () => {
         isDraggingRef.current = false;
         try {
           target.releasePointerCapture(pointerId);
         } catch {
-          /* best-effort */
+          /* Already released after the first cleanup — second invocation
+             via the window-fallback or visibility path is a no-op throw. */
         }
         target.removeEventListener("pointermove", onMove);
         target.removeEventListener("pointerup", onUp);
         target.removeEventListener("pointercancel", onUp);
         window.removeEventListener("pointerup", onUp);
         window.removeEventListener("pointercancel", onUp);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        window.removeEventListener("blur", cleanup);
+      };
+      const onUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
+        cleanup();
+      };
+      // iOS Safari does not reliably fire `pointercancel` when the page is
+      // backgrounded mid-drag (alt-tab, incoming call, switch apps). Without
+      // a release path the ref stays `true` until the next pointerdown — a
+      // stuck-scrubber class bug waiting to happen if anyone later gates
+      // rendering on `isDragging`. Synthesize the release on hide / blur.
+      const onVisibilityChange = () => {
+        if (document.visibilityState === "hidden") cleanup();
       };
 
       target.addEventListener("pointermove", onMove);
@@ -146,6 +166,8 @@ export const PlayerControls = memo(function PlayerControls({
       // lands outside the element (rare, but defensive).
       window.addEventListener("pointerup", onUp);
       window.addEventListener("pointercancel", onUp);
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      window.addEventListener("blur", cleanup);
     },
     [seekFromClientX],
   );
