@@ -7,6 +7,14 @@ export interface GsapAnimation {
   targetSelector: string;
   method: GsapMethod;
   position: number;
+  /**
+   * Raw source of the position argument when it was not a plain numeric literal
+   * (e.g. `"label"`, `"label+=0.5"`, `S1 + 0.2`, `T1`). When present, `position`
+   * is unreliable and downstream consumers should treat the animation as
+   * having an unresolved start time. Absent means the position was a number
+   * and `position` is authoritative.
+   */
+  positionExpr?: string;
   properties: Record<string, number | string>;
   fromProperties?: Record<string, number | string>;
   duration?: number;
@@ -153,6 +161,15 @@ export function parseGsapScript(script: string): ParsedGsap {
   return { animations, timelineVar, preamble, postamble };
 }
 
+function parsePositionArg(afterProps: string): { position: number; positionExpr?: string } {
+  const commaIdx = afterProps.indexOf(",");
+  if (commaIdx === -1) return { position: 0 };
+  const raw = afterProps.slice(commaIdx + 1).trim();
+  if (!raw) return { position: 0 };
+  if (/^-?[\d.]+$/.test(raw)) return { position: parseFloat(raw) };
+  return { position: 0, positionExpr: raw };
+}
+
 function parseGsapCall(method: GsapMethod, argsStr: string, idNum: number): GsapAnimation | null {
   const selectorMatch = argsStr.match(/^\s*["']([^"']+)["']\s*,/);
   if (!selectorMatch) return null;
@@ -163,6 +180,7 @@ function parseGsapCall(method: GsapMethod, argsStr: string, idNum: number): Gsap
   let properties: Record<string, number | string> = {};
   let fromProperties: Record<string, number | string> | undefined;
   let position = 0;
+  let positionExpr: string | undefined;
 
   if (method === "fromTo") {
     const firstBrace = afterSelector.indexOf("{");
@@ -178,9 +196,9 @@ function parseGsapCall(method: GsapMethod, argsStr: string, idNum: number): Gsap
 
     properties = parseObjectLiteral(secondPart.slice(secondBrace, secondEnd + 1));
 
-    const afterProps = secondPart.slice(secondEnd + 1);
-    const posMatch = afterProps.match(/,\s*([\d.]+)/);
-    if (posMatch) position = parseFloat(posMatch[1] ?? "");
+    const parsed = parsePositionArg(secondPart.slice(secondEnd + 1));
+    position = parsed.position;
+    positionExpr = parsed.positionExpr;
   } else {
     const braceStart = afterSelector.indexOf("{");
     const braceEnd = findMatchingBrace(afterSelector, braceStart);
@@ -188,9 +206,9 @@ function parseGsapCall(method: GsapMethod, argsStr: string, idNum: number): Gsap
     if (braceStart !== -1 && braceEnd !== -1) {
       properties = parseObjectLiteral(afterSelector.slice(braceStart, braceEnd + 1));
 
-      const afterProps = afterSelector.slice(braceEnd + 1);
-      const posMatch = afterProps.match(/,\s*([\d.]+)/);
-      if (posMatch) position = parseFloat(posMatch[1] ?? "");
+      const parsed = parsePositionArg(afterSelector.slice(braceEnd + 1));
+      position = parsed.position;
+      positionExpr = parsed.positionExpr;
     }
   }
 
@@ -214,7 +232,7 @@ function parseGsapCall(method: GsapMethod, argsStr: string, idNum: number): Gsap
     }
   }
 
-  return {
+  const result: GsapAnimation = {
     id: `anim-${idNum}`,
     targetSelector,
     method,
@@ -224,6 +242,8 @@ function parseGsapCall(method: GsapMethod, argsStr: string, idNum: number): Gsap
     duration,
     ease,
   };
+  if (positionExpr !== undefined) result.positionExpr = positionExpr;
+  return result;
 }
 
 export function serializeGsapAnimations(

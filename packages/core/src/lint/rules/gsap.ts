@@ -13,6 +13,7 @@ type GsapWindow = {
   overwriteAuto: boolean;
   method: string;
   raw: string;
+  positionUnresolved: boolean;
 };
 
 const META_GSAP_KEYS = new Set(["duration", "ease", "repeat", "yoyo", "overwrite", "delay"]);
@@ -64,6 +65,7 @@ function extractGsapWindows(script: string): GsapWindow[] {
       overwriteAuto: meta.overwriteAuto,
       method: match[1] ?? "to",
       raw,
+      positionUnresolved: animation.positionExpr !== undefined,
     });
   }
   return windows;
@@ -259,10 +261,12 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
       for (let i = 0; i < gsapWindows.length; i++) {
         const left = gsapWindows[i];
         if (!left) continue;
+        if (left.positionUnresolved) continue;
         if (left.end <= left.position) continue;
         for (let j = i + 1; j < gsapWindows.length; j++) {
           const right = gsapWindows[j];
           if (!right) continue;
+          if (right.positionUnresolved) continue;
           if (right.end <= right.position) continue;
           if (left.targetSelector !== right.targetSelector) continue;
           const overlapStart = Math.max(left.position, right.position);

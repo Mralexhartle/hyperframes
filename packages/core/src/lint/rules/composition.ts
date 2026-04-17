@@ -85,6 +85,29 @@ export const compositionRules: Array<(ctx: LintContext) => HyperframeLintFinding
     return findings;
   },
 
+  // standalone_missing_hyperframe_runtime
+  ({ rawSource, scripts }) => {
+    const findings: HyperframeLintFinding[] = [];
+    const isStandaloneDoc = /<!doctype\s+html/i.test(rawSource) || /<html[\s>]/i.test(rawSource);
+    if (!isStandaloneDoc) return findings;
+    const registersTimeline = scripts.some((s) =>
+      /window\.__timelines\s*\[|__timelines\s*\[/.test(s.content),
+    );
+    if (!registersTimeline) return findings;
+    if (/hyperframe\.runtime\.iife/i.test(rawSource)) return findings;
+    findings.push({
+      code: "standalone_missing_hyperframe_runtime",
+      severity: "info",
+      message:
+        "Standalone composition registers GSAP timelines via `window.__timelines` but does not include the @hyperframes/core runtime script. " +
+        "`hyperframes preview` and `hyperframes render` inject the runtime automatically, and `<hyperframes-player>` auto-injects on probe. " +
+        "Add the script if you embed the composition directly or need deterministic playback without the player's auto-inject delay.",
+      fixHint:
+        'Add `<script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>` to your `<head>` alongside the GSAP script.',
+    });
+    return findings;
+  },
+
   // external_script_dependency
   ({ source }) => {
     const findings: HyperframeLintFinding[] = [];

@@ -96,6 +96,40 @@ describe("parseGsapScript", () => {
     expect(anim.fromProperties?.x).toBeUndefined();
   });
 
+  it("marks identifier + offset position as unresolved (positionExpr)", () => {
+    const script = `
+      const tl = gsap.timeline({ paused: true });
+      const S1 = 0;
+      tl.to(".s1-bg", { opacity: 1, duration: 0.5 }, S1 + 0.2);
+    `;
+    const result = parseGsapScript(script);
+    expect(result.animations).toHaveLength(1);
+    expect(result.animations[0].position).toBe(0);
+    expect(result.animations[0].positionExpr).toBe("S1 + 0.2");
+  });
+
+  it("marks string-label position as unresolved (positionExpr)", () => {
+    const script = `
+      const tl = gsap.timeline({ paused: true });
+      tl.to(".s1", { opacity: 1, duration: 0.5 }, "sceneIn");
+      tl.to(".s1", { opacity: 0, duration: 0.3 }, "sceneOut+=0.5");
+    `;
+    const result = parseGsapScript(script);
+    expect(result.animations).toHaveLength(2);
+    expect(result.animations[0].positionExpr).toBe('"sceneIn"');
+    expect(result.animations[1].positionExpr).toBe('"sceneOut+=0.5"');
+  });
+
+  it("leaves positionExpr undefined for plain numeric positions", () => {
+    const script = `
+      const tl = gsap.timeline({ paused: true });
+      tl.to("#a", { opacity: 1, duration: 0.5 }, 1.25);
+    `;
+    const result = parseGsapScript(script);
+    expect(result.animations[0].position).toBe(1.25);
+    expect(result.animations[0].positionExpr).toBeUndefined();
+  });
+
   it("handles an empty script", () => {
     const result = parseGsapScript("");
 

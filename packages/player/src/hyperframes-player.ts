@@ -345,35 +345,24 @@ class HyperframesPlayer extends HTMLElement {
         const hasRuntime = !!(win.__hf || win.__player);
         const hasTimelines = !!(win.__timelines && Object.keys(win.__timelines).length > 0);
 
-        // Auto-inject runtime if GSAP timelines exist but no runtime bridge
-        if (!hasRuntime && hasTimelines && !this._runtimeInjected && attempts >= 5) {
+        // Auto-inject runtime as soon as timelines exist but no bridge. Without
+        // the runtime the postMessage-based play/pause/seek controls are dead,
+        // so we can't just fall back to reading __timelines directly — the
+        // player would appear ready but never advance. Injecting immediately on
+        // first detection avoids a dead-play state; the runtime is idempotent
+        // via __hyperframeRuntimeBootstrapped so redundant injection is safe.
+        if (!hasRuntime && hasTimelines && !this._runtimeInjected) {
           this._injectRuntime();
-          return; // Wait for runtime to load and initialize
+          return;
         }
 
         // Runtime was injected but hasn't loaded yet — keep waiting
-        if (this._runtimeInjected && !hasRuntime) {
+        if (!hasRuntime) {
           return;
         }
 
         const getAdapter = () => {
           if (win.__player && typeof win.__player.getDuration === "function") return win.__player;
-          if (win.__timelines) {
-            const keys = Object.keys(win.__timelines);
-            if (keys.length > 0) {
-              // Resolve the root composition id from the DOM — the outermost
-              // `[data-composition-id]` element is the master. Bundled previews
-              // register the root composition alongside sub-compositions, and
-              // without this lookup Object.keys() order would make a
-              // sub-composition's duration hijack the overall video length.
-              const rootId = this.iframe.contentDocument
-                ?.querySelector("[data-composition-id]")
-                ?.getAttribute("data-composition-id");
-              const key = rootId && rootId in win.__timelines ? rootId : keys[keys.length - 1];
-              const tl = win.__timelines[key];
-              return { getDuration: () => tl.duration() };
-            }
-          }
           return null;
         };
 
