@@ -69,6 +69,7 @@
           {
             "group": "Guides",
             "pages": [
+              "guides/website-to-video",
               "guides/gsap-animation",
               "guides/rendering",
               "guides/common-mistakes",

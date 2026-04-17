@@ -53,6 +53,8 @@ export function lintProject(project: ProjectDir): ProjectLintResult {
   const projectFindings = [
     ...lintProjectAudioFiles(project.dir, allHtmlSources),
     ...lintAudioSrcNotFound(project.dir, allHtmlSources),
+    ...lintMultipleRootCompositions(results),
+    ...lintDuplicateAudioTracks(allHtmlSources),
   ];
   if (projectFindings.length > 0) {
     // Append project-level findings to the root index.html result
@@ -151,6 +153,68 @@ function lintAudioSrcNotFound(projectDir: string, htmlSources: string[]): Hyperf
     });
   }
 
+  return findings;
+}
+
+/**
+ * Error if multiple root-level HTML files exist (not in compositions/).
+ * Catches the double-audio bug where a scaffold and the real index.html
+ * both register as root compositions.
+ */
+function lintMultipleRootCompositions(
+  results: Array<{ file: string; result: HyperframeLintResult }>,
+): HyperframeLintFinding[] {
+  const findings: HyperframeLintFinding[] = [];
+  const rootFiles = results.map((r) => r.file).filter((f) => !f.startsWith("compositions/"));
+
+  if (rootFiles.length > 1) {
+    findings.push({
+      code: "multiple_root_compositions",
+      severity: "error",
+      message: `Multiple root-level HTML files found: ${rootFiles.join(", ")}. The runtime may discover both as composition entry points, causing duplicate audio playback.`,
+      fixHint:
+        "A project should have exactly one root index.html. Remove or rename extra root-level HTML files.",
+    });
+  }
+  return findings;
+}
+
+/**
+ * Warn if multiple <audio> elements on the same data-track-index overlap in time.
+ * This causes layered audio playback.
+ */
+function lintDuplicateAudioTracks(htmlSources: string[]): HyperframeLintFinding[] {
+  const findings: HyperframeLintFinding[] = [];
+  const audioRe =
+    /<audio\b[^>]*\bdata-track-index\s*=\s*["'](\d+)["'][^>]*\bdata-start\s*=\s*["']([^"']+)["'][^>]*\bdata-duration\s*=\s*["']([^"']+)["'][^>]*>/gi;
+
+  const tracks: Array<{ trackIndex: number; start: number; end: number; src: string }> = [];
+  for (const html of htmlSources) {
+    let match: RegExpExecArray | null;
+    while ((match = audioRe.exec(html)) !== null) {
+      const trackIndex = parseInt(match[1]!, 10);
+      const start = parseFloat(match[2]!);
+      const duration = parseFloat(match[3]!);
+      const srcMatch = match[0].match(/\bsrc\s*=\s*["']([^"']+)["']/);
+      tracks.push({ trackIndex, start, end: start + duration, src: srcMatch?.[1] ?? "unknown" });
+    }
+  }
+
+  for (let i = 0; i < tracks.length; i++) {
+    for (let j = i + 1; j < tracks.length; j++) {
+      const a = tracks[i]!;
+      const b = tracks[j]!;
+      if (a.trackIndex !== b.trackIndex) continue;
+      if (a.start < b.end && b.start < a.end) {
+        findings.push({
+          code: "duplicate_audio_track",
+          severity: "warning",
+          message: `Multiple <audio> elements on track ${a.trackIndex} overlap (${a.src} at ${a.start}-${a.end.toFixed(1)}s, ${b.src} at ${b.start}-${b.end.toFixed(1)}s). This causes layered audio playback.`,
+          fixHint: "Use non-overlapping time windows or different track indices.",
+        });
+      }
+    }
+  }
   return findings;
 }
 

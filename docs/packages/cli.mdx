@@ -14,11 +14,13 @@ npx hyperframes <command>
 ## When to Use
 
 **Use the CLI when you want to:**
-- Create a new composition project from an example
-- Preview compositions with live hot reload during development
-- Render compositions to MP4 (locally or in Docker)
-- Lint compositions for structural issues
-- Check your environment for missing dependencies
+- Capture a website for video production (`capture`)
+- Create a new composition project from an example (`init`)
+- Preview compositions with live hot reload (`preview`)
+- Render compositions to MP4 locally or in Docker (`render`)
+- Lint compositions for structural issues (`lint`)
+- Capture key frames as PNG screenshots (`snapshot`)
+- Check your environment for missing dependencies (`doctor`)
 
 **Use a different package if you want to:**
 - Render programmatically from Node.js code — use the [producer](/packages/producer)
@@ -321,6 +323,39 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     <Tip>
       Combine `tts` with `transcribe` to generate narration and word-level timestamps for captions in a single workflow: generate the audio with `tts`, then transcribe the output with `transcribe` to get word-level timing.
     </Tip>
+    ### `capture`
+
+    Capture a website — extract screenshots, design tokens, fonts, assets, and animations for video production:
+
+    ```bash
+    npx hyperframes capture https://stripe.com
+    npx hyperframes capture https://linear.app -o captures/linear
+    npx hyperframes capture https://example.com --json
+    ```
+
+    ```
+    ◇  Captured Stripe | Financial Infrastructure → captures/stripe-com
+
+      Screenshots: 12
+      Assets: 45
+      Sections: 15
+      Fonts: sohne-var
+    ```
+
+    | Flag | Description |
+    |------|-------------|
+    | `-o, --output` | Output directory (default: `captures/<hostname>`) |
+    | `--timeout` | Page load timeout in ms (default: 120000) |
+    | `--skip-assets` | Skip downloading images and fonts |
+    | `--max-screenshots` | Maximum screenshot count (default: 24) |
+    | `--json` | Output structured JSON for programmatic use |
+
+    The capture command extracts everything an AI agent needs to understand a website's visual identity: viewport screenshots at every scroll depth, color palette (pixel-sampled + DOM computed), font files, images with semantic names, SVGs, Lottie animations, video previews, WebGL shaders, visible text, and page structure.
+
+    Output is a self-contained directory with a `CLAUDE.md` file that any AI agent can read to understand the captured site. Used by the `/website-to-hyperframes` skill as step 1 of the video production pipeline.
+
+    Set `GEMINI_API_KEY` in a `.env` file for AI-powered image descriptions via Gemini 2.5 Flash vision (~$0.001/image). See the [Website to Video](/guides/website-to-video#enriching-captures-with-gemini-vision) guide for details.
+
   </Tab>
   <Tab title="Preview">
     ### `preview`
@@ -375,6 +410,32 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     - **Info** (`ℹ`) — informational notices, shown only with `--verbose`
 
     The linter detects missing attributes, missing adapter libraries (GSAP, Lottie, Three.js), structural problems, and more. See [Common Mistakes](/guides/common-mistakes) for details on each rule.
+
+    ### `snapshot`
+
+    Capture key frames from a composition as PNG screenshots — verify visual output without a full render:
+
+    ```bash
+    npx hyperframes snapshot my-project --at 2.9,10.4,18.7
+    npx hyperframes snapshot my-project --frames 10
+    ```
+
+    ```
+    ◆  Capturing 3 frames at [2.9s, 10.4s, 18.7s] from my-project
+
+    ◇  3 snapshots saved to snapshots/
+       snapshots/frame-00-at-2.9s.png
+       snapshots/frame-01-at-10.4s.png
+       snapshots/frame-02-at-18.7s.png
+    ```
+
+    | Flag | Description |
+    |------|-------------|
+    | `--frames` | Number of evenly-spaced frames to capture (default: 5) |
+    | `--at` | Comma-separated timestamps in seconds (e.g., `3.0,10.5,18.0`) |
+    | `--timeout` | Ms to wait for runtime to initialize (default: 5000) |
+
+    The snapshot command bundles the project, serves it locally, launches headless Chrome, seeks to each timestamp, and captures a 1920×1080 PNG. Useful for visual verification during the build step of the [website-to-video](/guides/website-to-video) workflow.
   </Tab>
   <Tab title="Build">
     ### `render`
