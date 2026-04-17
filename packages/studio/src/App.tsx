@@ -611,7 +611,7 @@ export function StudioApp() {
 
   if (resolving || !projectId) {
     return (
-      <div className="h-screen w-screen bg-neutral-950 flex items-center justify-center">
+      <div className="h-full w-full bg-neutral-950 flex items-center justify-center">
         <div className="w-4 h-4 rounded-full bg-studio-accent animate-pulse" />
       </div>
     );
@@ -621,7 +621,7 @@ export function StudioApp() {
 
   return (
     <div
-      className="flex flex-col h-screen w-screen bg-neutral-950 relative"
+      className="flex flex-col h-full w-full bg-neutral-950 relative"
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes("Files")) return;
         e.preventDefault();

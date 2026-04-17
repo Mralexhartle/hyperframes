@@ -98,23 +98,54 @@ export const PlayerControls = memo(function PlayerControls({
     [duration, onSeek],
   );
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      // Ignore secondary mouse buttons — only primary (left click / touch /
+      // pen contact) should start a drag.
+      if (e.button !== 0) return;
       e.preventDefault();
       isDraggingRef.current = true;
+
+      // `setPointerCapture` routes every subsequent pointermove/up to the
+      // slider element even when the pointer leaves its bounding box. Without
+      // it, fast drags on touch would lose events the moment the finger
+      // slips outside the 6 px-tall hit zone.
+      const target = e.currentTarget;
+      const pointerId = e.pointerId;
+      try {
+        target.setPointerCapture(pointerId);
+      } catch {
+        /* non-supporting browsers fall back to window listeners below */
+      }
+
       seekFromClientX(e.clientX);
 
-      const onMouseMove = (me: MouseEvent) => {
-        if (isDraggingRef.current) seekFromClientX(me.clientX);
+      const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
+        if (isDraggingRef.current) seekFromClientX(ev.clientX);
       };
-      const onMouseUp = () => {
+      const onUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
         isDraggingRef.current = false;
-        window.removeEventListener("mousemove", onMouseMove);
-        window.removeEventListener("mouseup", onMouseUp);
+        try {
+          target.releasePointerCapture(pointerId);
+        } catch {
+          /* best-effort */
+        }
+        target.removeEventListener("pointermove", onMove);
+        target.removeEventListener("pointerup", onUp);
+        target.removeEventListener("pointercancel", onUp);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
       };
 
-      window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup", onMouseUp);
+      target.addEventListener("pointermove", onMove);
+      target.addEventListener("pointerup", onUp);
+      target.addEventListener("pointercancel", onUp);
+      // Window-level fallback in case capture fails and the pointer release
+      // lands outside the element (rare, but defensive).
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
     },
     [seekFromClientX],
   );
@@ -137,7 +168,13 @@ export const PlayerControls = memo(function PlayerControls({
   return (
     <div
       className="px-4 py-2 flex items-center gap-3"
-      style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
+      style={{
+        borderTop: "1px solid rgba(255,255,255,0.04)",
+        // Add iOS safe-area inset so Safari's bottom URL bar doesn't occlude
+        // the Play button + timecode on iPhone. `env(safe-area-inset-bottom)`
+        // is 0 everywhere else, so this is a no-op on desktop.
+        paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))",
+      }}
     >
       {/* Play/Pause button */}
       <button
@@ -183,8 +220,12 @@ export const PlayerControls = memo(function PlayerControls({
         aria-valuemax={Math.round(duration)}
         aria-valuenow={0}
         className="flex-1 h-6 flex items-center cursor-pointer group"
-        style={{ touchAction: "manipulation" }}
-        onMouseDown={handleMouseDown}
+        // `touch-action: none` tells the browser we're handling every
+        // pointer gesture on this element ourselves. Without it, iOS
+        // Safari consumes horizontal swipes for its own swipe-back-to-
+        // previous-page navigation and the scrubber can't drag left.
+        style={{ touchAction: "none" }}
+        onPointerDown={handlePointerDown}
         onKeyDown={handleKeyDown}
       >
         <div
