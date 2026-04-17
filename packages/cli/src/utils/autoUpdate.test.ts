@@ -65,6 +65,14 @@ function setupMocks(opts: {
     };
   });
 
+  // Clear any env knobs that would otherwise bypass the scheduling policy
+  // before the test runs. Critical for CI, where GitHub Actions always sets
+  // CI=true and would cause every scheduling assertion to fail false-negative.
+  // Tests that specifically want one of these set pass it via opts.env.
+  delete process.env["CI"];
+  delete process.env["HYPERFRAMES_NO_AUTO_INSTALL"];
+  delete process.env["HYPERFRAMES_NO_UPDATE_CHECK"];
+
   // Apply env overrides, remembering originals for afterEach cleanup.
   if (opts.env) {
     for (const [k, v] of Object.entries(opts.env)) {

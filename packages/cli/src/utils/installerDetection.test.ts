@@ -33,7 +33,7 @@ async function detectWith(realPath: string | null): Promise<InstallerInfo> {
 
   const mod = await import("./installerDetection.js");
   const info = mod.detectInstaller();
-  process.argv[1] = origArgv1;
+  process.argv[1] = origArgv1 ?? "";
   return info;
 }
 
