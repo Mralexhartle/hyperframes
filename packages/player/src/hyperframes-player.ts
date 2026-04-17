@@ -69,6 +69,17 @@ class HyperframesPlayer extends HTMLElement {
    */
   private _mediaObserver?: MutationObserver;
 
+  /**
+   * One-shot latch for `playbackerror`. Without it, under parent ownership
+   * where the parent frame itself lacks activation, every paused→playing
+   * transition in the iframe state loop would re-fire `play()` (and its
+   * rejection) on each proxy — spamming host subscribers through a whole
+   * playback session. Mirrors the `mediaAutoplayBlockedPosted` latch on the
+   * runtime side. Cleared on `_onIframeLoad` alongside the owner reset, so
+   * a fresh composition gets a fresh shot at surfacing the error.
+   */
+  private _playbackErrorPosted = false;
+
   constructor() {
     super();
     this.shadow = this.attachShadow({ mode: "open" });
@@ -383,6 +394,7 @@ class HyperframesPlayer extends HTMLElement {
     // The next `NotAllowedError` (if any) will re-promote.
     const wasPromoted = this._audioOwner === "parent";
     this._audioOwner = "runtime";
+    this._playbackErrorPosted = false;
     this._pauseParentMedia();
     // The old iframe document is about to go away. Disconnect the
     // MutationObserver now so we don't hold a reference to it; a fresh
@@ -560,13 +572,18 @@ class HyperframesPlayer extends HTMLElement {
       // its `play()` rejects (rare — parent also lacks activation in some
       // programmatic embed flows), swallowing silently leaves the viewer
       // staring at motion with no audio and no signal. Surface it as a
-      // `playbackerror` event so host apps can recover or fall back.
-      m.el.play().catch((err: unknown) => {
-        this.dispatchEvent(
-          new CustomEvent("playbackerror", { detail: { source: "parent-proxy", error: err } }),
-        );
-      });
+      // `playbackerror` event — but only once per parent-ownership session;
+      // see `_playbackErrorPosted` for why.
+      m.el.play().catch((err: unknown) => this._reportPlaybackError(err));
     }
+  }
+
+  private _reportPlaybackError(err: unknown) {
+    if (this._playbackErrorPosted) return;
+    this._playbackErrorPosted = true;
+    this.dispatchEvent(
+      new CustomEvent("playbackerror", { detail: { source: "parent-proxy", error: err } }),
+    );
   }
 
   private _pauseParentMedia() {
@@ -630,10 +647,20 @@ class HyperframesPlayer extends HTMLElement {
     );
   }
 
-  /** Create a parent-frame media element, configure it, and start preloading. */
-  private _createParentMedia(src: string, tag: "audio" | "video", start: number, duration: number) {
+  /**
+   * Create a parent-frame media element, configure it, and start preloading.
+   * Returns the newly-created proxy entry, or `null` if one already exists for
+   * this src (dedup) — callers that need to act on the new element should
+   * branch on the return value rather than inferring via `_parentMedia.length`.
+   */
+  private _createParentMedia(
+    src: string,
+    tag: "audio" | "video",
+    start: number,
+    duration: number,
+  ): { el: HTMLMediaElement; start: number; duration: number } | null {
     // Deduplicate — browsers normalize URLs so we compare on the element after assignment
-    if (this._parentMedia.some((m) => m.el.src === src)) return;
+    if (this._parentMedia.some((m) => m.el.src === src)) return null;
 
     const el = tag === "video" ? document.createElement("video") : new Audio();
     el.preload = "auto";
@@ -642,7 +669,9 @@ class HyperframesPlayer extends HTMLElement {
     el.muted = this.muted;
     if (this.playbackRate !== 1) el.playbackRate = this.playbackRate;
 
-    this._parentMedia.push({ el, start, duration });
+    const entry = { el, start, duration };
+    this._parentMedia.push(entry);
+    return entry;
   }
 
   /**
@@ -708,9 +737,7 @@ class HyperframesPlayer extends HTMLElement {
     const duration = parseFloat(iframeEl.getAttribute("data-duration") || "Infinity");
     const tag = iframeEl.tagName === "VIDEO" ? ("video" as const) : ("audio" as const);
 
-    const beforeCount = this._parentMedia.length;
-    this._createParentMedia(src, tag, start, duration);
-    const created = this._parentMedia.length > beforeCount;
+    const created = this._createParentMedia(src, tag, start, duration);
     // Iframe originals stay untouched — the runtime's `syncRuntimeMedia`
     // queries `audio[data-start]` for state and needs them addressable.
     // Their audible output is gated later by `set-media-output-muted` when
@@ -722,15 +749,8 @@ class HyperframesPlayer extends HTMLElement {
     // the next several hundred ms until the next runtime state message.
     if (created && this._audioOwner === "parent") {
       this._mirrorParentMediaTime(this._currentTime);
-      if (!this._paused) {
-        const last = this._parentMedia[this._parentMedia.length - 1];
-        if (last && last.el.src) {
-          last.el.play().catch((err: unknown) => {
-            this.dispatchEvent(
-              new CustomEvent("playbackerror", { detail: { source: "parent-proxy", error: err } }),
-            );
-          });
-        }
+      if (!this._paused && created.el.src) {
+        created.el.play().catch((err: unknown) => this._reportPlaybackError(err));
       }
     }
   }
@@ -761,6 +781,23 @@ class HyperframesPlayer extends HTMLElement {
           if (inside) for (const el of inside) candidates.push(el);
           for (const el of candidates) this._adoptIframeMedia(el);
         }
+        for (const removed of m.removedNodes) {
+          if (!(removed instanceof Element)) continue;
+          // Symmetric detach: when a sub-composition unmounts, the iframe
+          // media it owned is gone but our parent proxies would otherwise
+          // linger — accumulating host-document <audio> elements and, under
+          // parent ownership, still being played by `_playParentMedia` as
+          // orphans. Match by resolved URL (same resolution as adoption).
+          const dropped: HTMLMediaElement[] = [];
+          if (removed.matches?.("audio[data-start], video[data-start]")) {
+            dropped.push(removed as HTMLMediaElement);
+          }
+          const inside = removed.querySelectorAll?.<HTMLMediaElement>(
+            "audio[data-start], video[data-start]",
+          );
+          if (inside) for (const el of inside) dropped.push(el);
+          for (const el of dropped) this._detachIframeMedia(el);
+        }
       }
     });
     obs.observe(doc.body, { childList: true, subtree: true });
@@ -770,6 +807,24 @@ class HyperframesPlayer extends HTMLElement {
   private _teardownMediaObserver(): void {
     this._mediaObserver?.disconnect();
     this._mediaObserver = undefined;
+  }
+
+  /**
+   * Inverse of `_adoptIframeMedia`: drop the parent proxy mirroring a removed
+   * iframe media element. Resolves the src identically so matching is exact,
+   * then pauses, clears the src (frees the decoder), and splices it out.
+   */
+  private _detachIframeMedia(iframeEl: HTMLMediaElement): void {
+    const rawSrc =
+      iframeEl.getAttribute("src") || iframeEl.querySelector("source")?.getAttribute("src");
+    if (!rawSrc) return;
+    const src = new URL(rawSrc, iframeEl.ownerDocument.baseURI).href;
+    const idx = this._parentMedia.findIndex((m) => m.el.src === src);
+    if (idx === -1) return;
+    const entry = this._parentMedia[idx];
+    entry.el.pause();
+    entry.el.src = "";
+    this._parentMedia.splice(idx, 1);
   }
 
   private _hidePoster() {

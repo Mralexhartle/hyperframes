@@ -265,6 +265,35 @@ describe("HyperframesPlayer parent-frame media", () => {
     expect((errors[0] as { source: string }).source).toBe("parent-proxy");
   });
 
+  it("playbackerror dedup: fires at most once per parent-ownership session", async () => {
+    // Under parent ownership with parent-also-blocked, every iframe
+    // paused→playing transition in the state loop re-invokes `_playParentMedia`.
+    // Without a latch, each rejection would re-fire `playbackerror`, spamming
+    // subscribers. Mirrors the runtime's `mediaAutoplayBlockedPosted` latch.
+    player.setAttribute("audio-src", "https://cdn.example.com/narration.mp3");
+    document.body.appendChild(player);
+
+    const rejection = Object.assign(new Error("blocked"), { name: "NotAllowedError" });
+    mockAudio.play = vi.fn().mockRejectedValue(rejection);
+
+    const errors: unknown[] = [];
+    player.addEventListener("playbackerror", (e: Event) => {
+      errors.push((e as CustomEvent).detail);
+    });
+
+    player._promoteToParentProxy?.();
+    player.play();
+    player.pause();
+    player.play();
+    player.pause();
+    player.play();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(errors).toHaveLength(1);
+  });
+
   it("cleans up parent media on disconnect", () => {
     player.setAttribute("audio-src", "https://cdn.example.com/narration.mp3");
     document.body.appendChild(player);
