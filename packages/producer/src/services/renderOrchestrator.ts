@@ -69,6 +69,7 @@ import {
   showVideoElements,
   queryElementStacking,
   groupIntoLayers,
+  blitRgb48leAffine,
 } from "@hyperframes/engine";
 import { join, dirname, resolve } from "path";
 import { randomUUID } from "crypto";
@@ -992,9 +993,25 @@ export async function executeRenderJob(
 
       const { execSync } = await import("child_process");
 
+      // ── Query initial element bounds for HDR extraction dimensions ──────
+      // Extract at each HDR video's display dimensions (not composition dimensions)
+      // so the source stride matches the blit dimensions. Without this, a 1200x900
+      // video element would have stride mismatch against a 1920x1080 extraction.
+      await domSession.page.evaluate((t: number) => {
+        if (window.__hf && typeof window.__hf.seek === "function") window.__hf.seek(t);
+      }, 0);
+      if (domSession.onBeforeCapture) {
+        await domSession.onBeforeCapture(domSession.page, 0);
+      }
+      const initialStacking = await queryElementStacking(domSession.page, nativeHdrVideoIds);
+      const hdrExtractionDims = new Map<string, { width: number; height: number }>();
+      for (const el of initialStacking) {
+        if (el.isHdr && el.width > 0 && el.height > 0) {
+          hdrExtractionDims.set(el.id, { width: el.width, height: el.height });
+        }
+      }
+
       // ── Pre-extract all HDR video frames in a single FFmpeg pass ──────
-      // Per-frame `-ss` fast seek causes duplicate frames at keyframe boundaries.
-      // A single extraction pass decodes sequentially — every frame is unique.
       const hdrFrameDirs = new Map<string, string>();
       for (const [videoId, srcPath] of hdrVideoSrcPaths) {
         const video = composition.videos.find((v) => v.id === videoId);
@@ -1002,10 +1019,11 @@ export async function executeRenderJob(
         const frameDir = join(framesDir, `hdr_${videoId}`);
         mkdirSync(frameDir, { recursive: true });
         const duration = video.end - video.start;
+        const dims = hdrExtractionDims.get(videoId) ?? { width, height };
         try {
           execSync(
             `ffmpeg -ss ${video.mediaStart} -i "${srcPath}" -t ${duration} -r ${job.config.fps} ` +
-              `-vf "scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}" ` +
+              `-vf "scale=${dims.width}:${dims.height}:force_original_aspect_ratio=increase,crop=${dims.width}:${dims.height}" ` +
               `-pix_fmt rgb48le -c:v png "${join(frameDir, "frame_%04d.png")}"`,
             { maxBuffer: 1024 * 1024, stdio: ["pipe", "pipe", "pipe"] },
           );
@@ -1073,29 +1091,63 @@ export async function executeRenderJob(
               // Frame index within the video (1-based for FFmpeg image2 output).
               // Clamp against the highest extracted frame in the directory to
               // avoid issuing an existsSync per requested time when the
-              // composition outlives the source clip.
+              // composition outlives the source clip. If the requested frame
+              // is past the end of the source, fall back to the last available
+              // frame (freeze on last frame, matching Chrome's <video> behavior).
               const videoFrameIndex = Math.round((time - video.start) * job.config.fps) + 1;
               const maxIndex = getMaxFrameIndex(frameDir);
-              const inBounds =
-                videoFrameIndex >= 1 && (maxIndex === 0 || videoFrameIndex <= maxIndex);
-              const framePath = inBounds
-                ? join(frameDir, `frame_${String(videoFrameIndex).padStart(4, "0")}.png`)
-                : null;
+              const effectiveIndex =
+                videoFrameIndex >= 1
+                  ? maxIndex > 0
+                    ? Math.min(videoFrameIndex, maxIndex)
+                    : videoFrameIndex
+                  : 0;
+              const framePath =
+                effectiveIndex >= 1
+                  ? join(frameDir, `frame_${String(effectiveIndex).padStart(4, "0")}.png`)
+                  : null;
 
               if (framePath !== null && existsSync(framePath)) {
                 try {
-                  const hdrRgb = decodePngToRgb48le(readFileSync(framePath)).data;
-                  blitRgb48leRegion(
-                    canvas,
-                    hdrRgb,
-                    el.x,
-                    el.y,
-                    el.width,
-                    el.height,
-                    width,
-                    height,
-                    el.opacity < 0.999 ? el.opacity : undefined,
-                  );
+                  const {
+                    data: hdrRgb,
+                    width: srcW,
+                    height: srcH,
+                  } = decodePngToRgb48le(readFileSync(framePath));
+
+                  // Derive the effective transform from the bounding rect.
+                  // getBoundingClientRect() already reflects all ancestor transforms
+                  // (GSAP sets transforms on wrapper divs, not video elements).
+                  const scaleX = el.width / srcW;
+                  const scaleY = el.height / srcH;
+                  const needsAffine = Math.abs(scaleX - 1) > 0.001 || Math.abs(scaleY - 1) > 0.001;
+
+                  if (needsAffine) {
+                    // Element bounds differ from extraction dimensions — scale via affine blit
+                    blitRgb48leAffine(
+                      canvas,
+                      hdrRgb,
+                      [scaleX, 0, 0, scaleY, el.x, el.y],
+                      srcW,
+                      srcH,
+                      width,
+                      height,
+                      el.opacity < 0.999 ? el.opacity : undefined,
+                    );
+                  } else {
+                    // Same dimensions — fast path with row copy
+                    blitRgb48leRegion(
+                      canvas,
+                      hdrRgb,
+                      el.x,
+                      el.y,
+                      srcW,
+                      srcH,
+                      width,
+                      height,
+                      el.opacity < 0.999 ? el.opacity : undefined,
+                    );
+                  }
                 } catch (err) {
                   log.warn("HDR layer decode/blit failed; skipping layer for frame", {
                     frameIndex: i,
