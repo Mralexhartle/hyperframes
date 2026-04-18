@@ -114,7 +114,10 @@ export interface RenderConfig {
   producerConfig?: EngineConfig;
   /** Custom logger. Defaults to console-based defaultLogger. */
   logger?: ProducerLogger;
-  /** HDR output: "hlg", "pq", "auto" (detect from sources), or undefined (SDR). */
+  /** Override CRF for the video encoder. Mutually exclusive with `videoBitrate`. */
+  crf?: number;
+  /** Target video bitrate (e.g. "10M"). Mutually exclusive with `crf`. */
+  videoBitrate?: string;
 }
 
 export interface RenderPerfSummary {
