@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { injectScriptsAtHeadStart, VIRTUAL_TIME_SHIM } from "./fileServer.js";
+import { HF_BRIDGE_SCRIPT, injectScriptsAtHeadStart, VIRTUAL_TIME_SHIM } from "./fileServer.js";
 
 describe("injectScriptsIntoHtml", () => {
   it("injects the virtual time shim into head content before authored scripts", () => {
@@ -26,5 +26,11 @@ describe("injectScriptsIntoHtml", () => {
 
     expect(final).toContain(VIRTUAL_TIME_SHIM);
     expect(final).not.toContain("bodyOnly = true");
+  });
+
+  it("propagates virtual time seeks into same-origin iframe documents", () => {
+    expect(HF_BRIDGE_SCRIPT).toContain("function seekSameOriginChildFrames");
+    expect(HF_BRIDGE_SCRIPT).toContain("childWindow.__HF_VIRTUAL_TIME__.seekToTime(nextTimeMs)");
+    expect(HF_BRIDGE_SCRIPT).toContain("seekSameOriginChildFrames(window, nextTimeMs)");
   });
 });

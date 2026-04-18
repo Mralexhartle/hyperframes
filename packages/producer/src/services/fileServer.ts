@@ -280,6 +280,31 @@ const HF_BRIDGE_SCRIPT = `(function() {
     var d = Number(root.getAttribute('data-duration'));
     return Number.isFinite(d) && d > 0 ? d : 0;
   }
+  function seekSameOriginChildFrames(frameWindow, nextTimeMs) {
+    var frames;
+    try {
+      frames = frameWindow.frames;
+    } catch (_error) {
+      return;
+    }
+    if (!frames || typeof frames.length !== "number") return;
+    for (var i = 0; i < frames.length; i++) {
+      var childWindow = null;
+      try {
+        childWindow = frames[i];
+        if (!childWindow || childWindow === frameWindow) continue;
+        if (
+          childWindow.__HF_VIRTUAL_TIME__ &&
+          typeof childWindow.__HF_VIRTUAL_TIME__.seekToTime === "function"
+        ) {
+          childWindow.__HF_VIRTUAL_TIME__.seekToTime(nextTimeMs);
+        }
+      } catch (_error) {
+        continue;
+      }
+      seekSameOriginChildFrames(childWindow, nextTimeMs);
+    }
+  }
   function bridge() {
     var p = window.__player;
     if (!p || typeof p.renderSeek !== "function" || typeof p.getDuration !== "function") {
@@ -292,9 +317,11 @@ const HF_BRIDGE_SCRIPT = `(function() {
       },
       seek: function(t) {
         p.renderSeek(t);
+        var nextTimeMs = (Math.max(0, Number(t) || 0)) * 1000;
         if (window.__HF_VIRTUAL_TIME__ && typeof window.__HF_VIRTUAL_TIME__.seekToTime === "function") {
-          window.__HF_VIRTUAL_TIME__.seekToTime((Math.max(0, Number(t) || 0)) * 1000);
+          window.__HF_VIRTUAL_TIME__.seekToTime(nextTimeMs);
         }
+        seekSameOriginChildFrames(window, nextTimeMs);
       },
     };
     return true;
@@ -487,4 +514,4 @@ export function createFileServer(options: FileServerOptions): Promise<FileServer
   });
 }
 
-export { VIRTUAL_TIME_SHIM };
+export { HF_BRIDGE_SCRIPT, VIRTUAL_TIME_SHIM };
