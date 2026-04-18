@@ -89,12 +89,14 @@ export function createRuntimePlayer(deps: PlayerDeps): RuntimePlayer {
     },
     renderSeek: (timeSeconds: number) => {
       const timeline = deps.getTimeline();
-      if (!timeline) return;
-      const quantized = seekTimelineDeterministically(
-        timeline,
-        timeSeconds,
-        deps.getCanonicalFps(),
-      );
+      const canonicalFps = deps.getCanonicalFps();
+      // When a composition has no GSAP timeline (pure CSS / WAAPI / Lottie /
+      // Three.js adapters driving the animation), still seek the adapters so
+      // their animations advance. Without this, non-GSAP compositions freeze
+      // on their initial frame.
+      const quantized = timeline
+        ? seekTimelineDeterministically(timeline, timeSeconds, canonicalFps)
+        : quantizeTimeToFrame(Math.max(0, Number(timeSeconds) || 0), canonicalFps);
       deps.onDeterministicSeek(quantized);
       deps.setIsPlaying(false);
       deps.onSyncMedia(quantized, false);
