@@ -252,6 +252,30 @@ bun run benchmark
 
 The benchmark runs several compositions with different quality and FPS settings and reports timing for each combination.
 
+## External assets (files outside `projectDir`)
+
+A composition can reference absolute paths to assets outside the project
+directory — a local voiceover in `~/Downloads`, a shared-drive image, a
+generated fixture at an absolute path. The producer handles these by:
+
+1. **Detection.** During compilation, the HTML compiler walks every
+   `[src]` / `[href]` and every `url(...)` in `<style>`. A path that
+   resolves to a file outside `projectDir` is collected into an
+   `externalAssets` map.
+2. **Sanitised keys.** Each absolute path is converted into a safe,
+   cross-platform relative key prefixed with `hf-ext/`. Windows
+   drive-letter colons are stripped (`D:\foo\x.wav` → `hf-ext/D/foo/x.wav`)
+   so that `path.join(compileDir, key)` stays inside the compile
+   directory on every OS.
+3. **Copy + rewrite.** The orchestrator copies the file under
+   `<compileDir>/hf-ext/...` and the HTML is rewritten to point at the
+   sanitised key. The file server then serves both project-internal and
+   external assets from the same root.
+
+The containment check uses `path.relative()` rather than a hardcoded
+separator, so external assets work identically on macOS, Linux, and
+Windows. See `packages/producer/src/utils/paths.ts` for the helpers.
+
 ## Related Packages
 
 <CardGroup cols={2}>

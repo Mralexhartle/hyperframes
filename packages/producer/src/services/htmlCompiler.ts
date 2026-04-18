@@ -24,6 +24,7 @@ import {
   rewriteCssAssetUrls,
 } from "@hyperframes/core";
 import { extractVideoMetadata, extractAudioMetadata } from "../utils/ffprobe.js";
+import { isPathInside, toExternalAssetKey } from "../utils/paths.js";
 import {
   parseVideoElements,
   type VideoElement,
@@ -804,12 +805,14 @@ export function collectExternalAssets(
       return null;
     }
     const absPath = resolve(absProjectDir, trimmed);
-    if (absPath.startsWith(absProjectDir + "/") || absPath === absProjectDir) {
+    if (isPathInside(absPath, absProjectDir)) {
       return null; // inside projectDir, file server handles this
     }
     if (!existsSync(absPath)) return null;
-    // resolve() already canonicalizes the path (no .. components remain)
-    const safeKey = "hf-ext/" + absPath.replace(/^\//, "");
+    // resolve() already canonicalises the path (no .. components remain);
+    // toExternalAssetKey() produces a cross-platform relative key that
+    // `path.join(compileDir, key)` cannot escape on any OS.
+    const safeKey = toExternalAssetKey(absPath);
     externalAssets.set(safeKey, absPath);
     return safeKey;
   }
