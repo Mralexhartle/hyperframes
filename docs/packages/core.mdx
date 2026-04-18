@@ -353,6 +353,25 @@ The pre-built runtime IIFE is available as a direct import:
 import runtime from '@hyperframes/core/runtime';
 ```
 
+### Preloading and decoding
+
+The runtime eagerly prepares every asset in the composition so the first
+paint and the first play call never stall the compositor.
+
+- **Media** — every `<video>` and `<audio>` has `preload="auto"` set and
+  `.load()` kicked on bind. The first `play()` lands on buffered data
+  instead of triggering a network fetch + decoder spin-up.
+- **Images** — every `<img>` gets `decoding="async"` and
+  `img.decode()` invoked off the main thread. Compositions with many
+  images (several dozen through several hundred) otherwise stutter
+  during the first ~second of preview because each image decodes
+  synchronously the first time it enters the paint tree (see
+  [GH #317](https://github.com/heygen-com/hyperframes/issues/317)).
+
+Both binders are **idempotent** — the runtime re-runs them periodically
+as sub-compositions mount and DOM changes land, and they skip elements
+they've already processed.
+
 ## Frame Adapters
 
 The core package defines the [Frame Adapter](/concepts/frame-adapters) interface and provides the built-in GSAP adapter:

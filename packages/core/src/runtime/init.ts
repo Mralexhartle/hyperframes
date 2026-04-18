@@ -13,6 +13,7 @@ import { collectRuntimeTimelinePayload } from "./timeline";
 import { createRuntimeStartTimeResolver } from "./startResolver";
 import { loadExternalCompositions, loadInlineTemplateCompositions } from "./compositionLoader";
 import { applyCaptionOverrides } from "./captionOverrides";
+import { createImageDecodeBinder } from "./imageDecode";
 import type { RuntimeDeterministicAdapter, RuntimeJson, RuntimeTimelineLike } from "./types";
 import type { PlayerAPI } from "../core.types";
 
@@ -1180,6 +1181,14 @@ export function initSandboxRuntimeModular(): void {
     }
   };
 
+  // Eagerly decode every <img> off the main thread so the first paint that
+  // needs it doesn't stall the compositor. See `imageDecode.ts` for the
+  // full rationale — addresses GH #317 (jerky preview with many images).
+  const imageDecodeBinder = createImageDecodeBinder({
+    tornDown: () => state.tornDown === true,
+  });
+  const bindImageDecodeListeners = () => imageDecodeBinder.bind();
+
   const syncMediaForCurrentState = () => {
     const cache = refreshRuntimeMediaCache({
       resolveStartSeconds: (element) => resolveStartForElement(element, 0),
@@ -1333,6 +1342,7 @@ export function initSandboxRuntimeModular(): void {
         externalCompositionsReady = true;
         runAdapters("discover", state.currentTime);
         bindMediaMetadataListeners();
+        bindImageDecodeListeners();
         installAssetFailureDiagnostics();
         applyCaptionOverrides();
         postTimeline();
@@ -1486,6 +1496,7 @@ export function initSandboxRuntimeModular(): void {
   installRuntimeErrorDiagnostics();
   runAdapters("discover");
   bindMediaMetadataListeners();
+  bindImageDecodeListeners();
   if (state.timelinePollIntervalId) {
     clearInterval(state.timelinePollIntervalId);
   }
@@ -1516,6 +1527,7 @@ export function initSandboxRuntimeModular(): void {
     }
     if (timelinePollTick % 10 === 0) {
       bindMediaMetadataListeners();
+      bindImageDecodeListeners();
     }
     syncCurrentTimeFromTimeline();
     if (state.isPlaying && state.capturedTimeline) {
