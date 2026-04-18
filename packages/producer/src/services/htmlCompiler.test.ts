@@ -2,7 +2,11 @@ import { describe, expect, it, mock, beforeAll } from "bun:test";
 import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { collectExternalAssets, inlineExternalScripts } from "./htmlCompiler.js";
+import {
+  collectExternalAssets,
+  detectRenderModeHints,
+  inlineExternalScripts,
+} from "./htmlCompiler.js";
 
 // ── collectExternalAssets ──────────────────────────────────────────────────
 
@@ -226,5 +230,57 @@ describe("inlineExternalScripts", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+describe("detectRenderModeHints", () => {
+  it("recommends screenshot mode for iframe compositions", () => {
+    const html = `<!DOCTYPE html>
+<html><body>
+  <div data-composition-id="root" data-width="1920" data-height="1080">
+    <iframe src="./target.html"></iframe>
+  </div>
+</body></html>`;
+
+    const result = detectRenderModeHints(html);
+
+    expect(result.recommendScreenshot).toBe(true);
+    expect(result.reasons.map((reason) => reason.code)).toEqual(["iframe"]);
+  });
+
+  it("recommends screenshot mode for inline requestAnimationFrame loops", () => {
+    const html = `<!DOCTYPE html>
+<html><body>
+  <div data-composition-id="root" data-width="1920" data-height="1080"></div>
+  <script>
+    function tick() {
+      requestAnimationFrame(tick);
+    }
+    tick();
+  </script>
+</body></html>`;
+
+    const result = detectRenderModeHints(html);
+
+    expect(result.recommendScreenshot).toBe(true);
+    expect(result.reasons.map((reason) => reason.code)).toEqual(["requestAnimationFrame"]);
+  });
+
+  it("ignores requestAnimationFrame inside comments and external scripts", () => {
+    const html = `<!DOCTYPE html>
+<html><body>
+  <div data-composition-id="root" data-width="1920" data-height="1080"></div>
+  <script src="./runtime.js"></script>
+  <script>
+    // requestAnimationFrame(loop);
+    /* requestAnimationFrame(otherLoop); */
+    const label = "safe";
+  </script>
+</body></html>`;
+
+    const result = detectRenderModeHints(html);
+
+    expect(result.recommendScreenshot).toBe(false);
+    expect(result.reasons).toEqual([]);
   });
 });

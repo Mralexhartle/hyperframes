@@ -37,6 +37,103 @@ const MIME_TYPES: Record<string, string> = {
   ".otf": "font/otf",
 };
 
+const VIRTUAL_TIME_SHIM = String.raw`(function() {
+  if (window.__HF_VIRTUAL_TIME__) return;
+
+  var virtualNowMs = 0;
+  var rafId = 1;
+  var rafQueue = [];
+  var OriginalDate = Date;
+  var originalSetTimeout = window.setTimeout.bind(window);
+  var originalClearTimeout = window.clearTimeout.bind(window);
+  var originalSetInterval = window.setInterval.bind(window);
+  var originalClearInterval = window.clearInterval.bind(window);
+  var originalRequestAnimationFrame = window.requestAnimationFrame
+    ? window.requestAnimationFrame.bind(window)
+    : null;
+  var originalCancelAnimationFrame = window.cancelAnimationFrame
+    ? window.cancelAnimationFrame.bind(window)
+    : null;
+
+  function flushAnimationFrame() {
+    if (!rafQueue.length) return;
+    var current = rafQueue.slice();
+    rafQueue.length = 0;
+    for (var i = 0; i < current.length; i++) {
+      var entry = current[i];
+      if (entry.cancelled) continue;
+      try {
+        entry.callback(virtualNowMs);
+      } catch {}
+    }
+  }
+
+  function VirtualDate() {
+    var args = Array.prototype.slice.call(arguments);
+    if (!(this instanceof VirtualDate)) {
+      return OriginalDate.apply(null, args.length ? args : [virtualNowMs]);
+    }
+    var instance = args.length ? new (Function.prototype.bind.apply(OriginalDate, [null].concat(args)))() : new OriginalDate(virtualNowMs);
+    Object.setPrototypeOf(instance, VirtualDate.prototype);
+    return instance;
+  }
+
+  VirtualDate.prototype = OriginalDate.prototype;
+  Object.setPrototypeOf(VirtualDate, OriginalDate);
+  VirtualDate.now = function() { return virtualNowMs; };
+  VirtualDate.parse = OriginalDate.parse.bind(OriginalDate);
+  VirtualDate.UTC = OriginalDate.UTC.bind(OriginalDate);
+
+  try {
+    Object.defineProperty(window, "Date", {
+      configurable: true,
+      writable: true,
+      value: VirtualDate,
+    });
+  } catch {}
+
+  if (window.performance && typeof window.performance.now === "function") {
+    try {
+      Object.defineProperty(window.performance, "now", {
+        configurable: true,
+        value: function() { return virtualNowMs; },
+      });
+    } catch {}
+  }
+
+  window.requestAnimationFrame = function(callback) {
+    if (typeof callback !== "function") return 0;
+    var entry = { id: rafId++, callback: callback, cancelled: false };
+    rafQueue.push(entry);
+    return entry.id;
+  };
+  window.cancelAnimationFrame = function(id) {
+    for (var i = 0; i < rafQueue.length; i++) {
+      if (rafQueue[i].id === id) {
+        rafQueue[i].cancelled = true;
+      }
+    }
+  };
+
+  window.__HF_VIRTUAL_TIME__ = {
+    originalSetTimeout: originalSetTimeout,
+    originalClearTimeout: originalClearTimeout,
+    originalSetInterval: originalSetInterval,
+    originalClearInterval: originalClearInterval,
+    originalRequestAnimationFrame: originalRequestAnimationFrame,
+    originalCancelAnimationFrame: originalCancelAnimationFrame,
+    seekToTime: function(nextTimeMs) {
+      var safeTimeMs = Math.max(0, Number(nextTimeMs) || 0);
+      virtualNowMs = safeTimeMs;
+      flushAnimationFrame();
+      return virtualNowMs;
+    },
+    getTime: function() {
+      return virtualNowMs;
+    },
+  };
+})();`;
+
 /**
  * Render mode extension -- adds renderSeek() for frame-accurate seeking
  * without media sync (videos are replaced with frame images during render).
@@ -56,6 +153,10 @@ const RENDER_SEEK_OFFSET_FRACTION = Math.max(
 );
 
 const RENDER_MODE_SCRIPT = `(function() {
+  var __realSetTimeout =
+    window.__HF_VIRTUAL_TIME__ && typeof window.__HF_VIRTUAL_TIME__.originalSetTimeout === "function"
+      ? window.__HF_VIRTUAL_TIME__.originalSetTimeout
+      : window.setTimeout.bind(window);
   var __seekMode = ${JSON.stringify(RENDER_SEEK_MODE)};
   var __seekDiagnostics = ${RENDER_SEEK_DIAGNOSTICS ? "true" : "false"};
   var __seekStep = ${RENDER_SEEK_STEP};
@@ -149,13 +250,13 @@ const RENDER_MODE_SCRIPT = `(function() {
         window.__renderReady = true;
         return;
       }
-      setTimeout(waitForPlayer, 50);
+      __realSetTimeout(waitForPlayer, 50);
       return;
     }
     if (installMediaFallbackPlayer()) {
       return;
     }
-    setTimeout(waitForPlayer, 50);
+    __realSetTimeout(waitForPlayer, 50);
   }
   waitForPlayer();
 })();`;
@@ -165,6 +266,14 @@ const RENDER_MODE_SCRIPT = `(function() {
  * Injected after RENDER_MODE_SCRIPT so the engine's frameCapture can find window.__hf.
  */
 const HF_BRIDGE_SCRIPT = `(function() {
+  var __realSetInterval =
+    window.__HF_VIRTUAL_TIME__ && typeof window.__HF_VIRTUAL_TIME__.originalSetInterval === "function"
+      ? window.__HF_VIRTUAL_TIME__.originalSetInterval
+      : window.setInterval.bind(window);
+  var __realClearInterval =
+    window.__HF_VIRTUAL_TIME__ && typeof window.__HF_VIRTUAL_TIME__.originalClearInterval === "function"
+      ? window.__HF_VIRTUAL_TIME__.originalClearInterval
+      : window.clearInterval.bind(window);
   function getDeclaredDuration() {
     var root = document.querySelector('[data-composition-id]');
     if (!root) return 0;
@@ -181,13 +290,18 @@ const HF_BRIDGE_SCRIPT = `(function() {
         var d = p.getDuration();
         return d > 0 ? d : getDeclaredDuration();
       },
-      seek: function(t) { p.renderSeek(t); },
+      seek: function(t) {
+        p.renderSeek(t);
+        if (window.__HF_VIRTUAL_TIME__ && typeof window.__HF_VIRTUAL_TIME__.seekToTime === "function") {
+          window.__HF_VIRTUAL_TIME__.seekToTime((Math.max(0, Number(t) || 0)) * 1000);
+        }
+      },
     };
     return true;
   }
   if (bridge()) return;
-  var iv = setInterval(function() {
-    if (bridge()) clearInterval(iv);
+  var iv = __realSetInterval(function() {
+    if (bridge()) __realClearInterval(iv);
   }, 50);
 })();`;
 
@@ -226,7 +340,7 @@ function stripEmbeddedRuntimeScripts(html: string): string {
   return html.replace(scriptRe, (block) => (shouldStrip(block) ? "" : block));
 }
 
-function injectScriptsIntoHtml(
+export function injectScriptsIntoHtml(
   html: string,
   headScripts: string[],
   bodyScripts: string[],
@@ -261,10 +375,24 @@ function injectScriptsIntoHtml(
   return html;
 }
 
+export function injectScriptsAtHeadStart(html: string, scripts: string[]): string {
+  if (scripts.length === 0) return html;
+  const headTags = scripts.map((src) => `<script>${src}</script>`).join("\n");
+  if (html.includes("<head")) {
+    return html.replace(/<head\b[^>]*>/i, (match) => `${match}\n${headTags}`);
+  }
+  if (html.includes("<body")) {
+    return html.replace("<body", () => `${headTags}\n<body`);
+  }
+  return headTags + "\n" + html;
+}
+
 export interface FileServerOptions {
   projectDir: string;
   compiledDir?: string;
   port?: number;
+  /** Scripts injected into <head> of every served HTML file before authored scripts. */
+  preHeadScripts?: string[];
   /** Scripts injected into <head> of index.html. Default: verified Hyperframe runtime. */
   headScripts?: string[];
   /** Scripts injected before </body> of index.html. Default: render mode extension. */
@@ -282,6 +410,7 @@ export interface FileServerHandle {
 export function createFileServer(options: FileServerOptions): Promise<FileServerHandle> {
   const { projectDir, compiledDir, port = 0, stripEmbeddedRuntime = true } = options;
 
+  const preHeadScripts = options.preHeadScripts ?? [];
   // Default scripts: Hyperframe runtime in <head>, render mode in </body>
   const headScripts = options.headScripts ?? [getVerifiedHyperframeRuntimeSource()];
   const bodyScripts = options.bodyScripts ?? [RENDER_MODE_SCRIPT, HF_BRIDGE_SCRIPT];
@@ -313,9 +442,13 @@ export function createFileServer(options: FileServerOptions): Promise<FileServer
     if (ext === ".html") {
       const rawHtml = readFileSync(filePath, "utf-8");
       const isIndex = relativePath === "index.html";
-      const html = isIndex
-        ? injectScriptsIntoHtml(rawHtml, headScripts, bodyScripts, stripEmbeddedRuntime)
-        : rawHtml;
+      let html = rawHtml;
+      if (preHeadScripts.length > 0) {
+        html = injectScriptsAtHeadStart(html, preHeadScripts);
+      }
+      html = isIndex
+        ? injectScriptsIntoHtml(html, headScripts, bodyScripts, stripEmbeddedRuntime)
+        : html;
       return c.text(html, 200, { "Content-Type": contentType });
     }
 
@@ -353,3 +486,5 @@ export function createFileServer(options: FileServerOptions): Promise<FileServer
     });
   });
 }
+
+export { VIRTUAL_TIME_SHIM };

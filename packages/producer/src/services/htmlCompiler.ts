@@ -47,6 +47,19 @@ export interface CompiledComposition {
   width: number;
   height: number;
   staticDuration: number;
+  renderModeHints: RenderModeHints;
+}
+
+export type RenderModeHintCode = "iframe" | "requestAnimationFrame";
+
+export interface RenderModeHint {
+  code: RenderModeHintCode;
+  message: string;
+}
+
+export interface RenderModeHints {
+  recommendScreenshot: boolean;
+  reasons: RenderModeHint[];
 }
 
 function dedupeElementsById<T extends { id: string }>(elements: T[]): T[] {
@@ -55,6 +68,45 @@ function dedupeElementsById<T extends { id: string }>(elements: T[]): T[] {
     deduped.set(element.id, element);
   }
   return Array.from(deduped.values());
+}
+
+const INLINE_SCRIPT_PATTERN = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+
+function stripJsComments(source: string): string {
+  return source.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+}
+
+export function detectRenderModeHints(html: string): RenderModeHints {
+  const reasons: RenderModeHint[] = [];
+  const { document } = parseHTML(html);
+
+  if (document.querySelector("iframe")) {
+    reasons.push({
+      code: "iframe",
+      message:
+        "Detected <iframe> in the composition DOM. Nested iframe animation is routed through screenshot capture mode for compatibility.",
+    });
+  }
+
+  let scriptMatch: RegExpExecArray | null;
+  const scriptPattern = new RegExp(INLINE_SCRIPT_PATTERN.source, INLINE_SCRIPT_PATTERN.flags);
+  while ((scriptMatch = scriptPattern.exec(html)) !== null) {
+    const attrs = scriptMatch[1] || "";
+    if (/\bsrc\s*=/i.test(attrs)) continue;
+    const content = stripJsComments(scriptMatch[2] || "");
+    if (!/requestAnimationFrame\s*\(/.test(content)) continue;
+    reasons.push({
+      code: "requestAnimationFrame",
+      message:
+        "Detected raw requestAnimationFrame() in an inline script. This render is routed through screenshot capture mode with virtual time enabled.",
+    });
+    break;
+  }
+
+  return {
+    recommendScreenshot: reasons.length > 0,
+    reasons,
+  };
 }
 
 async function resolveMediaDuration(
@@ -907,6 +959,7 @@ export async function compileForRender(
     /(<(?:video|audio)\b[^>]*?)\s+preload\s*=\s*["']none["']/gi,
     "$1",
   );
+  const renderModeHints = detectRenderModeHints(sanitizedHtml);
 
   const coalescedHtml = await injectDeterministicFontFaces(
     coalesceHeadStylesAndBodyScripts(promoteCssImportsToLinkTags(sanitizedHtml)),
@@ -984,6 +1037,7 @@ export async function compileForRender(
     width,
     height,
     staticDuration,
+    renderModeHints,
   };
 }
 
@@ -1149,5 +1203,6 @@ export async function recompileWithResolutions(
     videos,
     audios,
     unresolvedCompositions: remaining,
+    renderModeHints: compiled.renderModeHints,
   };
 }

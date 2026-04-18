@@ -163,6 +163,21 @@ export function isFontResourceError(type: string, text: string, locationUrl: str
   );
 }
 
+async function pollPageExpression(
+  page: Page,
+  expression: string,
+  timeoutMs: number,
+  intervalMs: number = 100,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const ready = Boolean(await page.evaluate(expression));
+    if (ready) return true;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return Boolean(await page.evaluate(expression));
+}
+
 export async function initializeSession(session: CaptureSession): Promise<void> {
   const { page, serverUrl } = session;
 
@@ -213,17 +228,29 @@ export async function initializeSession(session: CaptureSession): Promise<void> 
 
     const pageReadyTimeout =
       session.config?.playerReadyTimeout ?? DEFAULT_CONFIG.playerReadyTimeout;
-    await page.waitForFunction(
+    const pageReady = await pollPageExpression(
+      page,
       `!!(window.__hf && typeof window.__hf.seek === "function" && window.__hf.duration > 0)`,
-      { timeout: pageReadyTimeout },
+      pageReadyTimeout,
     );
+    if (!pageReady) {
+      throw new Error(
+        `[FrameCapture] window.__hf not ready after ${pageReadyTimeout}ms. Page must expose window.__hf = { duration, seek }.`,
+      );
+    }
 
     // Wait for all video elements to have loaded metadata (dimensions + duration)
     // Without this, frame 0 captures videos at their 300x150 default size
-    await page.waitForFunction(
+    const videosReady = await pollPageExpression(
+      page,
       `document.querySelectorAll("video").length === 0 || Array.from(document.querySelectorAll("video")).every(v => v.readyState >= 1)`,
-      { timeout: pageReadyTimeout },
+      pageReadyTimeout,
     );
+    if (!videosReady) {
+      throw new Error(
+        `[FrameCapture] video metadata not ready after ${pageReadyTimeout}ms. Video elements must load metadata before capture starts.`,
+      );
+    }
 
     await page.evaluate(`document.fonts?.ready`);
 

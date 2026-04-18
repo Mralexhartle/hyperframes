@@ -1,9 +1,15 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import type { EngineConfig } from "@hyperframes/engine";
+import type { CompiledComposition } from "./htmlCompiler.js";
 
-import { extractStandaloneEntryFromIndex, writeCompiledArtifacts } from "./renderOrchestrator.js";
+import {
+  applyRenderModeHints,
+  extractStandaloneEntryFromIndex,
+  writeCompiledArtifacts,
+} from "./renderOrchestrator.js";
 import { toExternalAssetKey } from "../utils/paths.js";
 
 describe("extractStandaloneEntryFromIndex", () => {
@@ -66,12 +72,6 @@ describe("extractStandaloneEntryFromIndex", () => {
 });
 
 describe("writeCompiledArtifacts — external assets on Windows drive-letter paths (GH #321)", () => {
-  // End-to-end seam test: covers both `toExternalAssetKey` and
-  // `renderOrchestrator`'s copy step by simulating a Windows absolute
-  // path flowing through the full external-asset pipeline. The helpers
-  // are logically cross-platform, but this is the integration that
-  // guarantees they compose — catches any regression at the boundary.
-
   const tempDirs: string[] = [];
   afterEach(() => {
     while (tempDirs.length > 0) {
@@ -94,18 +94,11 @@ describe("writeCompiledArtifacts — external assets on Windows drive-letter pat
 
   it("copies an external asset with a Windows-style drive-letter key into compileDir", () => {
     const workDir = makeWorkDir();
-    // Simulate a real external asset: write a dummy file to an absolute
-    // path, then build the sanitised key the way `collectExternalAssets`
-    // would on Windows.
     const sourceDir = mkdtempSync(join(tmpdir(), "hf-src-"));
     tempDirs.push(sourceDir);
     const srcFile = join(sourceDir, "segment.wav");
     writeFileSync(srcFile, "fake wav bytes");
 
-    // The simulated Windows input is a path with backslashes and a drive
-    // letter — even though the test runs on Unix, the helper is expressed
-    // with regex on the string so we can exercise the Windows code path
-    // deterministically.
     const windowsStyleInput = "D:\\coder\\assets\\segment.wav";
     const key = toExternalAssetKey(windowsStyleInput);
     expect(key).toBe("hf-ext/D/coder/assets/segment.wav");
@@ -121,9 +114,13 @@ describe("writeCompiledArtifacts — external assets on Windows drive-letter pat
       width: 1920,
       height: 1080,
       staticDuration: 10,
+      renderModeHints: {
+        recommendScreenshot: false,
+        reasons: [],
+      },
     };
 
-    writeCompiledArtifacts(compiled, workDir, /* includeSummary */ false);
+    writeCompiledArtifacts(compiled, workDir, false);
 
     const landed = join(workDir, "compiled", key);
     expect(existsSync(landed)).toBe(true);
@@ -131,8 +128,6 @@ describe("writeCompiledArtifacts — external assets on Windows drive-letter pat
   });
 
   it("rejects a maliciously crafted key that tries to escape compileDir", () => {
-    // Defense-in-depth: if a buggy upstream produced a key with `..`
-    // components, `isPathInside` at copy time must catch it and skip.
     const workDir = makeWorkDir();
     const sourceDir = mkdtempSync(join(tmpdir(), "hf-src-"));
     tempDirs.push(sourceDir);
@@ -150,14 +145,102 @@ describe("writeCompiledArtifacts — external assets on Windows drive-letter pat
       width: 1920,
       height: 1080,
       staticDuration: 10,
+      renderModeHints: {
+        recommendScreenshot: false,
+        reasons: [],
+      },
     };
 
     writeCompiledArtifacts(compiled, workDir, false);
 
-    // Assert that the file was NOT written outside compileDir (the
-    // attacker's target). We check the escape destination didn't
-    // materialise next to workDir.
     const escapeTarget = join(workDir, "..", "..", "etc", "passwd");
     expect(existsSync(escapeTarget)).toBe(false);
+  });
+});
+
+describe("applyRenderModeHints", () => {
+  function createCompiledComposition(
+    reasonCodes: Array<"iframe" | "requestAnimationFrame">,
+  ): CompiledComposition {
+    return {
+      html: "<html></html>",
+      subCompositions: new Map(),
+      videos: [],
+      audios: [],
+      unresolvedCompositions: [],
+      externalAssets: new Map(),
+      width: 1920,
+      height: 1080,
+      staticDuration: 5,
+      renderModeHints: {
+        recommendScreenshot: reasonCodes.length > 0,
+        reasons: reasonCodes.map((code) => ({
+          code,
+          message: `reason: ${code}`,
+        })),
+      },
+    };
+  }
+
+  function createConfig(): EngineConfig {
+    return {
+      fps: 30,
+      quality: "standard",
+      format: "jpeg",
+      jpegQuality: 80,
+      concurrency: "auto",
+      coresPerWorker: 2.5,
+      minParallelFrames: 120,
+      largeRenderThreshold: 1000,
+      disableGpu: false,
+      enableBrowserPool: false,
+      browserTimeout: 120000,
+      protocolTimeout: 300000,
+      forceScreenshot: false,
+      enableChunkedEncode: false,
+      chunkSizeFrames: 360,
+      enableStreamingEncode: false,
+      ffmpegEncodeTimeout: 600000,
+      ffmpegProcessTimeout: 300000,
+      ffmpegStreamingTimeout: 600000,
+      audioGain: 1.35,
+      frameDataUriCacheLimit: 256,
+      playerReadyTimeout: 45000,
+      renderReadyTimeout: 15000,
+      verifyRuntime: true,
+      debug: false,
+    };
+  }
+
+  it("forces screenshot mode when compatibility hints recommend it", () => {
+    const cfg = createConfig();
+    const compiled = createCompiledComposition(["iframe", "requestAnimationFrame"]);
+    const log = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
+    applyRenderModeHints(cfg, compiled, log);
+
+    expect(cfg.forceScreenshot).toBe(true);
+    expect(log.warn).toHaveBeenCalledOnce();
+  });
+
+  it("does nothing when screenshot mode is already forced", () => {
+    const cfg = createConfig();
+    cfg.forceScreenshot = true;
+    const compiled = createCompiledComposition(["iframe"]);
+    const log = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
+    applyRenderModeHints(cfg, compiled, log);
+
+    expect(log.warn).not.toHaveBeenCalled();
   });
 });

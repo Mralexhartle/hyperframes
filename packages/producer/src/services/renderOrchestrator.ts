@@ -59,7 +59,7 @@ import { join, dirname, resolve } from "path";
 import { randomUUID } from "crypto";
 import { freemem } from "os";
 import { fileURLToPath } from "url";
-import { createFileServer, type FileServerHandle } from "./fileServer.js";
+import { createFileServer, type FileServerHandle, VIRTUAL_TIME_SHIM } from "./fileServer.js";
 import {
   compileForRender,
   resolveCompositionDurations,
@@ -300,9 +300,24 @@ export function writeCompiledArtifacts(
         mediaStart: a.mediaStart,
       })),
       subCompositions: Array.from(compiled.subCompositions.keys()),
+      renderModeHints: compiled.renderModeHints,
     };
     writeFileSync(join(compileDir, "summary.json"), JSON.stringify(summary, null, 2), "utf-8");
   }
+}
+
+export function applyRenderModeHints(
+  cfg: EngineConfig,
+  compiled: CompiledComposition,
+  log: ProducerLogger = defaultLogger,
+): void {
+  if (cfg.forceScreenshot || !compiled.renderModeHints.recommendScreenshot) return;
+
+  cfg.forceScreenshot = true;
+  log.warn("Auto-selected screenshot capture mode for render compatibility", {
+    reasonCodes: compiled.renderModeHints.reasons.map((reason) => reason.code),
+    reasons: compiled.renderModeHints.reasons.map((reason) => reason.message),
+  });
 }
 
 export function createRenderJob(config: RenderConfig): RenderJob {
@@ -459,6 +474,7 @@ export async function executeRenderJob(
     let compiled = await compileForRender(projectDir, htmlPath, join(workDir, "downloads"));
     assertNotAborted();
     perfStages.compileOnlyMs = Date.now() - compileStart;
+    applyRenderModeHints(cfg, compiled, log);
     writeCompiledArtifacts(compiled, workDir, Boolean(job.config.debug));
 
     log.info("Compiled composition metadata", {
@@ -468,6 +484,7 @@ export async function executeRenderJob(
       height: compiled.height,
       videoCount: compiled.videos.length,
       audioCount: compiled.audios.length,
+      renderModeHints: compiled.renderModeHints,
     });
 
     const composition: CompositionMetadata = {
@@ -492,6 +509,7 @@ export async function executeRenderJob(
         projectDir,
         compiledDir: join(workDir, "compiled"),
         port: 0,
+        preHeadScripts: [VIRTUAL_TIME_SHIM],
       });
       assertNotAborted();
 
@@ -790,6 +808,7 @@ export async function executeRenderJob(
         projectDir,
         compiledDir: join(workDir, "compiled"),
         port: 0,
+        preHeadScripts: [VIRTUAL_TIME_SHIM],
       });
       assertNotAborted();
     }
