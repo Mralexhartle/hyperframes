@@ -13,7 +13,7 @@ import { collectRuntimeTimelinePayload } from "./timeline";
 import { createRuntimeStartTimeResolver } from "./startResolver";
 import { loadExternalCompositions, loadInlineTemplateCompositions } from "./compositionLoader";
 import { applyCaptionOverrides } from "./captionOverrides";
-import { createImageDecodeBinder } from "./imageDecode";
+import { bindImageDecodes } from "./imageDecode";
 import type { RuntimeDeterministicAdapter, RuntimeJson, RuntimeTimelineLike } from "./types";
 import type { PlayerAPI } from "../core.types";
 
@@ -1181,13 +1181,13 @@ export function initSandboxRuntimeModular(): void {
     }
   };
 
-  // Eagerly decode every <img> off the main thread so the first paint that
-  // needs it doesn't stall the compositor. See `imageDecode.ts` for the
-  // full rationale — addresses GH #317 (jerky preview with many images).
-  const imageDecodeBinder = createImageDecodeBinder({
-    tornDown: () => state.tornDown === true,
-  });
-  const bindImageDecodeListeners = () => imageDecodeBinder.bind();
+  // GH #317 — kick `img.decode()` off the main thread so the first paint
+  // doesn't stall. See imageDecode.ts.
+  const imageDecodeAbort = new AbortController();
+  registerRuntimeCleanup(() => imageDecodeAbort.abort());
+  const decodedImages: WeakSet<HTMLImageElement> = new WeakSet();
+  const bindImageDecodeListeners = () =>
+    bindImageDecodes({ bound: decodedImages, signal: imageDecodeAbort.signal });
 
   const syncMediaForCurrentState = () => {
     const cache = refreshRuntimeMediaCache({
