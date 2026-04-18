@@ -188,11 +188,11 @@ Pre-extract audio data, drive canvas/DOM rendering from GSAP timeline.
 ### Extract Audio Data
 
 ```bash
-python scripts/extract-audio-data.py audio.mp3 -o audio-data.json
-python scripts/extract-audio-data.py video.mp4 --fps 30 --bands 16 -o audio-data.json
+hyperframes extract-audio-fft audio.mp3 -o audio-data.json
+hyperframes extract-audio-fft video.mp4 --fps 30 --bands 16 -o audio-data.json
 ```
 
-Requires ffmpeg and numpy.
+Requires ffmpeg.
 
 ### Data Format
 

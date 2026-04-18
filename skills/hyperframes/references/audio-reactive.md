@@ -69,8 +69,17 @@ Without per-frame sampling, the composition doesn't actually react to audio.
 - **Match the energy** — corporate = subtle; music video = dramatic.
 - **Deterministic** — pre-extracted data, no Web Audio API, no runtime analysis.
 
+## Extraction Workflow
+
+```bash
+hyperframes extract-audio-fft narration.wav -o audio-data.json
+hyperframes extract-audio-fft music.mp3 --fps 30 --bands 16 -o audio-data.json
+```
+
+This is the supported workflow for render-safe audio-reactive animation. Do not use live `AudioContext` analysis during render.
+
 ## Constraints
 
-- All audio data must be pre-extracted (use `extract-audio-data.py` from the gsap skill's scripts/)
+- All audio data must be pre-extracted with `hyperframes extract-audio-fft`
 - No `Math.random()` or `Date.now()`
 - Audio reactivity runs on the same GSAP timeline as everything else

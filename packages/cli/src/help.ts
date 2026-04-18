@@ -53,6 +53,7 @@ const GROUPS: Group[] = [
     title: "AI & Integrations",
     commands: [
       ["skills", "Install HyperFrames and GSAP skills for AI coding tools"],
+      ["extract-audio-fft", "Extract deterministic audio-reactive JSON from audio or video files"],
       [
         "transcribe",
         "Transcribe audio/video to word-level timestamps, or import an existing transcript",

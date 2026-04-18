@@ -249,6 +249,48 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
 
     Shows each composition's ID, duration, resolution, and element count.
 
+    ### `extract-audio-fft`
+
+    Extract deterministic per-frame RMS and frequency band data for audio-reactive compositions:
+
+    ```bash
+    # Analyze an audio file
+    npx hyperframes extract-audio-fft narration.wav
+
+    # Analyze a video file and customize the output
+    npx hyperframes extract-audio-fft promo.mp4 --fps 30 --bands 16 -o audio-data.json
+
+    # Fewer bands for simpler mappings
+    npx hyperframes extract-audio-fft music.mp3 --bands 8
+    ```
+
+    | Flag | Description |
+    |------|-------------|
+    | `--output, -o` | Output JSON path (default: `audio-data.json`) |
+    | `--fps` | Analysis frames per second (default: `30`) |
+    | `--bands` | Number of logarithmic frequency bands (default: `16`) |
+    | `--json` | Output result metadata as JSON |
+
+    The output format is:
+
+    ```json
+    {
+      "duration": 8.0,
+      "fps": 30,
+      "bands": 16,
+      "totalFrames": 240,
+      "frames": [
+        { "time": 0.0, "rms": 0.42, "bands": [0.8, 0.6, 0.3] }
+      ]
+    }
+    ```
+
+    Use this data for deterministic audio-reactive animation in HyperFrames. This is the supported render path for audio-driven visuals; live `AudioContext` analysis during render is not.
+
+    <Tip>
+      For audio-reactive work, run `extract-audio-fft` first, then build your GSAP timeline from the generated `audio-data.json`.
+    </Tip>
+
     ### `transcribe`
 
     Transcribe audio/video to word-level timestamps, or import an existing transcript:

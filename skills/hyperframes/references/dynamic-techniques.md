@@ -69,7 +69,7 @@ Keep audio reactivity subtle — 3-6% scale variation and soft glow. Heavy pulsi
 To generate the audio data file:
 
 ```bash
-python3 skills/gsap-effects/scripts/extract-audio-data.py audio.mp3 --fps 30 --bands 8 -o audio-data.json
+hyperframes extract-audio-fft audio.mp3 --fps 30 --bands 8 -o audio-data.json
 ```
 
 ## Combining Techniques
@@ -86,5 +86,5 @@ These tools are available in the HyperFrames runtime. Use them when they solve a
 | ------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | **pretext**         | Pure-arithmetic text measurement without DOM reflow. 0.0002ms per call.   | `window.__hyperframes.pretext.prepare(text, font)` / `.layout(prepared, maxWidth, lineHeight)` | Per-frame text reflow, shrinkwrap containers, computing layout before render |
 | **fitTextFontSize** | Finds the largest font size that fits text on one line. Built on pretext. | `window.__hyperframes.fitTextFontSize(text, { maxWidth, fontFamily, fontWeight })`             | Overflow prevention for long phrases, portrait mode, large base sizes        |
-| **audio data**      | Pre-extracted per-frame RMS energy and frequency bands.                   | Extract with `extract-audio-data.py`, load inline or via `fetch("audio-data.json")`            | Audio-reactive visuals — modulate intensity based on the music               |
+| **audio data**      | Pre-extracted per-frame RMS energy and frequency bands.                   | Extract with `hyperframes extract-audio-fft`, load inline or via `fetch("audio-data.json")`    | Audio-reactive visuals — modulate intensity based on the music               |
 | **GSAP**            | Animation timeline with tweens and callbacks.                             | `gsap.to()`, `gsap.set()`, `tl.to()`, `tl.set()`                                               | All caption animation                                                        |
