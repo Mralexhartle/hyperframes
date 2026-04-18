@@ -1,0 +1,13 @@
+{
+  "name": "audio-reactive-render-compat",
+  "description": "Regression guard for deterministic audio-reactive compositions driven by pre-extracted FFT data instead of live AudioContext analysis.",
+  "tags": ["regression", "render-compat"],
+  "minPsnr": 30,
+  "maxFrameFailures": 0,
+  "minAudioCorrelation": 0.99,
+  "maxAudioLagWindows": 1,
+  "renderConfig": {
+    "fps": 30,
+    "workers": 1
+  }
+}

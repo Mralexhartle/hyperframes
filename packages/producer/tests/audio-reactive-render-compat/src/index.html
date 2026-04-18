@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {
+    margin: 0;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.25), transparent 30%),
+      radial-gradient(circle at 80% 0%, rgba(236, 72, 153, 0.2), transparent 26%),
+      linear-gradient(180deg, #050816 0%, #0b1023 52%, #02040b 100%);
+    color: #f8fafc;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+
+  .stage {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+  }
+
+  .hud {
+    position: absolute;
+    top: 72px;
+    left: 84px;
+    z-index: 2;
+  }
+
+  .eyebrow {
+    font-size: 22px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.82);
+  }
+
+  .title {
+    margin-top: 18px;
+    font-size: 108px;
+    line-height: 0.94;
+    font-weight: 800;
+    letter-spacing: -0.06em;
+    max-width: 900px;
+  }
+
+  .subtitle {
+    margin-top: 24px;
+    font-size: 28px;
+    line-height: 1.45;
+    max-width: 760px;
+    color: rgba(226, 232, 240, 0.78);
+  }
+
+  .stats {
+    display: flex;
+    gap: 28px;
+    margin-top: 32px;
+    font-size: 24px;
+    color: rgba(191, 219, 254, 0.92);
+  }
+
+  .stat {
+    min-width: 200px;
+  }
+
+  .stat-label {
+    display: block;
+    font-size: 16px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.72);
+    margin-bottom: 8px;
+  }
+
+  #viz {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+</head>
+<body>
+  <div
+    id="root"
+    data-composition-id="audio-reactive-render-compat"
+    data-width="1920"
+    data-height="1080"
+    data-start="0"
+    data-duration="8.192"
+  >
+    <audio
+      id="track"
+      src="narration.wav"
+      data-start="0"
+      data-duration="8.192"
+      data-track-index="0"
+      data-volume="1"
+    ></audio>
+
+    <div class="stage clip" data-start="0" data-duration="8.192" data-track-index="1">
+      <canvas id="viz" width="1920" height="1080"></canvas>
+      <div class="hud">
+        <div class="eyebrow">Deterministic Audio Data</div>
+        <div class="title">Audio-reactive visuals without live analysers</div>
+        <div class="subtitle">
+          This fixture samples pre-extracted RMS and FFT bands on a GSAP timeline, which keeps
+          the render deterministic across capture modes.
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <span class="stat-label">Frame</span>
+            <span id="frame-readout">0 / 245</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">RMS</span>
+            <span id="rms-readout">0.0000</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Bands</span>
+            <span id="bands-readout">8 logarithmic bins</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.__timelines = window.__timelines || {};
+
+    const request = new XMLHttpRequest();
+    request.open("GET", "audio-data.json", false);
+    request.send(null);
+    const audioData = JSON.parse(request.responseText);
+
+    const canvas = document.getElementById("viz");
+    const ctx = canvas.getContext("2d");
+    const frameReadout = document.getElementById("frame-readout");
+    const rmsReadout = document.getElementById("rms-readout");
+    const bandsReadout = document.getElementById("bands-readout");
+
+    const playhead = { frame: 0 };
+    const totalFrames = audioData.totalFrames;
+    const palette = ["#38bdf8", "#818cf8", "#c084fc", "#f472b6", "#fb7185", "#f59e0b", "#22d3ee", "#34d399"];
+
+    function clampFrame(frameIndex) {
+      return Math.max(0, Math.min(totalFrames - 1, frameIndex));
+    }
+
+    function drawFrame(frameIndex) {
+      const frame = audioData.frames[clampFrame(frameIndex)];
+      const bands = frame.bands;
+      const rms = frame.rms;
+
+      ctx.clearRect(0, 0, 1920, 1080);
+
+      const glowRadius = 180 + rms * 240;
+      const glow = ctx.createRadialGradient(1460, 420, 0, 1460, 420, glowRadius);
+      glow.addColorStop(0, `rgba(56, 189, 248, ${0.35 + rms * 0.35})`);
+      glow.addColorStop(0.35, `rgba(192, 132, 252, ${0.15 + rms * 0.2})`);
+      glow.addColorStop(1, "rgba(2, 6, 23, 0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(1100, 60, 700, 700);
+
+      const ringCount = 4;
+      for (let i = 0; i < ringCount; i++) {
+        const ringScale = 1 + i * 0.18;
+        ctx.beginPath();
+        ctx.lineWidth = 6 - i;
+        ctx.strokeStyle = `rgba(125, 211, 252, ${0.22 - i * 0.04 + rms * 0.08})`;
+        ctx.arc(1460, 420, (130 + rms * 90) * ringScale, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      const barBaseY = 920;
+      const barWidth = 120;
+      const gap = 28;
+      const totalWidth = bands.length * barWidth + (bands.length - 1) * gap;
+      const startX = 960 - totalWidth / 2;
+
+      bands.forEach((band, index) => {
+        const height = 120 + band * 470;
+        const x = startX + index * (barWidth + gap);
+        const y = barBaseY - height;
+
+        const fill = ctx.createLinearGradient(x, y, x, barBaseY);
+        fill.addColorStop(0, palette[index % palette.length]);
+        fill.addColorStop(1, "rgba(15, 23, 42, 0.9)");
+
+        ctx.fillStyle = fill;
+        ctx.fillRect(x, y, barWidth, height);
+
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        ctx.fillRect(x, barBaseY + 18, barWidth, 10);
+      });
+
+      const waveformY = 770;
+      ctx.beginPath();
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = `rgba(244, 114, 182, ${0.3 + rms * 0.5})`;
+      bands.forEach((band, index) => {
+        const x = 960 - 360 + index * 100;
+        const y = waveformY - Math.sin(index * 0.9 + frame.time * 8) * (band * 140 + 20);
+        if (index === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      frameReadout.textContent = `${frameIndex + 1} / ${totalFrames}`;
+      rmsReadout.textContent = frame.rms.toFixed(4);
+      bandsReadout.textContent = `${bands.length} logarithmic bins`;
+    }
+
+    const tl = gsap.timeline({ paused: true });
+    tl.to(playhead, {
+      frame: totalFrames - 1,
+      duration: audioData.duration,
+      ease: "none",
+      onUpdate: () => drawFrame(Math.round(playhead.frame)),
+    });
+
+    drawFrame(0);
+    window.__timelines["audio-reactive-render-compat"] = tl;
+  </script>
+</body>
+</html>
