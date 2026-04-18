@@ -1475,10 +1475,10 @@ export function initSandboxRuntimeModular(): void {
   }
 
   state.deterministicAdapters = [
+    createWaapiAdapter(),
     createCssAdapter({
       resolveStartSeconds: (element) => resolveStartForElement(element, 0),
     }),
-    createWaapiAdapter(),
     createLottieAdapter(),
     createThreeAdapter(),
     createGsapAdapter({ getTimeline: () => state.capturedTimeline }),
