@@ -155,16 +155,20 @@ export async function captureScreenshotWithAlpha(
   await client.send("Emulation.setDefaultBackgroundColorOverride", {
     color: { r: 0, g: 0, b: 0, a: 0 },
   });
-  const result = await client.send("Page.captureScreenshot", {
-    format: "png",
-    fromSurface: true,
-    captureBeyondViewport: false,
-    optimizeForSpeed: false, // must be false to preserve alpha
-    clip: { x: 0, y: 0, width, height, scale: 1 },
-  });
-  // Restore opaque background for subsequent captures
-  await client.send("Emulation.setDefaultBackgroundColorOverride", {});
-  return Buffer.from(result.data, "base64");
+  try {
+    const result = await client.send("Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+      captureBeyondViewport: false,
+      optimizeForSpeed: false, // `true` uses a zero-alpha-aware fast path that crushes real alpha values — observed empirically, CDP docs don't spell it out
+      clip: { x: 0, y: 0, width, height, scale: 1 },
+    });
+    return Buffer.from(result.data, "base64");
+  } finally {
+    // Restore opaque background even if captureScreenshot throws, otherwise
+    // subsequent opaque captures keep a transparent background.
+    await client.send("Emulation.setDefaultBackgroundColorOverride", {}).catch(() => {});
+  }
 }
 
 /**

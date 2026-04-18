@@ -51,6 +51,8 @@ function decodePngRaw(
   let height = 0;
   let bitDepth = 0;
   let colorType = 0;
+  let interlace = 0;
+  let sawIhdr = false;
   const idatChunks: Buffer[] = [];
 
   while (pos + 12 <= buf.length) {
@@ -63,6 +65,8 @@ function decodePngRaw(
       height = chunkData.readUInt32BE(4);
       bitDepth = chunkData[8] ?? 0;
       colorType = chunkData[9] ?? 0;
+      interlace = chunkData[12] ?? 0;
+      sawIhdr = true;
     } else if (chunkType === "IDAT") {
       idatChunks.push(Buffer.from(chunkData));
     } else if (chunkType === "IEND") {
@@ -72,8 +76,16 @@ function decodePngRaw(
     pos += 12 + chunkLen; // length(4) + type(4) + data(chunkLen) + crc(4)
   }
 
+  if (!sawIhdr) {
+    throw new Error(`${caller}: PNG missing IHDR chunk`);
+  }
   if (colorType !== 2 && colorType !== 6) {
     throw new Error(`${caller}: unsupported color type ${colorType} (expected 2=RGB or 6=RGBA)`);
+  }
+  if (interlace !== 0) {
+    throw new Error(
+      `${caller}: Adam7-interlaced PNGs are not supported (interlace method ${interlace})`,
+    );
   }
 
   // Bytes per pixel: channels x bytes-per-channel
@@ -218,8 +230,24 @@ export function decodePngToRgb48le(buf: Buffer): { width: number; height: number
  *
  * Pipeline per channel: sRGB EOTF (decode gamma) → linear → HDR OETF → 16-bit.
  *
- * Note: converts the transfer function but not the color primaries (bt709 → bt2020).
- * For neutral/near-neutral content (text, UI) the gamut difference is negligible.
+ * ## Convention
+ *
+ * "Linear" here means **scene light in [0, 1] relative to SDR reference white**
+ * (not absolute nits). The HLG branch applies the OETF directly — no OOTF (no
+ * gamma 1.2 scene→display conversion). This is the right choice for DOM
+ * overlays that will be composited ON TOP of HLG video pixels (which are
+ * already in HLG signal space); we need the overlay to sit in the same space
+ * as what it’s blending onto. Applying the OOTF here would double-apply it
+ * when the HDR video already carries scene-light semantics.
+ *
+ * For PQ, SDR white is placed at 203 nits per ITU-R BT.2408 ("SDR white"
+ * reference level) and normalized against 10,000-nit peak. This lets SDR
+ * content (text, UI) sit at the conventional SDR-white brightness within a
+ * PQ frame rather than at peak brightness.
+ *
+ * Note: converts the transfer function but not the color primaries (bt709 →
+ * bt2020). For neutral/near-neutral content (text, UI) the gamut difference
+ * is negligible.
  */
 function buildSrgbToHdrLut(transfer: "hlg" | "pq"): Uint16Array {
   const lut = new Uint16Array(256);
@@ -608,5 +636,7 @@ export function parseTransformMatrix(css: string): number[] | null {
     /^matrix\(\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,)]+)\s*\)$/,
   );
   if (!match) return null;
-  return match.slice(1, 7).map(Number);
+  const values = match.slice(1, 7).map(Number);
+  if (!values.every(Number.isFinite)) return null;
+  return values;
 }
