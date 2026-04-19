@@ -56,7 +56,10 @@
   tl.to("#s5-b", { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.2)" }, 20.85);
   tl.to("#s5-c", { y: 0, rotate: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 21.2);
 
-  /* Scene 6 (25–30s) — three framed clips, full transform + opacity. */
+  /* Scene 6 (25–30s) — three framed clips. Each enters with an opacity
+     fade-in (0→1) plus a transform from off-state, then loops a transform
+     yoyo. Earlier scenes already exercise the opacity-yoyo path; this
+     scene focuses on transforms over a white field so motion is legible. */
   tl.to("#s6-f1", { x: 0, rotate: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 25.5);
   tl.to("#s6-f2", { scale: 1, skewX: 0, opacity: 1, duration: 0.8, ease: "back.out(1.3)" }, 25.8);
   tl.to("#s6-f3", { y: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 26.1);
@@ -72,7 +75,7 @@
   );
   tl.to(
     "#s6-f3",
-    { y: -40, opacity: 0.45, duration: 2.4, ease: "sine.inOut", yoyo: true, repeat: 1 },
+    { y: -40, duration: 2.4, ease: "sine.inOut", yoyo: true, repeat: 1 },
     26.6,
   );
 
