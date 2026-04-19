@@ -32,7 +32,7 @@
           muted
           playsinline
         ></video>
-        <div class="hud-slate" id="s1-slate">
+        <div class="hud-slate" id="s1-slate" data-start="0" data-duration="5">
           <div class="hud-tag">01 / Pure HDR</div>
           <div class="hud-line">BT.2020 · PQ · 10-bit · single layer</div>
         </div>
@@ -51,7 +51,7 @@
           muted
           playsinline
         ></video>
-        <div class="s2-pip" id="s2-pip">
+        <div class="s2-pip" id="s2-pip" data-start="5" data-duration="5">
           <video
             id="vid-2-sdr"
             class="clip pip-video"
@@ -64,9 +64,11 @@
           ></video>
           <div class="pip-caption">SDR · BT.709 · 8-bit</div>
         </div>
-        <div class="s2-headline" id="s2-headline">MIXED</div>
-        <div class="s2-sub" id="s2-sub">HDR background · SDR picture-in-picture · sRGB DOM</div>
-        <div class="hud-slate" id="s2-slate">
+        <div class="s2-headline" id="s2-headline" data-start="5" data-duration="5">MIXED</div>
+        <div class="s2-sub" id="s2-sub" data-start="5" data-duration="5">
+          HDR background · SDR picture-in-picture · sRGB DOM
+        </div>
+        <div class="hud-slate" id="s2-slate" data-start="5" data-duration="5">
           <div class="hud-tag">02 / SDR + HDR + DOM</div>
           <div class="hud-line">Different transfer functions · one composite frame</div>
         </div>
@@ -79,9 +81,13 @@
           class="full-frame"
           src="../assets/photo-hdr.png"
           alt="HDR reference photograph"
+          data-start="10"
+          data-duration="5"
         />
-        <div class="s3-caption" id="s3-caption">16-bit HDR PNG · BT.2020 PQ</div>
-        <div class="hud-slate" id="s3-slate">
+        <div class="s3-caption" id="s3-caption" data-start="10" data-duration="5">
+          16-bit HDR PNG · BT.2020 PQ
+        </div>
+        <div class="hud-slate" id="s3-slate" data-start="10" data-duration="5">
           <div class="hud-tag">03 / HDR Image</div>
           <div class="hud-line">Static asset path · sRGB DOM caption on top</div>
         </div>
@@ -90,7 +96,7 @@
       <!-- ═══ Scene 4 (15–20s): Border-radius masks ═══ -->
       <section id="scene-4" class="scene">
         <div class="s4-grid">
-          <div class="s4-mask s4-circle" id="s4-circle">
+          <div class="s4-mask s4-circle" id="s4-circle" data-start="15" data-duration="5">
             <video
               id="vid-4-circle"
               class="clip"
@@ -104,7 +110,7 @@
             ></video>
             <div class="mask-label">circle · border-radius 50%</div>
           </div>
-          <div class="s4-mask s4-rounded" id="s4-rounded">
+          <div class="s4-mask s4-rounded" id="s4-rounded" data-start="15" data-duration="5">
             <video
               id="vid-4-rounded"
               class="clip"
@@ -118,7 +124,7 @@
             <div class="mask-label">rounded · border-radius 32px</div>
           </div>
         </div>
-        <div class="hud-slate" id="s4-slate">
+        <div class="hud-slate" id="s4-slate" data-start="15" data-duration="5">
           <div class="hud-tag">04 / Border-radius masks on HDR video</div>
           <div class="hud-line">overflow: hidden · border-radius drives alpha</div>
         </div>
@@ -127,7 +133,7 @@
       <!-- ═══ Scene 5 (20–25s): Layered framed videos ═══ -->
       <section id="scene-5" class="scene">
         <div class="s5-stack">
-          <div class="s5-card s5-a" id="s5-a">
+          <div class="s5-card s5-a" id="s5-a" data-start="20" data-duration="5">
             <video
               id="vid-5-a"
               class="clip"
@@ -141,7 +147,7 @@
             ></video>
             <div class="card-tag hdr">HDR · z 1</div>
           </div>
-          <div class="s5-card s5-b" id="s5-b">
+          <div class="s5-card s5-b" id="s5-b" data-start="20" data-duration="5">
             <video
               id="vid-5-b"
               class="clip"
@@ -155,7 +161,7 @@
             ></video>
             <div class="card-tag sdr">SDR · z 2</div>
           </div>
-          <div class="s5-card s5-c" id="s5-c">
+          <div class="s5-card s5-c" id="s5-c" data-start="20" data-duration="5">
             <video
               id="vid-5-c"
               class="clip"
@@ -169,7 +175,7 @@
             <div class="card-tag hdr">HDR · z 3</div>
           </div>
         </div>
-        <div class="hud-slate" id="s5-slate">
+        <div class="hud-slate" id="s5-slate" data-start="20" data-duration="5">
           <div class="hud-tag">05 / Layered (mixed transfer functions)</div>
           <div class="hud-line">Three videos · z-ordered · visibly overlapping</div>
         </div>
@@ -178,7 +184,7 @@
       <!-- ═══ Scene 6 (25–30s): Transform + opacity choreography ═══ -->
       <section id="scene-6" class="scene">
         <div class="s6-row">
-          <div class="s6-frame" id="s6-f1">
+          <div class="s6-frame" id="s6-f1" data-start="25" data-duration="5">
             <video
               id="vid-6-a"
               class="clip"
@@ -192,7 +198,7 @@
             ></video>
             <div class="frame-tag">translate + rotate</div>
           </div>
-          <div class="s6-frame" id="s6-f2">
+          <div class="s6-frame" id="s6-f2" data-start="25" data-duration="5">
             <video
               id="vid-6-b"
               class="clip"
@@ -205,7 +211,7 @@
             ></video>
             <div class="frame-tag">scale + skew</div>
           </div>
-          <div class="s6-frame" id="s6-f3">
+          <div class="s6-frame" id="s6-f3" data-start="25" data-duration="5">
             <video
               id="vid-6-c"
               class="clip"
@@ -216,11 +222,11 @@
               muted
               playsinline
             ></video>
-            <div class="frame-tag">opacity + translateY</div>
+            <div class="frame-tag">translateY</div>
           </div>
         </div>
-        <div class="hud-slate" id="s6-slate">
-          <div class="hud-tag">06 / Transforms + Opacity</div>
+        <div class="hud-slate" id="s6-slate" data-start="25" data-duration="5">
+          <div class="hud-tag">06 / Transforms</div>
           <div class="hud-line">Three HDR/SDR frames · per-element compositor layers</div>
         </div>
       </section>

@@ -37,6 +37,13 @@ body {
   opacity: 1;
 }
 
+/* Scene 6 paints on a white field so the opacity-fade frame visibly
+ * dissolves into the background — on the default dark root the dip would
+ * be hard to read because the underlying root is already near-black. */
+#scene-6 {
+  background: #ffffff;
+}
+
 .full-frame {
   position: absolute;
   inset: 0;
