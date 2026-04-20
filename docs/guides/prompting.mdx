@@ -27,6 +27,16 @@ In Claude Code, restart the session after installing. Skills register as **slash
   Always prefix Hyperframes prompts with `/hyperframes` (or invoke the skill another way for non-Claude agents). This loads the skill context explicitly so the agent gets composition rules right the first time, instead of relying on whatever it remembers about web video.
 </Tip>
 
+## Claude Design
+
+Claude Design uses a different setup. Instead of local slash commands, point it at the GitHub-hosted Claude Design entry point for HyperFrames:
+
+```text
+Use https://github.com/heygen-com/hyperframes/blob/main/skills/claude-design-hyperframes/SKILL.md and make a 30-second product video about [topic]. Deliver index.html, preview.html, and README.md.
+```
+
+That entry point tells Claude Design to fetch the broader [`skills/`](https://github.com/heygen-com/hyperframes/tree/main/skills) tree, apply the same HyperFrames rules, and use `@hyperframes/player` for preview pages. See the [Claude Design guide](/guides/claude-design) for the recommended prompt shape.
+
 ## The two prompt shapes
 
 Most successful Hyperframes prompts fall into one of two shapes.

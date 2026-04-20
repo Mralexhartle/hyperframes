@@ -1,0 +1,105 @@
+---
+title: Claude Design
+description: "Use HyperFrames from Claude Design with a GitHub-hosted skill entry point that pulls the repo's existing skills and preview patterns."
+---
+
+Claude Design needs a different setup than Claude Code, Cursor, or Codex. The local `npx skills add heygen-com/hyperframes` flow is still the best path for coding agents, but Claude Design currently works better when you point it at a GitHub-hosted HyperFrames entry point and let it pull the repo's existing skill files from there.
+
+## Recommended entry point
+
+Use [`skills/claude-design-hyperframes/SKILL.md`](https://github.com/heygen-com/hyperframes/blob/main/skills/claude-design-hyperframes/SKILL.md) as the Claude Design entry point.
+
+That file tells Claude Design to:
+
+- fetch the broader [`skills/`](https://github.com/heygen-com/hyperframes/tree/main/skills) tree from this repo
+- use the existing HyperFrames composition rules as the source of truth
+- preview compositions with [`@hyperframes/player`](/packages/player) instead of a one-off iframe shell
+
+## Which setup to use
+
+| Surface | Recommended setup |
+|---------|-------------------|
+| Claude Design | GitHub-hosted entry point: `skills/claude-design-hyperframes/SKILL.md` |
+| Claude Code | `npx skills add heygen-com/hyperframes`, then use `/hyperframes` |
+| Cursor / Codex / Gemini CLI | `npx skills add heygen-com/hyperframes` |
+
+<Note>
+  The Claude Design entry point is intentionally thin. It exists to route Claude Design into the repo's upstream HyperFrames skills, not to replace them with a second copy.
+</Note>
+
+## Prompt shape for Claude Design
+
+Claude Design does not use slash commands. Instead, lead with the GitHub URL and ask for a HyperFrames handoff:
+
+```text
+Use https://github.com/heygen-com/hyperframes/blob/main/skills/claude-design-hyperframes/SKILL.md and make a 45-second launch video about https://www.anthropic.com/news/claude-design-anthropic-labs. Deliver index.html, preview.html, and README.md. Use @hyperframes/player for preview.
+```
+
+Strong Claude Design prompts usually include:
+
+- the GitHub skill URL
+- the source material: URL, doc, repo, screenshots, or brief
+- duration and aspect ratio
+- tone or visual direction
+- explicit deliverables: `index.html`, `preview.html`, `README.md`
+
+## Copy-paste prompts
+
+<CardGroup cols={1}>
+  <Card title="Blog post to launch video">
+    ```text
+    Use https://github.com/heygen-com/hyperframes/blob/main/skills/claude-design-hyperframes/SKILL.md and make a 45-second editorial launch video about https://www.anthropic.com/news/claude-design-anthropic-labs. Warm, intelligent, design-forward. Deliver index.html, preview.html, and README.md. Use @hyperframes/player for preview.
+    ```
+  </Card>
+  <Card title="Product teaser">
+    ```text
+    Use the HyperFrames Claude Design skill at https://github.com/heygen-com/hyperframes/blob/main/skills/claude-design-hyperframes/SKILL.md and create a 15-second 9:16 teaser for our API launch. Punchy pacing, bold typography, clean transitions, captions on key lines. Deliver render-ready HyperFrames files.
+    ```
+  </Card>
+  <Card title="Website to video">
+    ```text
+    Use https://github.com/heygen-com/hyperframes/blob/main/skills/claude-design-hyperframes/SKILL.md and turn https://example.com into a 30-second product tour video. Keep it renderable in HyperFrames and include a player-based preview page.
+    ```
+  </Card>
+</CardGroup>
+
+## Preview with `@hyperframes/player`
+
+When Claude Design generates a `preview.html`, it should embed the composition with `<hyperframes-player>`.
+
+Prefer the ESM CDN entry in new HTML files:
+
+```html
+<script type="module" src="https://cdn.jsdelivr.net/npm/@hyperframes/player"></script>
+<hyperframes-player src="./index.html" controls autoplay muted></hyperframes-player>
+```
+
+If a plain classic script tag is required, use the explicit global build:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@hyperframes/player/dist/hyperframes-player.global.js"></script>
+<hyperframes-player src="./index.html" controls autoplay muted></hyperframes-player>
+```
+
+See [`@hyperframes/player`](/packages/player) for the full API and framework examples.
+
+## What the entry point teaches Claude Design
+
+The Claude Design entry point pushes Claude toward a real HyperFrames handoff:
+
+- correct `data-*` composition structure
+- paused GSAP timelines registered on `window.__timelines`
+- deterministic render-safe animation choices
+- separate audio clips instead of sound on `<video>`
+- player-based preview pages that are easy to open and review
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Prompt Guide" icon="message" href="/guides/prompting">
+    More prompt patterns for HyperFrames across Claude Code, Claude Design, and other agents.
+  </Card>
+  <Card title="@hyperframes/player" icon="play" href="/packages/player">
+    Embed compositions with the official player component.
+  </Card>
+</CardGroup>

@@ -26,7 +26,7 @@ npm install @hyperframes/player
 ### Via CDN
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/@hyperframes/player"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@hyperframes/player"></script>
 
 <hyperframes-player
   src="./my-composition/index.html"
@@ -35,6 +35,12 @@ npm install @hyperframes/player
   muted
   style="width: 100%; max-width: 800px; aspect-ratio: 16/9"
 ></hyperframes-player>
+```
+
+If you need a classic `<script>` tag instead of ESM, use the explicit global build:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@hyperframes/player/dist/hyperframes-player.global.js"></script>
 ```
 
 ### Via npm

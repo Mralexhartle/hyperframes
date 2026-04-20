@@ -33,6 +33,8 @@ npx skills add heygen-com/hyperframes
 
 This teaches your agent (Claude Code, Cursor, Gemini CLI, Codex) how to write correct compositions and GSAP animations. In Claude Code, the skills register as slash commands — invoke `/hyperframes` to author compositions, `/hyperframes-cli` for CLI commands, and `/gsap` for animation help.
 
+For Claude Design, use the GitHub-hosted entry point at [`skills/claude-design-hyperframes/SKILL.md`](https://github.com/heygen-com/hyperframes/blob/main/skills/claude-design-hyperframes/SKILL.md) and let Claude fetch the repo's `skills/` tree from there. See the [Claude Design guide](https://hyperframes.heygen.com/guides/claude-design).
+
 #### Try it: example prompts
 
 Copy any of these into your agent to get started. The `/hyperframes` prefix loads the skill context explicitly so you get correct output the first time.
@@ -153,13 +155,14 @@ HyperFrames ships [skills](https://github.com/vercel-labs/skills) that teach AI 
 npx skills add heygen-com/hyperframes
 ```
 
-| Skill                    | What it teaches                                                                              |
-| ------------------------ | -------------------------------------------------------------------------------------------- |
-| `hyperframes`            | HTML composition authoring, captions, TTS, audio-reactive animation, transitions             |
-| `hyperframes-cli`        | CLI commands: init, lint, preview, render, transcribe, tts, doctor                           |
-| `hyperframes-registry`   | Block and component installation via `hyperframes add`                                       |
-| `website-to-hyperframes` | Capture a URL and turn it into a video — full website-to-video pipeline                      |
-| `gsap`                   | GSAP animation API, timelines, easing, ScrollTrigger, plugins, React/Vue/Svelte, performance |
+| Skill                       | What it teaches                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `claude-design-hyperframes` | Claude Design entry point that pulls the upstream `skills/` tree and standardizes player-based previews |
+| `hyperframes`               | HTML composition authoring, captions, TTS, audio-reactive animation, transitions                        |
+| `hyperframes-cli`           | CLI commands: init, lint, preview, render, transcribe, tts, doctor                                      |
+| `hyperframes-registry`      | Block and component installation via `hyperframes add`                                                  |
+| `website-to-hyperframes`    | Capture a URL and turn it into a video — full website-to-video pipeline                                 |
+| `gsap`                      | GSAP animation API, timelines, easing, ScrollTrigger, plugins, React/Vue/Svelte, performance            |
 
 ## Contributing
 
