@@ -226,4 +226,37 @@ describe("scheduleBackgroundInstall", () => {
     expect(scheduleBackgroundInstall("0.4.4", "0.4.3")).toBe(false);
     expect(spawnSpy).not.toHaveBeenCalled();
   });
+
+  it("skips when the previous run already failed this version", async () => {
+    const { spawnSpy } = setupMocks({
+      installer: { kind: "npm", command: "npm install -g hyperframes@0.4.4" },
+      config: {
+        completedUpdate: {
+          version: "0.4.4",
+          ok: false,
+          finishedAt: new Date().toISOString(),
+        },
+      },
+    });
+    const { scheduleBackgroundInstall } = await import("./autoUpdate.js");
+
+    expect(scheduleBackgroundInstall("0.4.4", "0.4.3")).toBe(false);
+    expect(spawnSpy).not.toHaveBeenCalled();
+  });
+
+  it("writes completed updates atomically in the detached child script", async () => {
+    const { spawnSpy } = setupMocks({
+      installer: { kind: "npm", command: "npm install -g hyperframes@0.4.4" },
+    });
+    const { scheduleBackgroundInstall } = await import("./autoUpdate.js");
+
+    expect(scheduleBackgroundInstall("0.4.4", "0.4.3")).toBe(true);
+    expect(spawnSpy).toHaveBeenCalledOnce();
+
+    const spawnArgs = spawnSpy.mock.calls[0]?.[1];
+    expect(Array.isArray(spawnArgs)).toBe(true);
+    expect(spawnArgs?.[0]).toBe("-e");
+    expect(spawnArgs?.[1]).toContain("renameSync");
+    expect(spawnArgs?.[1]).toContain(".tmp");
+  });
 });

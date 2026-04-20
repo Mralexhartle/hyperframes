@@ -120,10 +120,7 @@ export function detectInstaller(): InstallerInfo {
   // pnpm's global prefix is typically `~/Library/pnpm/global/5/node_modules/`
   // on macOS or `~/.local/share/pnpm/global/…` on Linux. `pnpm` wins when the
   // path contains `/pnpm/global/` regardless of platform.
-  if (
-    realEntry.includes(`${sep}pnpm${sep}global${sep}`) ||
-    realEntry.includes(`${sep}.pnpm${sep}`)
-  ) {
+  if (realEntry.includes(`${sep}pnpm${sep}global${sep}`)) {
     return {
       kind: "pnpm",
       installCommand: (version) => `pnpm add -g hyperframes@${version}`,

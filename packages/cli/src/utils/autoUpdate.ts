@@ -84,8 +84,9 @@ function launchDetachedInstall(installCommand: string, version: string): void {
   // We shell out to `node -e` so we don't need to ship a separate file.
   const nodeScript = `
     const { exec } = require("node:child_process");
-    const { readFileSync, writeFileSync } = require("node:fs");
+    const { readFileSync, renameSync, writeFileSync } = require("node:fs");
     const CFG = ${JSON.stringify(configFile)};
+    const TMP = \`\${CFG}.tmp\`;
     const VERSION = ${JSON.stringify(version)};
     const CMD = ${JSON.stringify(installCommand)};
     exec(CMD, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, _stdout, stderr) => {
@@ -98,7 +99,10 @@ function launchDetachedInstall(installCommand: string, version: string): void {
         ...(err ? { error: String(stderr || err.message || "install failed").slice(-400) } : {}),
       };
       delete cfg.pendingUpdate;
-      try { writeFileSync(CFG, JSON.stringify(cfg, null, 2) + "\\n", { mode: 0o600 }); } catch (e) {}
+      try {
+        writeFileSync(TMP, JSON.stringify(cfg, null, 2) + "\\n", { mode: 0o600 });
+        renameSync(TMP, CFG);
+      } catch (e) {}
     });
   `;
 
@@ -161,11 +165,7 @@ export function scheduleBackgroundInstall(latestVersion: string, currentVersion:
 
   // Skip if the previous completed outcome is already for this version and
   // hasn't been surfaced yet — that run already did the work.
-  if (
-    config.completedUpdate &&
-    config.completedUpdate.version === latestVersion &&
-    config.completedUpdate.ok
-  ) {
+  if (config.completedUpdate && config.completedUpdate.version === latestVersion) {
     return false;
   }
 

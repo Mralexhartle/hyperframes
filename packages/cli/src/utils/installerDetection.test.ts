@@ -86,6 +86,14 @@ describe("detectInstaller", () => {
     expect(info.installCommand("0.4.4")).toBe("pnpm add -g hyperframes@0.4.4");
   });
 
+  it("treats pnpm project-local installs as unknown layouts", async () => {
+    const info = await detectWith(
+      "/path/to/project/node_modules/.pnpm/hyperframes@0.4.3/node_modules/hyperframes/dist/cli.js",
+    );
+    expect(info.kind).toBe("skip");
+    expect(info.installCommand("0.4.4")).toBeNull();
+  });
+
   it("detects npm global install", async () => {
     const info = await detectWith("/usr/local/lib/node_modules/hyperframes/dist/cli.js");
     expect(info.kind).toBe("npm");
