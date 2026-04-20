@@ -27,7 +27,9 @@ import { extractVideoMetadata, extractAudioMetadata } from "../utils/ffprobe.js"
 import { isPathInside, toExternalAssetKey } from "../utils/paths.js";
 import {
   parseVideoElements,
+  parseImageElements,
   type VideoElement,
+  type ImageElement,
   parseAudioElements,
   type AudioElement,
   analyzeKeyframeIntervals,
@@ -41,6 +43,7 @@ export interface CompiledComposition {
   subCompositions: Map<string, string>;
   videos: VideoElement[];
   audios: AudioElement[];
+  images: ImageElement[];
   unresolvedCompositions: UnresolvedElement[];
   /** Assets that resolve outside projectDir. Keys are the path used in HTML, values are absolute filesystem paths. */
   externalAssets: Map<string, string>;
@@ -228,10 +231,12 @@ async function parseSubCompositions(
 ): Promise<{
   videos: VideoElement[];
   audios: AudioElement[];
+  images: ImageElement[];
   subCompositions: Map<string, string>;
 }> {
   const videos: VideoElement[] = [];
   const audios: AudioElement[] = [];
+  const images: ImageElement[] = [];
   const subCompositions = new Map<string, string>();
 
   const { document } = parseHTML(html);
@@ -296,6 +301,7 @@ async function parseSubCompositions(
 
       const subVideos = parseVideoElements(compiledSub);
       const subAudios = parseAudioElements(compiledSub);
+      const subImages = parseImageElements(compiledSub);
 
       return {
         srcPath: item.srcPath,
@@ -303,6 +309,7 @@ async function parseSubCompositions(
         nested,
         subVideos,
         subAudios,
+        subImages,
         absoluteStart: item.absoluteStart,
         absoluteEnd: item.absoluteEnd,
       };
@@ -318,6 +325,7 @@ async function parseSubCompositions(
     }
     videos.push(...r.nested.videos);
     audios.push(...r.nested.audios);
+    images.push(...r.nested.images);
 
     for (const v of r.subVideos) {
       v.start += r.absoluteStart;
@@ -341,16 +349,29 @@ async function parseSubCompositions(
       }
     }
 
+    for (const img of r.subImages) {
+      img.start += r.absoluteStart;
+      img.end += r.absoluteStart;
+      if (img.end > r.absoluteEnd) {
+        img.end = r.absoluteEnd;
+      }
+      if (img.start < r.absoluteEnd) {
+        images.push(img);
+      }
+    }
+
     if (
       r.subVideos.length > 0 ||
       r.subAudios.length > 0 ||
+      r.subImages.length > 0 ||
       r.nested.videos.length > 0 ||
-      r.nested.audios.length > 0
+      r.nested.audios.length > 0 ||
+      r.nested.images.length > 0
     ) {
     }
   }
 
-  return { videos, audios, subCompositions };
+  return { videos, audios, images, subCompositions };
 }
 
 /**
@@ -937,6 +958,7 @@ export async function compileForRender(
   const {
     videos: subVideos,
     audios: subAudios,
+    images: subImages,
     subCompositions,
   } = await parseSubCompositions(compiledHtml, projectDir, downloadDir);
 
@@ -980,12 +1002,14 @@ export async function compileForRender(
   // Parse main HTML elements
   const mainVideos = parseVideoElements(html);
   const mainAudios = parseAudioElements(html);
+  const mainImages = parseImageElements(html);
 
   // Keep inlined sub-composition media authoritative on ID collisions.
   // inlineSubCompositions() hoists those nodes into the final HTML, so the
   // producer should follow the same precedence the runtime sees in the merged DOM.
   const videos = dedupeElementsById([...mainVideos, ...subVideos]);
   const audios = dedupeElementsById([...mainAudios, ...subAudios]);
+  const images = dedupeElementsById([...mainImages, ...subImages]);
 
   // Advisory video checks (sparse keyframes, VFR). Fire-and-forget — these spawn
   // ffprobe subprocesses and should not block compilation since they only produce warnings.
@@ -1032,6 +1056,7 @@ export async function compileForRender(
     subCompositions,
     videos,
     audios,
+    images,
     unresolvedCompositions,
     externalAssets,
     width,
@@ -1182,15 +1207,18 @@ export async function recompileWithResolutions(
   const {
     videos: subVideos,
     audios: subAudios,
+    images: subImages,
     subCompositions,
   } = await parseSubCompositions(html, projectDir, downloadDir);
 
   const mainVideos = parseVideoElements(html);
   const mainAudios = parseAudioElements(html);
+  const mainImages = parseImageElements(html);
 
   // Keep inlined sub-composition media authoritative on ID collisions.
   const videos = dedupeElementsById([...mainVideos, ...subVideos]);
   const audios = dedupeElementsById([...mainAudios, ...subAudios]);
+  const images = dedupeElementsById([...mainImages, ...subImages]);
 
   const remaining = compiled.unresolvedCompositions.filter(
     (c) => !resolutions.some((r) => r.id === c.id),
@@ -1202,6 +1230,7 @@ export async function recompileWithResolutions(
     subCompositions,
     videos,
     audios,
+    images,
     unresolvedCompositions: remaining,
     renderModeHints: compiled.renderModeHints,
   };

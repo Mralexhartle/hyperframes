@@ -50,6 +50,7 @@ import {
   getEncoderPreset,
   processCompositionAudio,
   type AudioElement,
+  type ImageElement,
   calculateOptimalWorkers,
   distributeFrames,
   executeParallelCapture,
@@ -252,6 +253,7 @@ export interface CompositionMetadata {
   duration: number;
   videos: VideoElement[];
   audios: AudioElement[];
+  images: ImageElement[];
   width: number;
   height: number;
 }
@@ -648,6 +650,7 @@ export async function executeRenderJob(
       duration: compiled.staticDuration,
       videos: compiled.videos,
       audios: compiled.audios,
+      images: compiled.images,
       width: compiled.width,
       height: compiled.height,
     };
@@ -721,6 +724,7 @@ export async function executeRenderJob(
           // Update composition metadata with re-parsed media
           composition.videos = compiled.videos;
           composition.audios = compiled.audios;
+          composition.images = compiled.images;
           writeCompiledArtifacts(compiled, workDir, Boolean(job.config.debug));
         }
       }
