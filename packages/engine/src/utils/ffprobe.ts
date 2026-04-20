@@ -1,4 +1,6 @@
 import { spawn } from "child_process";
+import { readFileSync } from "fs";
+import { extname } from "path";
 
 /** Spawn ffprobe with given args, return stdout. Throws on non-zero exit or missing binary. */
 function runFfprobe(args: string[]): Promise<string> {
@@ -96,6 +98,70 @@ interface FFProbeOutput {
   format: FFProbeFormat;
 }
 
+function extractPngColorSpaceFromBuffer(buf: Buffer): VideoColorSpace | null {
+  if (
+    buf.length < 8 ||
+    buf[0] !== 137 ||
+    buf[1] !== 80 ||
+    buf[2] !== 78 ||
+    buf[3] !== 71 ||
+    buf[4] !== 13 ||
+    buf[5] !== 10 ||
+    buf[6] !== 26 ||
+    buf[7] !== 10
+  ) {
+    return null;
+  }
+
+  let pos = 8;
+  while (pos + 12 <= buf.length) {
+    const chunkLen = buf.readUInt32BE(pos);
+    const chunkType = buf.toString("ascii", pos + 4, pos + 8);
+    if (pos + 12 + chunkLen > buf.length) return null;
+
+    if (chunkType === "cICP" && chunkLen >= 4) {
+      const chunkData = buf.subarray(pos + 8, pos + 12);
+      const primariesCode = chunkData[0] ?? 0;
+      const transferCode = chunkData[1] ?? 0;
+      const matrixCode = chunkData[2] ?? 0;
+
+      return {
+        colorPrimaries:
+          primariesCode === 9
+            ? "bt2020"
+            : primariesCode === 1
+              ? "bt709"
+              : `unknown-${primariesCode}`,
+        colorTransfer:
+          transferCode === 16
+            ? "smpte2084"
+            : transferCode === 18
+              ? "arib-std-b67"
+              : transferCode === 1
+                ? "bt709"
+                : `unknown-${transferCode}`,
+        colorSpace:
+          matrixCode === 9 ? "bt2020nc" : matrixCode === 0 ? "gbr" : `unknown-${matrixCode}`,
+      };
+    }
+
+    if (chunkType === "IEND") break;
+    pos += 12 + chunkLen;
+  }
+
+  return null;
+}
+
+function extractStillImageColorSpace(filePath: string): VideoColorSpace | null {
+  if (extname(filePath).toLowerCase() !== ".png") return null;
+
+  try {
+    return extractPngColorSpaceFromBuffer(readFileSync(filePath));
+  } catch {
+    return null;
+  }
+}
+
 function parseFrameRate(frameRateStr: string | undefined): number {
   if (!frameRateStr) return 0;
   const parts = frameRateStr.split("/");
@@ -134,7 +200,11 @@ export async function extractVideoMetadata(filePath: string): Promise<VideoMetad
     const colorTransfer = videoStream.color_transfer || "";
     const colorPrimaries = videoStream.color_primaries || "";
     const colorSpaceVal = videoStream.color_space || "";
-    const hasColorInfo = !!(colorTransfer || colorPrimaries || colorSpaceVal);
+    const ffprobeColorSpace =
+      colorTransfer || colorPrimaries || colorSpaceVal
+        ? { colorTransfer, colorPrimaries, colorSpace: colorSpaceVal }
+        : null;
+    const colorSpace = ffprobeColorSpace ?? extractStillImageColorSpace(filePath);
 
     return {
       durationSeconds: output.format.duration ? parseFloat(output.format.duration) : 0,
@@ -144,9 +214,7 @@ export async function extractVideoMetadata(filePath: string): Promise<VideoMetad
       videoCodec: videoStream.codec_name || "unknown",
       hasAudio: output.streams.some((s) => s.codec_type === "audio"),
       isVFR,
-      colorSpace: hasColorInfo
-        ? { colorTransfer, colorPrimaries, colorSpace: colorSpaceVal }
-        : null,
+      colorSpace,
     };
   })();
 
