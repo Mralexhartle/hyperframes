@@ -1183,6 +1183,14 @@ export async function executeRenderJob(
     if (hasHdrContent) {
       log.info("[Render] HDR layered composite: z-ordered DOM + native HLG video layers");
 
+      // HDR layered compositing relies on captureAlphaPng (Page.captureScreenshot
+      // with a transparent background) for the SDR DOM overlay layer. That CDP
+      // call hangs indefinitely when Chrome is launched with --enable-begin-frame-control
+      // (the default on Linux/headless-shell), because the compositor is paused
+      // and never produces a frame to capture. Force screenshot mode for the
+      // entire HDR path — same constraint as alpha output formats above.
+      cfg.forceScreenshot = true;
+
       // Use NATIVE HDR IDs (probed before SDR→HDR conversion) so only originally-HDR
       // videos are hidden + extracted natively. SDR videos stay in the DOM screenshot
       // (injected via the frame injector) and get sRGB→HLG conversion in the blit.
