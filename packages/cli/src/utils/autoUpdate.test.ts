@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 type ConfigShape = {
   pendingUpdate?: { version: string; command: string; startedAt: string };
-  completedUpdate?: { version: string; ok: boolean; finishedAt: string };
+  completedUpdate?: { version: string; ok: boolean; finishedAt: string; reported?: boolean };
   latestVersion?: string;
 };
 
@@ -258,5 +258,48 @@ describe("scheduleBackgroundInstall", () => {
     expect(spawnArgs?.[0]).toBe("-e");
     expect(spawnArgs?.[1]).toContain("renameSync");
     expect(spawnArgs?.[1]).toContain(".tmp");
+  });
+
+  it("surfaces failed installs once but still blocks retries for the same version", async () => {
+    const { spawnSpy, config } = setupMocks({
+      installer: { kind: "npm", command: "npm install -g hyperframes@0.4.4" },
+      config: {
+        completedUpdate: {
+          version: "0.4.4",
+          ok: false,
+          finishedAt: new Date().toISOString(),
+        },
+      },
+    });
+    const { reportCompletedUpdate, scheduleBackgroundInstall } = await import("./autoUpdate.js");
+    const stderrWrite = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    const originalIsTTY = process.stderr.isTTY;
+    Object.defineProperty(process.stderr, "isTTY", { value: true, configurable: true });
+
+    try {
+      reportCompletedUpdate();
+
+      expect(stderrWrite).toHaveBeenCalledWith(
+        expect.stringContaining("hyperframes auto-update to v0.4.4 failed"),
+      );
+      expect(config.completedUpdate).toMatchObject({
+        version: "0.4.4",
+        ok: false,
+        reported: true,
+      });
+
+      stderrWrite.mockClear();
+      reportCompletedUpdate();
+
+      expect(stderrWrite).not.toHaveBeenCalled();
+      expect(scheduleBackgroundInstall("0.4.4", "0.4.3")).toBe(false);
+      expect(spawnSpy).not.toHaveBeenCalled();
+    } finally {
+      stderrWrite.mockRestore();
+      Object.defineProperty(process.stderr, "isTTY", {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
   });
 });

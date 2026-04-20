@@ -189,9 +189,9 @@ export function scheduleBackgroundInstall(latestVersion: string, currentVersion:
 }
 
 /**
- * If a previous run finished auto-installing, print one short line and clear
- * the marker. Stays silent when no update has happened or the current run is
- * non-TTY (JSON output, piped, CI).
+ * If a previous run finished auto-installing, surface the outcome once.
+ * Successful installs are cleared immediately; failed installs stay marked so
+ * the scheduler can avoid retrying the same version on every invocation.
  */
 export function reportCompletedUpdate(): void {
   if (process.env["HYPERFRAMES_NO_UPDATE_CHECK"] === "1") return;
@@ -200,17 +200,21 @@ export function reportCompletedUpdate(): void {
   const done = config.completedUpdate;
   if (!done) return;
 
-  // Clear the marker regardless of whether we print — otherwise a non-TTY run
-  // would keep the flag around indefinitely and spam the next interactive run
-  // with stale news.
-  delete config.completedUpdate;
-  writeConfig(config);
+  if (done.ok) {
+    delete config.completedUpdate;
+    writeConfig(config);
+  } else if (!done.reported) {
+    config.completedUpdate = { ...done, reported: true };
+    writeConfig(config);
+  } else {
+    return;
+  }
 
   if (!process.stderr.isTTY) return;
 
   if (done.ok) {
     process.stderr.write(`  hyperframes auto-updated to v${done.version}\n\n`);
-  } else {
+  } else if (!done.reported) {
     // Failed installs are surfaced once too — the user should know why the
     // auto-update didn't take.
     process.stderr.write(

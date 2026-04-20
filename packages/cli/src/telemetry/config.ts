@@ -48,6 +48,8 @@ export interface HyperframesConfig {
     finishedAt: string;
     /** Non-empty when `ok === false` — the installer's stderr tail. */
     error?: string;
+    /** True after the result has been surfaced once to the user. */
+    reported?: boolean;
   };
 }
 
