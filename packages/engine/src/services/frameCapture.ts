@@ -253,10 +253,14 @@ export async function initializeSession(session: CaptureSession): Promise<void> 
     }
 
     // Wait for all video elements to have loaded metadata (dimensions + duration)
-    // Without this, frame 0 captures videos at their 300x150 default size
+    // Without this, frame 0 captures videos at their 300x150 default size.
+    // skipReadinessVideoIds excludes natively-extracted videos (e.g. HDR HEVC
+    // sources) whose frames come from ffmpeg out-of-band — Chromium may not be
+    // able to decode them at all (e.g. HEVC on Linux headless-shell).
+    const skipIdsLiteral = JSON.stringify(session.options.skipReadinessVideoIds ?? []);
     const videosReady = await pollPageExpression(
       page,
-      `document.querySelectorAll("video").length === 0 || Array.from(document.querySelectorAll("video")).every(v => v.readyState >= 1)`,
+      `(() => { const skip = new Set(${skipIdsLiteral}); const vids = Array.from(document.querySelectorAll("video")).filter(v => !skip.has(v.id)); return vids.length === 0 || vids.every(v => v.readyState >= 1); })()`,
       pageReadyTimeout,
     );
     if (!videosReady) {
@@ -331,11 +335,13 @@ export async function initializeSession(session: CaptureSession): Promise<void> 
 
   // Wait for all video elements to have loaded metadata (dimensions + duration).
   // Without this, frame 0 captures videos at their 300x150 default size.
+  // See screenshot-mode comment above for why skipReadinessVideoIds exists.
+  const beginframeSkipIdsLiteral = JSON.stringify(session.options.skipReadinessVideoIds ?? []);
   const videoDeadline =
     Date.now() + (session.config?.playerReadyTimeout ?? DEFAULT_CONFIG.playerReadyTimeout);
   while (Date.now() < videoDeadline) {
     const videosReady = await page.evaluate(
-      `document.querySelectorAll("video").length === 0 || Array.from(document.querySelectorAll("video")).every(v => v.readyState >= 1)`,
+      `(() => { const skip = new Set(${beginframeSkipIdsLiteral}); const vids = Array.from(document.querySelectorAll("video")).filter(v => !skip.has(v.id)); return vids.length === 0 || vids.every(v => v.readyState >= 1); })()`,
     );
     if (videosReady) break;
     await new Promise((r) => setTimeout(r, 100));

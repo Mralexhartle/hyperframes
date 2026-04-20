@@ -94,6 +94,18 @@ export interface CaptureOptions {
   format?: "jpeg" | "png";
   quality?: number;
   deviceScaleFactor?: number;
+  /**
+   * Video element IDs to exclude from the in-page readiness check that waits
+   * for `video.readyState >= 1` before capture starts.
+   *
+   * Use for videos whose frames are supplied out-of-band (e.g. native HDR
+   * frame extraction via ffmpeg). The DOM `<video>` element is then only
+   * needed for layout (`getBoundingClientRect` / `offsetWidth`), which works
+   * at `readyState=0`. Without this, codecs that headless Chromium can't
+   * decode (HEVC on Linux `headless-shell`) cause a fatal timeout even
+   * though we never asked the browser to play the video.
+   */
+  skipReadinessVideoIds?: readonly string[];
 }
 
 export interface CaptureResult {

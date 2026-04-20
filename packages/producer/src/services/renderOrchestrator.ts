@@ -1219,10 +1219,17 @@ export async function executeRenderJob(
       // before each DOM screenshot — only the native FFmpeg-extracted HLG
       // frames are used for HDR pixels.
       if (!fileServer) throw new Error("fileServer must be initialized before HDR compositing");
+      // Native HDR videos (e.g. HEVC) may be undecodable by Chrome on the
+      // current platform — Linux headless-shell ships without HEVC support.
+      // Their pixels come from out-of-band ffmpeg extraction, so the DOM
+      // `<video>` element is only kept around for layout. Skip the per-page
+      // readiness wait for these IDs; otherwise the render hangs 45s and
+      // throws "video metadata not ready" even though we never asked the
+      // browser to decode the video.
       const domSession = await createCaptureSession(
         fileServer.url,
         framesDir,
-        captureOptions,
+        { ...captureOptions, skipReadinessVideoIds: Array.from(nativeHdrVideoIds) },
         createVideoFrameInjector(frameLookup),
         cfg,
       );
@@ -1919,7 +1926,7 @@ export async function executeRenderJob(
             fileServer.url,
             workDir,
             tasks,
-            captureOptions,
+            { ...captureOptions, skipReadinessVideoIds: Array.from(nativeHdrVideoIds) },
             () => createVideoFrameInjector(frameLookup),
             abortSignal,
             (progress) => {
@@ -1958,7 +1965,7 @@ export async function executeRenderJob(
             (await createCaptureSession(
               fileServer.url,
               framesDir,
-              captureOptions,
+              { ...captureOptions, skipReadinessVideoIds: Array.from(nativeHdrVideoIds) },
               videoInjector,
               cfg,
             ));
@@ -2020,7 +2027,7 @@ export async function executeRenderJob(
             fileServer.url,
             workDir,
             tasks,
-            captureOptions,
+            { ...captureOptions, skipReadinessVideoIds: Array.from(nativeHdrVideoIds) },
             () => createVideoFrameInjector(frameLookup),
             abortSignal,
             (progress) => {
@@ -2060,7 +2067,7 @@ export async function executeRenderJob(
             (await createCaptureSession(
               fileServer.url,
               framesDir,
-              captureOptions,
+              { ...captureOptions, skipReadinessVideoIds: Array.from(nativeHdrVideoIds) },
               videoInjector,
               cfg,
             ));
