@@ -15,7 +15,7 @@ Hyperframes can render to HDR10 MP4 (H.265 10-bit, BT.2020) when your compositio
   <Step title="Add an HDR source to your composition">
     Hyperframes detects HDR from the source's color space metadata. The most reliable HDR sources are:
 
-    - **HDR video** tagged BT.2020 with PQ (`smpte2084`) or HLG (`arib-std-b67`) transfer — for example, the original MP4 you get from [yt-dlp](https://github.com/yt-dlp/yt-dlp) when downloading a YouTube HDR video at the highest quality
+    - **HDR video** tagged BT.2020 with PQ (`smpte2084`) or HLG (`arib-std-b67`) transfer
     - **HDR still images** as 16-bit PNG with BT.2020 PQ encoding
 
     See [Source Media](#source-media-requirements) for full details.
@@ -71,10 +71,9 @@ Hyperframes recognizes HDR video from its `ffprobe` color space metadata:
 | `color_transfer = arib-std-b67` (HLG) | Yes — HLG |
 | All else (e.g. `bt709`, `smpte170m`) | No — treated as SDR |
 
-A common HDR source is YouTube HDR. Download the highest-quality stream with `yt-dlp` and Hyperframes will detect it automatically:
+A valid HDR source is any MP4 whose stream metadata reports BT.2020 primaries plus PQ or HLG transfer. Hyperframes will detect it automatically:
 
 ```bash Terminal
-yt-dlp -f "bestvideo[dynamic_range=HDR]+bestaudio" -o assets/clip.mp4 <url>
 ffprobe -v error -show_streams assets/clip.mp4 | grep color
 # color_primaries=bt2020
 # color_transfer=smpte2084
