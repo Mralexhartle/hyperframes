@@ -210,6 +210,12 @@ export interface RenderPerfSummary {
   stages: Record<string, number>;
   captureAvgMs?: number;
   capturePeakMs?: number;
+  hdrDiagnostics?: HdrDiagnostics;
+}
+
+export interface HdrDiagnostics {
+  videoExtractionFailures: number;
+  imageDecodeFailures: number;
 }
 
 export interface RenderJob {
@@ -235,6 +241,7 @@ export interface RenderJob {
     freeMemoryMB: number;
     browserConsoleTail?: string[];
     perfStages?: Record<string, number>;
+    hdrDiagnostics?: HdrDiagnostics;
   };
 }
 
@@ -646,6 +653,10 @@ export async function executeRenderJob(
   let lastBrowserConsole: string[] = [];
   let restoreLogger: (() => void) | null = null;
   const perfStages: Record<string, number> = {};
+  const hdrDiagnostics: HdrDiagnostics = {
+    videoExtractionFailures: 0,
+    imageDecodeFailures: 0,
+  };
   const perfOutputPath = join(workDir, "perf-summary.json");
   const cfg = { ...(job.config.producerConfig ?? resolveConfig()) };
   const outputFormat = (job.config.format ?? "mp4") as "mp4" | "webm" | "mov";
@@ -1391,11 +1402,16 @@ export async function executeRenderJob(
         ];
         const result = await runFfmpeg(ffmpegArgs, { signal: abortSignal });
         if (!result.success) {
-          log.warn("HDR frame pre-extraction failed; loop will fill with black", {
+          hdrDiagnostics.videoExtractionFailures += 1;
+          log.error("HDR frame pre-extraction failed; aborting render", {
             videoId,
             srcPath,
             stderr: result.stderr.slice(-400),
           });
+          throw new Error(
+            `HDR frame extraction failed for video "${videoId}". ` +
+              `Aborting render to avoid shipping black HDR layers.`,
+          );
         }
         hdrFrameDirs.set(videoId, frameDir);
       }
@@ -1443,11 +1459,16 @@ export async function executeRenderJob(
             });
           }
         } catch (err) {
-          log.warn("HDR image decode failed; layer will be empty", {
+          hdrDiagnostics.imageDecodeFailures += 1;
+          log.error("HDR image decode failed; aborting render", {
             imageId,
             srcPath,
             error: err instanceof Error ? err.message : String(err),
           });
+          throw new Error(
+            `HDR image decode failed for image "${imageId}". ` +
+              `Aborting render to avoid shipping missing HDR image layers.`,
+          );
         }
       }
 
@@ -2253,6 +2274,10 @@ export async function executeRenderJob(
       videoCount: composition.videos.length,
       audioCount: composition.audios.length,
       stages: perfStages,
+      hdrDiagnostics:
+        hdrDiagnostics.videoExtractionFailures > 0 || hdrDiagnostics.imageDecodeFailures > 0
+          ? { ...hdrDiagnostics }
+          : undefined,
       captureAvgMs:
         totalFrames > 0 ? Math.round((perfStages.captureMs ?? 0) / totalFrames) : undefined,
     };
@@ -2354,6 +2379,10 @@ export async function executeRenderJob(
       freeMemoryMB: freeMemMB,
       browserConsoleTail: lastBrowserConsole.length > 0 ? lastBrowserConsole.slice(-30) : undefined,
       perfStages: Object.keys(perfStages).length > 0 ? { ...perfStages } : undefined,
+      hdrDiagnostics:
+        hdrDiagnostics.videoExtractionFailures > 0 || hdrDiagnostics.imageDecodeFailures > 0
+          ? { ...hdrDiagnostics }
+          : undefined,
     };
 
     // Cleanup

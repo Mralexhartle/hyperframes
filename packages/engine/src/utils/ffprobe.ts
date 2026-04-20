@@ -104,7 +104,19 @@ interface StillImageMetadata {
   colorSpace: VideoColorSpace | null;
 }
 
-function extractPngMetadataFromBuffer(buf: Buffer): StillImageMetadata | null {
+function crc32(buf: Buffer): number {
+  let crc = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) {
+    crc ^= buf[i] ?? 0;
+    for (let bit = 0; bit < 8; bit++) {
+      const mask = -(crc & 1);
+      crc = (crc >>> 1) ^ (0xedb88320 & mask);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+export function extractPngMetadataFromBuffer(buf: Buffer): StillImageMetadata | null {
   if (
     buf.length < 8 ||
     buf[0] !== 137 ||
@@ -121,19 +133,27 @@ function extractPngMetadataFromBuffer(buf: Buffer): StillImageMetadata | null {
 
   let width = 0;
   let height = 0;
+  let seenIdat = false;
   let pos = 8;
   while (pos + 12 <= buf.length) {
     const chunkLen = buf.readUInt32BE(pos);
     const chunkType = buf.toString("ascii", pos + 4, pos + 8);
     if (pos + 12 + chunkLen > buf.length) return null;
+    const chunkData = buf.subarray(pos + 8, pos + 8 + chunkLen);
+    const chunkCrc = buf.readUInt32BE(pos + 8 + chunkLen);
+    const chunkBytes = Buffer.concat([Buffer.from(chunkType, "ascii"), chunkData]);
+    if (crc32(chunkBytes) !== chunkCrc) return null;
 
     if (chunkType === "IHDR" && chunkLen >= 8) {
       width = buf.readUInt32BE(pos + 8);
       height = buf.readUInt32BE(pos + 12);
     }
 
-    if (chunkType === "cICP" && chunkLen >= 4) {
-      const chunkData = buf.subarray(pos + 8, pos + 12);
+    if (chunkType === "IDAT") {
+      seenIdat = true;
+    }
+
+    if (chunkType === "cICP" && chunkLen === 4 && !seenIdat) {
       const primariesCode = chunkData[0] ?? 0;
       const transferCode = chunkData[1] ?? 0;
       const matrixCode = chunkData[2] ?? 0;
