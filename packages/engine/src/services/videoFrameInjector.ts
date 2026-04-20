@@ -244,6 +244,18 @@ export interface ElementStackingInfo {
   isHdr: boolean;
   transform: string; // CSS transform matrix string, e.g. "matrix(1,0,0,1,0,0)" or "none"
   borderRadius: [number, number, number, number]; // [tl, tr, br, bl] in CSS px from nearest clipping ancestor
+  /**
+   * CSS `object-fit` value for replaced elements (`<img>`, `<video>`).
+   * One of: `fill` (default), `cover`, `contain`, `none`, `scale-down`.
+   * The HDR compositor uses this to resample image/video buffers into the
+   * element's layout box the same way the browser would.
+   */
+  objectFit: string;
+  /**
+   * CSS `object-position` value (e.g. `"50% 50%"`, `"center top"`).
+   * Falls back to the CSS default `"50% 50%"` (center) when unset.
+   */
+  objectPosition: string;
 }
 
 /**
@@ -456,6 +468,11 @@ export async function queryElementStacking(
         // elements, the element-level transform is sufficient for reference.
         transform: isHdrEl ? getViewportMatrix(el) : style.transform || "none",
         borderRadius: isHdrEl ? getEffectiveBorderRadius(el) : [0, 0, 0, 0],
+        // `getComputedStyle` returns "" when the property doesn't apply (e.g.
+        // for non-replaced elements); normalize to the CSS defaults so callers
+        // can rely on a populated value.
+        objectFit: style.objectFit || "fill",
+        objectPosition: style.objectPosition || "50% 50%",
       });
     }
     return results;

@@ -172,6 +172,9 @@ export {
   parseTransformMatrix,
   getSrgbToHdrLut,
   roundedRectAlpha,
+  resampleRgb48leObjectFit,
+  normalizeObjectFit,
+  type ObjectFit,
 } from "./utils/alphaBlit.js";
 
 export { groupIntoLayers, type CompositeLayer } from "./utils/layerCompositor.js";

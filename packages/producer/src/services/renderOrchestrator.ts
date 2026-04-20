@@ -78,6 +78,8 @@ import {
   TRANSITIONS,
   crossfade,
   convertTransfer,
+  resampleRgb48leObjectFit,
+  normalizeObjectFit,
   type TransitionFn,
   type ElementStackingInfo,
   type HfTransitionMeta,
@@ -1304,6 +1306,11 @@ export async function executeRenderJob(
       // visible at t=0 (e.g., data-start > 0) need to be queried at their own
       // start time so their layout dimensions are available.
       const hdrExtractionDims = new Map<string, { width: number; height: number }>();
+      // CSS `object-fit` / `object-position` for HDR <img> elements. Captured
+      // alongside `hdrExtractionDims` so the static-image decoder can resample
+      // the rgb48le buffer into the element's layout box the same way the
+      // browser would, instead of blitting the source PNG at native size.
+      const hdrImageFitInfo = new Map<string, { fit: string; position: string }>();
       const hdrVideoStartTimes = new Map<string, number>();
       for (const v of composition.videos) {
         if (hdrVideoIds.includes(v.id)) {
@@ -1342,6 +1349,15 @@ export async function executeRenderJob(
             !hdrExtractionDims.has(el.id)
           ) {
             hdrExtractionDims.set(el.id, { width: el.layoutWidth, height: el.layoutHeight });
+          }
+          // Record `object-fit` / `object-position` for HDR images so the
+          // static-image decode pass can resample to layout dimensions with
+          // the same semantics the browser would apply.
+          if (el.isHdr && nativeHdrImageIds.has(el.id) && !hdrImageFitInfo.has(el.id)) {
+            hdrImageFitInfo.set(el.id, {
+              fit: el.objectFit,
+              position: el.objectPosition,
+            });
           }
         }
       }
@@ -1389,15 +1405,43 @@ export async function executeRenderJob(
       // is blitted on every visible frame. Caching the decode here keeps the
       // per-frame cost to a memcpy + blit. Failures are logged and skipped so
       // a single broken file doesn't kill the render.
+      //
+      // We resample the decoded buffer to the element's *layout* dimensions
+      // here (using CSS `object-fit` / `object-position` semantics), so the
+      // affine blit downstream can treat the buffer as if the source was
+      // sized to the element's box. Without this step, an `<img>` element
+      // styled `object-fit: cover` would render its source PNG at native
+      // pixel size inside the layout box — visually a small image floating
+      // in the top-left corner of its container instead of filling it.
       const hdrImageBuffers = new Map<string, HdrImageBuffer>();
       for (const [imageId, srcPath] of hdrImageSrcPaths) {
         try {
           const decoded = decodePngToRgb48le(readFileSync(srcPath));
-          hdrImageBuffers.set(imageId, {
-            data: Buffer.from(decoded.data),
-            width: decoded.width,
-            height: decoded.height,
-          });
+          const layout = hdrExtractionDims.get(imageId);
+          const fitInfo = hdrImageFitInfo.get(imageId);
+          if (layout && (layout.width !== decoded.width || layout.height !== decoded.height)) {
+            const fit = normalizeObjectFit(fitInfo?.fit);
+            const resampled = resampleRgb48leObjectFit(
+              decoded.data,
+              decoded.width,
+              decoded.height,
+              layout.width,
+              layout.height,
+              fit,
+              fitInfo?.position,
+            );
+            hdrImageBuffers.set(imageId, {
+              data: resampled,
+              width: layout.width,
+              height: layout.height,
+            });
+          } else {
+            hdrImageBuffers.set(imageId, {
+              data: Buffer.from(decoded.data),
+              width: decoded.width,
+              height: decoded.height,
+            });
+          }
         } catch (err) {
           log.warn("HDR image decode failed; layer will be empty", {
             imageId,

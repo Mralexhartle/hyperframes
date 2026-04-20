@@ -8,6 +8,8 @@ import {
   blitRgb48leAffine,
   parseTransformMatrix,
   roundedRectAlpha,
+  resampleRgb48leObjectFit,
+  normalizeObjectFit,
 } from "./alphaBlit.js";
 
 // ── PNG construction helpers ─────────────────────────────────────────────────
@@ -989,5 +991,157 @@ describe("blitRgb48leAffine with borderRadius", () => {
     blitRgb48leAffine(canvas2, source, identity, 4, 4, 4, 4, undefined, undefined);
 
     expect(Buffer.compare(canvas1, canvas2)).toBe(0);
+  });
+});
+
+// ── normalizeObjectFit ──────────────────────────────────────────────────────
+
+describe("normalizeObjectFit", () => {
+  it("returns supported values verbatim", () => {
+    expect(normalizeObjectFit("fill")).toBe("fill");
+    expect(normalizeObjectFit("cover")).toBe("cover");
+    expect(normalizeObjectFit("contain")).toBe("contain");
+    expect(normalizeObjectFit("none")).toBe("none");
+    expect(normalizeObjectFit("scale-down")).toBe("scale-down");
+  });
+
+  it("trims whitespace and lowercases input", () => {
+    expect(normalizeObjectFit("  COVER  ")).toBe("cover");
+  });
+
+  it("falls back to fill for unsupported values", () => {
+    expect(normalizeObjectFit(undefined)).toBe("fill");
+    expect(normalizeObjectFit("")).toBe("fill");
+    expect(normalizeObjectFit("inherit")).toBe("fill");
+    expect(normalizeObjectFit("garbage")).toBe("fill");
+  });
+});
+
+// ── resampleRgb48leObjectFit ────────────────────────────────────────────────
+
+function readRgb16(buf: Buffer, width: number, x: number, y: number): [number, number, number] {
+  const off = (y * width + x) * 6;
+  return [buf.readUInt16LE(off), buf.readUInt16LE(off + 2), buf.readUInt16LE(off + 4)];
+}
+
+describe("resampleRgb48leObjectFit", () => {
+  it("returns the same buffer unchanged for identity fill resample", () => {
+    const src = makeHdrFrame(4, 4, 40000, 30000, 20000);
+    const out = resampleRgb48leObjectFit(src, 4, 4, 4, 4, "fill");
+
+    // Fast path returns the same Buffer reference, not a copy
+    expect(out).toBe(src);
+  });
+
+  it("returns the source untouched on degenerate dimensions", () => {
+    const src = makeHdrFrame(4, 4, 1, 2, 3);
+    expect(resampleRgb48leObjectFit(src, 0, 4, 8, 8, "cover")).toBe(src);
+    expect(resampleRgb48leObjectFit(src, 4, 4, 0, 8, "cover")).toBe(src);
+  });
+
+  it("fills a larger box with stretched content (fit=fill)", () => {
+    const src = makeHdrFrame(2, 2, 50000, 40000, 30000);
+    const out = resampleRgb48leObjectFit(src, 2, 2, 8, 4, "fill");
+
+    expect(out.length).toBe(8 * 4 * 6);
+    // Every output pixel should be the source color (uniform input → uniform output)
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 8; x++) {
+        const [r, g, b] = readRgb16(out, 8, x, y);
+        expect(r).toBe(50000);
+        expect(g).toBe(40000);
+        expect(b).toBe(30000);
+      }
+    }
+  });
+
+  it("covers the destination box (cover) — fills entire box, no black bars", () => {
+    // 4×2 source into a 6×6 dst: cover scales by 6/2 = 3 → rendered 12×6, cropped horizontally
+    const src = makeHdrFrame(4, 2, 65000, 0, 0);
+    const out = resampleRgb48leObjectFit(src, 4, 2, 6, 6, "cover");
+
+    // No pillarbox/letterbox black anywhere
+    for (let y = 0; y < 6; y++) {
+      for (let x = 0; x < 6; x++) {
+        const [r] = readRgb16(out, 6, x, y);
+        expect(r).toBe(65000);
+      }
+    }
+  });
+
+  it("contains the source (contain) and letterboxes with opaque black", () => {
+    // 4×2 source into a 6×6 dst: contain scales by 6/4 = 1.5 → rendered 6×3, vertically centered
+    const src = makeHdrFrame(4, 2, 65000, 65000, 65000);
+    const out = resampleRgb48leObjectFit(src, 4, 2, 6, 6, "contain");
+
+    // Top and bottom rows should be black (letterbox)
+    for (const y of [0, 5]) {
+      for (let x = 0; x < 6; x++) {
+        expect(readRgb16(out, 6, x, y)).toEqual([0, 0, 0]);
+      }
+    }
+    // Middle band (rows 2–3) should be the source color
+    for (const y of [2, 3]) {
+      for (let x = 0; x < 6; x++) {
+        const [r, g, b] = readRgb16(out, 6, x, y);
+        expect(r).toBe(65000);
+        expect(g).toBe(65000);
+        expect(b).toBe(65000);
+      }
+    }
+  });
+
+  it("none preserves source size and centers it on a black background", () => {
+    // 2×2 source into a 6×6 dst with default object-position 50%/50%
+    const src = makeHdrFrame(2, 2, 40000, 30000, 20000);
+    const out = resampleRgb48leObjectFit(src, 2, 2, 6, 6, "none");
+
+    // Center 2×2 region (rows 2–3, cols 2–3) holds the source
+    for (let y = 2; y < 4; y++) {
+      for (let x = 2; x < 4; x++) {
+        const [r, g, b] = readRgb16(out, 6, x, y);
+        expect(r).toBe(40000);
+        expect(g).toBe(30000);
+        expect(b).toBe(20000);
+      }
+    }
+    // Corners should be black
+    expect(readRgb16(out, 6, 0, 0)).toEqual([0, 0, 0]);
+    expect(readRgb16(out, 6, 5, 5)).toEqual([0, 0, 0]);
+  });
+
+  it("respects object-position for none-fit alignment", () => {
+    // 2×2 source into a 6×6 dst, anchored top-left
+    const src = makeHdrFrame(2, 2, 40000, 30000, 20000);
+    const out = resampleRgb48leObjectFit(src, 2, 2, 6, 6, "none", "0% 0%");
+
+    // Top-left 2×2 block holds the source
+    for (let y = 0; y < 2; y++) {
+      for (let x = 0; x < 2; x++) {
+        const [r] = readRgb16(out, 6, x, y);
+        expect(r).toBe(40000);
+      }
+    }
+    // Bottom-right corner stays black
+    expect(readRgb16(out, 6, 5, 5)).toEqual([0, 0, 0]);
+    // Just below the source band should be black
+    expect(readRgb16(out, 6, 0, 2)).toEqual([0, 0, 0]);
+    expect(readRgb16(out, 6, 2, 0)).toEqual([0, 0, 0]);
+  });
+
+  it("scale-down behaves like none when source fits in dst", () => {
+    const src = makeHdrFrame(2, 2, 40000, 30000, 20000);
+    const noneOut = resampleRgb48leObjectFit(src, 2, 2, 6, 6, "none");
+    const sdOut = resampleRgb48leObjectFit(src, 2, 2, 6, 6, "scale-down");
+
+    expect(Buffer.compare(noneOut, sdOut)).toBe(0);
+  });
+
+  it("scale-down behaves like contain when source overflows dst", () => {
+    const src = makeHdrFrame(8, 4, 40000, 30000, 20000);
+    const containOut = resampleRgb48leObjectFit(src, 8, 4, 6, 6, "contain");
+    const sdOut = resampleRgb48leObjectFit(src, 8, 4, 6, 6, "scale-down");
+
+    expect(Buffer.compare(containOut, sdOut)).toBe(0);
   });
 });

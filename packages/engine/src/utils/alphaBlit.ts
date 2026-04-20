@@ -623,6 +623,233 @@ export function blitRgb48leAffine(
 }
 
 /**
+ * CSS `object-fit` values supported by the HDR image/video resampler.
+ *
+ * Matches the CSS spec subset that browsers actually render for replaced
+ * elements (`<img>`, `<video>`). `scale-down` is normalized to whichever of
+ * `none` or `contain` produces the smaller rendered size, mirroring the spec.
+ */
+export type ObjectFit = "fill" | "cover" | "contain" | "none" | "scale-down";
+
+/**
+ * Parse a single axis of a CSS `object-position` string into a fraction in
+ * `[0, 1]` (proportion of the slack space along that axis).
+ *
+ * Defaults to 0.5 (centered) for unrecognized inputs to match CSS, which
+ * resolves invalid `object-position` values to the initial value (`50% 50%`).
+ */
+function parseObjectPositionAxis(value: string, axis: "x" | "y"): number {
+  const lower = value.trim().toLowerCase();
+  if (lower === "left" || lower === "top") return 0;
+  if (lower === "right" || lower === "bottom") return 1;
+  if (lower === "center" || lower === "") return 0.5;
+  if (lower.endsWith("%")) {
+    const pct = parseFloat(lower) / 100;
+    return Number.isFinite(pct) ? Math.max(0, Math.min(1, pct)) : 0.5;
+  }
+  // Pixel values (e.g. "10px") aren't fractional; without the slack-space
+  // numerator we can't honor them precisely. Fall back to center — this is
+  // strictly worse than the browser but matches what we'd render today.
+  if (axis === "x" || axis === "y") return 0.5;
+  return 0.5;
+}
+
+/**
+ * Parse a CSS `object-position` string like `"50% 50%"`, `"center top"`, or
+ * `"25% 75%"` into normalized `[0, 1]` fractions for X and Y.
+ *
+ * The fractions express how the slack space (the portion of the layout box
+ * not covered by the rendered content) should be distributed between the
+ * leading and trailing edges. `0` aligns to the left/top, `1` to the
+ * right/bottom, `0.5` (the default) centers the content.
+ */
+function parseObjectPosition(css: string | undefined): { x: number; y: number } {
+  if (!css || !css.trim()) return { x: 0.5, y: 0.5 };
+  const tokens = css.trim().split(/\s+/);
+  if (tokens.length === 1) {
+    const single = tokens[0] ?? "";
+    const v = parseObjectPositionAxis(single, "x");
+    return { x: v, y: 0.5 };
+  }
+  return {
+    x: parseObjectPositionAxis(tokens[0] ?? "", "x"),
+    y: parseObjectPositionAxis(tokens[1] ?? "", "y"),
+  };
+}
+
+/**
+ * Compute the rendered rectangle for an `object-fit` value.
+ *
+ * Returns the destination box (`dx`, `dy`, `dw`, `dh`) where the source image
+ * lands inside the layout box. For `cover` the rectangle extends past the
+ * layout box on the crop axis; the resampler clamps that overflow to the
+ * destination buffer bounds.
+ */
+function computeObjectFitRect(
+  srcW: number,
+  srcH: number,
+  dstW: number,
+  dstH: number,
+  fit: ObjectFit,
+  pos: { x: number; y: number },
+): { dx: number; dy: number; dw: number; dh: number } {
+  let renderedW = dstW;
+  let renderedH = dstH;
+  if (fit === "fill") {
+    return { dx: 0, dy: 0, dw: dstW, dh: dstH };
+  }
+  if (fit === "none") {
+    renderedW = srcW;
+    renderedH = srcH;
+  } else if (fit === "scale-down") {
+    // Pick the smaller of `none` and `contain` rendered sizes.
+    const scale = Math.min(dstW / srcW, dstH / srcH, 1);
+    renderedW = srcW * scale;
+    renderedH = srcH * scale;
+  } else if (fit === "cover") {
+    const scale = Math.max(dstW / srcW, dstH / srcH);
+    renderedW = srcW * scale;
+    renderedH = srcH * scale;
+  } else {
+    // contain
+    const scale = Math.min(dstW / srcW, dstH / srcH);
+    renderedW = srcW * scale;
+    renderedH = srcH * scale;
+  }
+  const dx = (dstW - renderedW) * pos.x;
+  const dy = (dstH - renderedH) * pos.y;
+  return { dx, dy, dw: renderedW, dh: renderedH };
+}
+
+/**
+ * Resample an `rgb48le` image buffer into a destination box of `dstW × dstH`,
+ * honoring CSS `object-fit` and `object-position` semantics.
+ *
+ * Used at HDR-image setup so the per-frame blit can treat the buffer as if it
+ * were sized to the element's layout box, mirroring how browsers render
+ * `<img object-fit:…>` for SDR content. Pixels that fall outside the rendered
+ * rectangle (the letterboxed/pillarboxed area for `contain` and `none`) are
+ * filled with opaque black, matching the default background for replaced
+ * elements without a transparent canvas.
+ *
+ * Sampling is bilinear, which is what `blitRgb48leAffine` already uses for
+ * its on-canvas affine scale, so a one-time resample here matches the visual
+ * quality the rest of the pipeline produces.
+ *
+ * Returns the source buffer unchanged when `dstW === srcW && dstH === srcH`
+ * and `fit === "fill"`, so callers can call this unconditionally without
+ * paying for an unnecessary copy.
+ */
+export function resampleRgb48leObjectFit(
+  source: Buffer,
+  srcW: number,
+  srcH: number,
+  dstW: number,
+  dstH: number,
+  fit: ObjectFit = "fill",
+  objectPosition?: string,
+): Buffer {
+  if (srcW <= 0 || srcH <= 0 || dstW <= 0 || dstH <= 0) {
+    return source;
+  }
+  if (fit === "fill" && srcW === dstW && srcH === dstH) {
+    return source;
+  }
+
+  const pos = parseObjectPosition(objectPosition);
+  const rect = computeObjectFitRect(srcW, srcH, dstW, dstH, fit, pos);
+  const dst = Buffer.alloc(dstW * dstH * 6); // pre-zeroed → opaque black background
+
+  const stride = dstW * 6;
+  // For each destination pixel that lies inside the rendered rect, sample
+  // the source bilinearly. Pixels outside the rect are left as the
+  // pre-zeroed black background (letterbox/pillarbox area).
+  const xMin = Math.max(0, Math.floor(rect.dx));
+  const yMin = Math.max(0, Math.floor(rect.dy));
+  const xMax = Math.min(dstW, Math.ceil(rect.dx + rect.dw));
+  const yMax = Math.min(dstH, Math.ceil(rect.dy + rect.dh));
+
+  if (rect.dw <= 0 || rect.dh <= 0) {
+    return dst;
+  }
+
+  const invScaleX = srcW / rect.dw;
+  const invScaleY = srcH / rect.dh;
+
+  for (let dy = yMin; dy < yMax; dy++) {
+    const rowOff = dy * stride;
+    const sy = (dy + 0.5 - rect.dy) * invScaleY - 0.5;
+    const syc = Math.max(0, Math.min(srcH - 1, sy));
+    const y0 = Math.floor(syc);
+    const y1 = Math.min(y0 + 1, srcH - 1);
+    const fy = syc - y0;
+    const ify = 1 - fy;
+
+    for (let dx = xMin; dx < xMax; dx++) {
+      const sx = (dx + 0.5 - rect.dx) * invScaleX - 0.5;
+      const sxc = Math.max(0, Math.min(srcW - 1, sx));
+      const x0 = Math.floor(sxc);
+      const x1 = Math.min(x0 + 1, srcW - 1);
+      const fx = sxc - x0;
+      const ifx = 1 - fx;
+
+      const off00 = (y0 * srcW + x0) * 6;
+      const off10 = (y0 * srcW + x1) * 6;
+      const off01 = (y1 * srcW + x0) * 6;
+      const off11 = (y1 * srcW + x1) * 6;
+
+      const w00 = ifx * ify;
+      const w10 = fx * ify;
+      const w01 = ifx * fy;
+      const w11 = fx * fy;
+
+      const r =
+        source.readUInt16LE(off00) * w00 +
+        source.readUInt16LE(off10) * w10 +
+        source.readUInt16LE(off01) * w01 +
+        source.readUInt16LE(off11) * w11;
+      const g =
+        source.readUInt16LE(off00 + 2) * w00 +
+        source.readUInt16LE(off10 + 2) * w10 +
+        source.readUInt16LE(off01 + 2) * w01 +
+        source.readUInt16LE(off11 + 2) * w11;
+      const b =
+        source.readUInt16LE(off00 + 4) * w00 +
+        source.readUInt16LE(off10 + 4) * w10 +
+        source.readUInt16LE(off01 + 4) * w01 +
+        source.readUInt16LE(off11 + 4) * w11;
+
+      const dstOff = rowOff + dx * 6;
+      dst.writeUInt16LE(Math.round(r), dstOff);
+      dst.writeUInt16LE(Math.round(g), dstOff + 2);
+      dst.writeUInt16LE(Math.round(b), dstOff + 4);
+    }
+  }
+
+  return dst;
+}
+
+/**
+ * Coerce a CSS `object-fit` value to the supported subset. Anything else
+ * (including `inherit`, `initial`, the empty string, or vendor-prefixed
+ * values) collapses to `"fill"` — the CSS default for replaced elements.
+ */
+export function normalizeObjectFit(value: string | undefined): ObjectFit {
+  switch ((value ?? "").trim().toLowerCase()) {
+    case "cover":
+      return "cover";
+    case "contain":
+      return "contain";
+    case "none":
+      return "none";
+    case "scale-down":
+      return "scale-down";
+    default:
+      return "fill";
+  }
+}
+
+/**
  * Parse a CSS `matrix(a,b,c,d,e,f)` string into a 6-element array.
  * Returns null for "none", empty, or unsupported formats (matrix3d).
  *
