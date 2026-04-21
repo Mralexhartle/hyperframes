@@ -1028,9 +1028,10 @@ export async function compileForRender(
           );
         }
         if (metadata.isVFR) {
-          console.warn(
-            `[Compiler] WARNING: Video "${video.id}" is variable frame rate (VFR). ` +
-              `Screen recordings and phone videos are often VFR, which causes stuttering and frame skipping in renders. Re-encode with: ${reencode}`,
+          console.info(
+            `[Compiler] Video "${video.id}" is variable frame rate (VFR); ` +
+              `the engine will normalize it to CFR before frame extraction. ` +
+              `If rendering feels slow on this video, pre-encode once with: ${reencode}`,
           );
         }
       })
