@@ -15,7 +15,7 @@ windows back-to-back.
 | C      | 4.5 – 7.0 s   | Direct `<video>` opacity tween            | pass (fixed by Chunk 1) |
 | D      | 7.0 – 9.5 s   | DOM → HDR → DOM z-order sandwich          | pass                    |
 | E      | 9.5 – 12.0 s  | Two HDR videos side-by-side (same source) | pass                    |
-| F      | 12.0 – 14.5 s | Transform + scale + border-radius         | **known fail (C4)**     |
+| F      | 12.0 – 14.5 s | Transform + scale + border-radius         | pass (fixed by Chunk 4) |
 | G      | 14.5 – 17.0 s | `object-fit: contain` letterbox           | pass                    |
 | H      | 17.0 – 20.0 s | Shader transition (HDR video → HDR image) | pass                    |
 
@@ -37,20 +37,24 @@ The test pins the contract that:
 - `hdrEncoder` writes HEVC Main10 / `yuv420p10le` / BT.2020 PQ with HDR10
   mastering display + content light level metadata.
 
-## Known failures
+## Fix history
 
-Window **F** (transform + border-radius on the video itself) is intentionally
-**expected to fail** until chunk 4 (transform + clipping pipeline) lands. Its
-broken state is currently baked into the golden, so the suite is green; when
-chunk 4 fixes the rendering path, the golden will be regenerated to match the
-correct output.
+Window **F** (transform + border-radius on the video itself) was previously
+known-failing — its broken state was baked into the golden so the suite stayed
+green while chunk 4 (transform + clipping pipeline) was outstanding. Chunk 4
+extended `parseTransformMatrix` to cover `matrix3d(...)` strings (which GSAP
+emits when `force3D: true`) and tightened the scene initial-state in
+`hyper-shader.ts` so non-first scenes start at `opacity: 0`. The golden has
+been regenerated against the corrected pipeline.
 
 Window **C** (direct `<video>` opacity) was previously known-failing — it is
 now fixed by chunk 1 (videoFrameInjector + screenshotService no longer clobber
 GSAP-controlled opacity), and the golden has been regenerated to match the
-correct output. `maxFrameFailures` was tightened from 30 → 5 to leave only a
-small budget for HEVC encoder noise; any drift larger than that will be
-caught immediately.
+correct output.
+
+`maxFrameFailures` was tightened from 30 → 5 (after chunk 1) → 0 (after chunk
+4). The HEVC encoder is deterministic against the rendered `rgb48le` frame
+buffers, so any drift in the layered HDR compositor is caught immediately.
 
 ## Fixtures
 
