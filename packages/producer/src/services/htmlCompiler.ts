@@ -23,7 +23,7 @@ import {
   rewriteAssetPaths,
   rewriteCssAssetUrls,
 } from "@hyperframes/core";
-import { extractVideoMetadata, extractAudioMetadata } from "../utils/ffprobe.js";
+import { extractMediaMetadata, extractAudioMetadata } from "../utils/ffprobe.js";
 import { isPathInside, toExternalAssetKey } from "../utils/paths.js";
 import {
   parseVideoElements,
@@ -140,7 +140,7 @@ async function resolveMediaDuration(
 
   const metadata =
     tagName === "video"
-      ? await extractVideoMetadata(filePath)
+      ? await extractMediaMetadata(filePath)
       : await extractAudioMetadata(filePath);
 
   const fileDuration = metadata.durationSeconds;
@@ -1019,7 +1019,7 @@ export async function compileForRender(
     if (isHttpUrl(video.src)) continue;
     const videoPath = resolve(projectDir, video.src);
     const reencode = `ffmpeg -i "${video.src}" -c:v libx264 -r 30 -g 30 -keyint_min 30 -movflags +faststart -c:a copy output.mp4`;
-    Promise.all([analyzeKeyframeIntervals(videoPath), extractVideoMetadata(videoPath)])
+    Promise.all([analyzeKeyframeIntervals(videoPath), extractMediaMetadata(videoPath)])
       .then(([analysis, metadata]) => {
         if (analysis.isProblematic) {
           console.warn(
