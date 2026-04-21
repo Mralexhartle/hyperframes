@@ -1,4 +1,5 @@
 import { createControls, SPEED_PRESETS, type ControlsCallbacks } from "./controls.js";
+import { selectMediaObserverTargets } from "./mediaObserverScope.js";
 import { applyPlayerStyles } from "./styles.js";
 
 const DEFAULT_FPS = 30;
@@ -64,8 +65,13 @@ class HyperframesPlayer extends HTMLElement {
 
   /**
    * Watches the iframe document for sub-composition media added after
-   * initial setup. Disconnected on iframe reload (fresh iframe = fresh
-   * observer against the new document).
+   * initial setup. A single observer instance is attached to every
+   * top-level `[data-composition-id]` host returned by
+   * `selectMediaObserverTargets` so callbacks fire only for DOM activity
+   * inside the composition tree — not for analytics scripts, telemetry
+   * markers, or other out-of-host injections the runtime makes into
+   * `<body>` during bootstrap. Disconnected on iframe reload (fresh
+   * iframe = fresh observer against the new document).
    */
   private _mediaObserver?: MutationObserver;
 
@@ -758,10 +764,19 @@ class HyperframesPlayer extends HTMLElement {
    * sub-composition activation (late-attached `<audio data-start>`) grows
    * the parent-proxy set automatically. Disconnected on iframe reload via
    * `_teardownMediaObserver`.
+   *
+   * Targets are restricted to top-level `[data-composition-id]` host nodes
+   * (or `<body>` as a last-resort fallback for non-composition documents)
+   * — see `selectMediaObserverTargets` for the rationale. A single observer
+   * instance is shared across all targets; `MutationObserver.observe` is
+   * additive, so the callback receives a single batched record stream from
+   * every host.
    */
   private _observeDynamicMedia(doc: Document): void {
     this._teardownMediaObserver();
-    if (typeof MutationObserver === "undefined" || !doc.body) return;
+    if (typeof MutationObserver === "undefined") return;
+    const targets = selectMediaObserverTargets(doc);
+    if (targets.length === 0) return;
     const obs = new MutationObserver((mutations) => {
       for (const m of mutations) {
         for (const added of m.addedNodes) {
@@ -798,7 +813,9 @@ class HyperframesPlayer extends HTMLElement {
         }
       }
     });
-    obs.observe(doc.body, { childList: true, subtree: true });
+    for (const target of targets) {
+      obs.observe(target, { childList: true, subtree: true });
+    }
     this._mediaObserver = obs;
   }
 
