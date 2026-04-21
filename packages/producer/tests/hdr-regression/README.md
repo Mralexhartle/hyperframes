@@ -8,16 +8,16 @@ windows back-to-back.
 
 ## What it covers
 
-| Window | Time          | Shape                                     | Expected            |
-| ------ | ------------- | ----------------------------------------- | ------------------- |
-| A      | 0.0 – 2.0 s   | Baseline HDR video + DOM overlay          | pass                |
-| B      | 2.0 – 4.5 s   | Wrapper opacity fade around HDR video     | pass                |
-| C      | 4.5 – 7.0 s   | Direct `<video>` opacity tween            | **known fail (C1)** |
-| D      | 7.0 – 9.5 s   | DOM → HDR → DOM z-order sandwich          | pass                |
-| E      | 9.5 – 12.0 s  | Two HDR videos side-by-side (same source) | pass                |
-| F      | 12.0 – 14.5 s | Transform + scale + border-radius         | **known fail (C4)** |
-| G      | 14.5 – 17.0 s | `object-fit: contain` letterbox           | pass                |
-| H      | 17.0 – 20.0 s | Shader transition (HDR video → HDR image) | pass                |
+| Window | Time          | Shape                                     | Expected                |
+| ------ | ------------- | ----------------------------------------- | ----------------------- |
+| A      | 0.0 – 2.0 s   | Baseline HDR video + DOM overlay          | pass                    |
+| B      | 2.0 – 4.5 s   | Wrapper opacity fade around HDR video     | pass                    |
+| C      | 4.5 – 7.0 s   | Direct `<video>` opacity tween            | pass (fixed by Chunk 1) |
+| D      | 7.0 – 9.5 s   | DOM → HDR → DOM z-order sandwich          | pass                    |
+| E      | 9.5 – 12.0 s  | Two HDR videos side-by-side (same source) | pass                    |
+| F      | 12.0 – 14.5 s | Transform + scale + border-radius         | **known fail (C4)**     |
+| G      | 14.5 – 17.0 s | `object-fit: contain` letterbox           | pass                    |
+| H      | 17.0 – 20.0 s | Shader transition (HDR video → HDR image) | pass                    |
 
 The test pins the contract that:
 
@@ -39,17 +39,18 @@ The test pins the contract that:
 
 ## Known failures
 
-Windows **C** (direct `<video>` opacity) and **F** (transform + border-radius
-on the video itself) are intentionally **expected to fail** until the
-corresponding follow-up chunks land:
+Window **F** (transform + border-radius on the video itself) is intentionally
+**expected to fail** until chunk 4 (transform + clipping pipeline) lands. Its
+broken state is currently baked into the golden, so the suite is green; when
+chunk 4 fixes the rendering path, the golden will be regenerated to match the
+correct output.
 
-- **C** — fixed by chunk 1 (videoFrameInjector opacity-walk bugs).
-- **F** — fixed by chunk 4 (transform + clipping pipeline).
-
-`maxFrameFailures` is set high enough to absorb both windows. The intent is
-that the suite stays green while we ship the fixes, **and tightens
-automatically as soon as we regenerate goldens** (chunk 1 → drop C tolerance,
-chunk 4 → drop F tolerance, eventually reaching `maxFrameFailures: 0`).
+Window **C** (direct `<video>` opacity) was previously known-failing — it is
+now fixed by chunk 1 (videoFrameInjector + screenshotService no longer clobber
+GSAP-controlled opacity), and the golden has been regenerated to match the
+correct output. `maxFrameFailures` was tightened from 30 → 5 to leave only a
+small budget for HEVC encoder noise; any drift larger than that will be
+caught immediately.
 
 ## Fixtures
 
