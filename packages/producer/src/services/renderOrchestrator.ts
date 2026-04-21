@@ -1932,7 +1932,13 @@ export async function executeRenderJob(
               (t) => i >= t.startFrame && i <= t.endFrame,
             );
 
-            if (i % 30 === 0) {
+            // Per-frame debug snapshot (every 30 frames). The meta object
+            // requires `Array.find` over `stackingInfo` plus a number-format
+            // and conditional struct allocation — non-trivial work to do
+            // every 30 frames in the encode hot loop. Gate the entire block
+            // on the logger's level check so production runs (level=info)
+            // pay nothing.
+            if (i % 30 === 0 && (log.isLevelEnabled?.("debug") ?? true)) {
               const hdrEl = stackingInfo.find((e) => e.isHdr);
               log.debug("[Render] HDR layer composite frame", {
                 frame: i,
