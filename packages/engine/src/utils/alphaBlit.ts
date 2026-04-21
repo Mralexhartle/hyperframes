@@ -850,21 +850,59 @@ export function normalizeObjectFit(value: string | undefined): ObjectFit {
 }
 
 /**
- * Parse a CSS `matrix(a,b,c,d,e,f)` string into a 6-element array.
- * Returns null for "none", empty, or unsupported formats (matrix3d).
+ * Parse a CSS `matrix(a,b,c,d,e,f)` or `matrix3d(...)` string into a 6-element
+ * 2D affine array.
  *
- * The array maps to the CSS matrix: [a, b, c, d, tx, ty] where:
+ * Returns null for `"none"`, empty input, or syntactically malformed values.
+ *
+ * The returned array maps to the CSS matrix: [a, b, c, d, tx, ty] where:
  *   | a  c  tx |     (a=scaleX, b=skewY, c=skewX, d=scaleY, tx/ty=translate)
  *   | b  d  ty |
  *   | 0  0  1  |
+ *
+ * `matrix3d` is the default output of `DOMMatrix.toString()` whenever any
+ * ancestor in the chain has used a 3D transform — most importantly GSAP's
+ * default `force3D: true`, which converts `translate(...)` into
+ * `translate3d(..., 0)` and surfaces as `matrix3d(...)` even for purely 2D
+ * animations. Without explicit handling we'd silently drop every transform
+ * driven by GSAP. The 16 values are in column-major order:
+ *
+ *   matrix3d(m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34,
+ *            m41, m42, m43, m44)
+ *
+ * The 2D affine corresponds to indices 0, 1, 4, 5, 12, 13 (m11, m12, m21,
+ * m22, m41, m42). Z, perspective, and out-of-plane rotation components are
+ * dropped — for true 3D transforms the resulting 2D projection is only
+ * approximate, but for the GSAP `force3D: true` flat-matrix case it is exact.
  */
 export function parseTransformMatrix(css: string): number[] | null {
   if (!css || css === "none") return null;
-  const match = css.match(
+
+  const match2d = css.match(
     /^matrix\(\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,)]+)\s*\)$/,
   );
-  if (!match) return null;
-  const values = match.slice(1, 7).map(Number);
-  if (!values.every(Number.isFinite)) return null;
-  return values;
+  if (match2d) {
+    const values = match2d.slice(1, 7).map(Number);
+    if (!values.every(Number.isFinite)) return null;
+    return values;
+  }
+
+  const match3d = css.match(/^matrix3d\(\s*([^)]+)\)$/);
+  if (match3d) {
+    const raw = match3d[1];
+    if (!raw) return null;
+    const parts = raw.split(",").map((s) => Number(s.trim()));
+    if (parts.length !== 16 || !parts.every(Number.isFinite)) return null;
+    // Extract column-major 2D affine: m11, m12, m21, m22, m41, m42.
+    return [
+      parts[0] as number,
+      parts[1] as number,
+      parts[4] as number,
+      parts[5] as number,
+      parts[12] as number,
+      parts[13] as number,
+    ];
+  }
+
+  return null;
 }

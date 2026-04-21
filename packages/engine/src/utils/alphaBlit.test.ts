@@ -713,8 +713,50 @@ describe("parseTransformMatrix", () => {
     expect(parseTransformMatrix("")).toBeNull();
   });
 
-  it("returns null for unsupported 3d matrix", () => {
-    expect(parseTransformMatrix("matrix3d(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1)")).toBeNull();
+  it("parses identity matrix3d (GSAP force3D default)", () => {
+    const m = parseTransformMatrix("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)");
+    expect(m).toEqual([1, 0, 0, 1, 0, 0]);
+  });
+
+  it("parses translate3d matrix3d as 2D affine (drops Z translation)", () => {
+    // translate3d(100px, 50px, 25px) — Z=25 must be dropped.
+    const m = parseTransformMatrix("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 100, 50, 25, 1)");
+    expect(m).toEqual([1, 0, 0, 1, 100, 50]);
+  });
+
+  it("parses scale + translate3d matrix3d (typical GSAP output)", () => {
+    // scale(0.85) translate3d(100px, 50px, 0) emitted by GSAP with force3D: true.
+    const m = parseTransformMatrix(
+      "matrix3d(0.85, 0, 0, 0, 0, 0.85, 0, 0, 0, 0, 1, 0, 100, 50, 0, 1)",
+    );
+    expect(m).toEqual([0.85, 0, 0, 0.85, 100, 50]);
+  });
+
+  it("parses rotation matrix3d (rotateZ via force3D)", () => {
+    // rotateZ(45deg) translate3d(0, 0, 0) — column-major.
+    const cos = Math.cos(Math.PI / 4);
+    const sin = Math.sin(Math.PI / 4);
+    const m = parseTransformMatrix(
+      `matrix3d(${cos}, ${sin}, 0, 0, ${-sin}, ${cos}, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)`,
+    );
+    expect(m).not.toBeNull();
+    if (!m) return;
+    expect(m[0]).toBeCloseTo(cos, 10);
+    expect(m[1]).toBeCloseTo(sin, 10);
+    expect(m[2]).toBeCloseTo(-sin, 10);
+    expect(m[3]).toBeCloseTo(cos, 10);
+    expect(m[4]).toBe(0);
+    expect(m[5]).toBe(0);
+  });
+
+  it("returns null for malformed matrix3d (wrong arg count)", () => {
+    expect(parseTransformMatrix("matrix3d(1, 0, 0, 0, 0, 1)")).toBeNull();
+  });
+
+  it("returns null for matrix3d with non-finite values", () => {
+    expect(
+      parseTransformMatrix("matrix3d(NaN, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)"),
+    ).toBeNull();
   });
 });
 
