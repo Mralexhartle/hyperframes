@@ -224,6 +224,7 @@ export function StudioApp() {
             labelColor={style.label}
             seekTime={0}
             duration={el.duration}
+            selector={el.selector}
           />
         );
       }
@@ -238,6 +239,7 @@ export function StudioApp() {
             labelColor={style.label}
             seekTime={el.start}
             duration={el.duration}
+            selector={el.selector}
           />
         );
       }
@@ -278,6 +280,7 @@ export function StudioApp() {
             labelColor={style.label}
             seekTime={el.start}
             duration={el.duration}
+            selector={el.selector}
           />
         );
       }
