@@ -1,12 +1,26 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { registerThumbnailRoutes } from "./thumbnail";
 import type { StudioApiAdapter } from "../types";
 
+const tempProjectDirs: string[] = [];
+
+afterEach(() => {
+  for (const dir of tempProjectDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 function createAdapter(): StudioApiAdapter {
+  const projectDir = mkdtempSync(join(tmpdir(), "hf-thumbnail-test-"));
+  tempProjectDirs.push(projectDir);
+
   return {
     listProjects: () => [],
-    resolveProject: async (id: string) => ({ id, dir: "/tmp/project" }),
+    resolveProject: async (id: string) => ({ id, dir: projectDir }),
     bundle: async () => null,
     lint: async () => ({ findings: [] }),
     runtimeUrl: "/api/runtime.js",
