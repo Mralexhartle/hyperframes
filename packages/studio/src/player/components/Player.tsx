@@ -13,6 +13,44 @@ interface PlayerProps {
 }
 
 /**
+ * Records which path the studio used to inject the composition into the
+ * player iframe — the inline `srcdoc` fast path introduced in PR #398, or
+ * the `src` fallback that lets the iframe initiate its own navigation.
+ *
+ * Discriminated so the consumer can answer two questions at once:
+ *   1. How often does the fast path actually win in the wild? (`path`)
+ *   2. When we fall back, why? (`reason`, only present on `src`)
+ *
+ * `AbortError` is intentionally NOT a fallback reason: those samples mean
+ * the component unmounted mid-fetch and the iframe never received a src at
+ * all, so they don't represent a user-visible degradation.
+ */
+type CompositionLoadPathMetric =
+  | { path: "srcdoc" }
+  | { path: "src"; reason: "fetch-error" | "non-ok-response" };
+
+/**
+ * Emit a `performance.mark()` for the composition load path. Surfaces in
+ * the DevTools Performance panel and is consumable by any RUM agent that
+ * subscribes to `performance.mark` entries via PerformanceObserver. The
+ * mark name uses the same dotted convention as runtime telemetry
+ * (`hyperframes.runtime.*`) so dashboards can group on prefix.
+ *
+ * Wrapped in try/catch because `performance.mark()` can throw on strict
+ * CSP, when the document is not yet ready, or when `detail` is
+ * non-cloneable. Telemetry must never break the load path, so we swallow
+ * any error rather than letting it bubble.
+ */
+function recordCompositionLoadPath(metric: CompositionLoadPathMetric): void {
+  try {
+    if (typeof performance === "undefined" || typeof performance.mark !== "function") return;
+    performance.mark("hyperframes.studio.composition_load_path", { detail: metric });
+  } catch {
+    // Never let telemetry failures affect the loading path.
+  }
+}
+
+/**
  * Readiness check for a Lottie animation instance. Duck-types both supported
  * player shapes:
  *
@@ -90,15 +128,78 @@ export const Player = forwardRef<HTMLIFrameElement, PlayerProps>(
 
       let canceled = false;
       let cleanup: (() => void) | undefined;
+      // Hoisted so the outer cleanup can cancel an in-flight composition fetch
+      // when the user navigates away mid-load (e.g. switches projects while a
+      // sub-composition is still being fetched).
+      const abortController = new AbortController();
+      const url = directUrl || `/api/projects/${projectId}/preview`;
 
       // Dynamic import registers the custom element in the browser only.
-      import("@hyperframes/player").then(() => {
+      import("@hyperframes/player").then(async () => {
+        if (canceled) return;
+
+        // Fetch composition HTML up-front so we can pass it via `srcdoc`
+        // instead of setting `src`. The iframe then loads the document from
+        // an inline buffer rather than initiating its own navigation request,
+        // saving the navigation/preconnect overhead on every composition
+        // switch and letting the parent's HTTP cache hit be reused across
+        // player remounts.
+        //
+        // On any failure (network error, non-2xx, abort) we fall back to the
+        // `src` path — same code path the player has always taken — so this
+        // optimization never makes things worse than before. The studio's
+        // preview routes are same-origin (`/api/projects/...`), so CORS isn't
+        // a concern for the fetch itself.
+        let html: string | null = null;
+        // Captured so the `src` branch below can tag the perf metric with the
+        // exact cause without having to re-derive it. Intentionally not set
+        // for AbortError (early return) or the success path (`html !== null`).
+        let fallbackReason: "fetch-error" | "non-ok-response" | null = null;
+        try {
+          const res = await fetch(url, { signal: abortController.signal });
+          if (res.ok) {
+            html = await res.text();
+          } else {
+            fallbackReason = "non-ok-response";
+          }
+        } catch (err) {
+          // The cleanup path aborts the controller, which rejects the fetch
+          // with AbortError. Bail without touching the DOM in that case —
+          // the component is unmounting.
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          // Other errors (offline, DNS, body decode, etc.) fall through to
+          // the src fallback. We can't distinguish "fetch never started" from
+          // "body decode failed" without more plumbing, and the reviewer ask
+          // is about srcdoc-vs-src adoption rates — one bucket is enough.
+          fallbackReason = "fetch-error";
+        }
         if (canceled) return;
 
         // Create the web component imperatively to avoid JSX custom-element typing.
         const player = document.createElement("hyperframes-player") as HyperframesPlayer;
-        const src = directUrl || `/api/projects/${projectId}/preview`;
-        player.setAttribute("src", src);
+        // Set srcdoc/src BEFORE appendChild so the iframe never loads an
+        // intermediate `about:blank` document. That matters for two reasons:
+        //   1. The first iframe `load` event must fire for the real
+        //      composition; the handler below treats `loadCountRef > 1` as a
+        //      hot-reload and replays the reveal animation. An extra
+        //      about:blank load would trip the reveal on initial mount.
+        //   2. useTimelinePlayer hangs setup off the first load — having that
+        //      run against an empty document would just be wasted work.
+        if (html !== null) {
+          player.setAttribute("srcdoc", html);
+          recordCompositionLoadPath({ path: "srcdoc" });
+        } else {
+          player.setAttribute("src", url);
+          // `fallbackReason` is set on every code path that lands here (the
+          // AbortError path returns above). The `?? "fetch-error"` is a
+          // belt-and-suspenders default in case a future refactor adds a new
+          // path that forgets to set it — better to over-attribute to
+          // fetch-error than to drop the sample entirely.
+          recordCompositionLoadPath({
+            path: "src",
+            reason: fallbackReason ?? "fetch-error",
+          });
+        }
         player.setAttribute("width", String(portrait ? 1080 : 1920));
         player.setAttribute("height", String(portrait ? 1920 : 1080));
         player.style.width = "100%";
@@ -185,6 +286,9 @@ export const Player = forwardRef<HTMLIFrameElement, PlayerProps>(
 
       return () => {
         canceled = true;
+        // Abort an in-flight composition fetch. Safe to call after the fetch
+        // resolved — abort on a settled signal is a no-op.
+        abortController.abort();
         cleanup?.();
       };
     });
