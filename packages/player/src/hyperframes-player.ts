@@ -1,5 +1,5 @@
 import { createControls, SPEED_PRESETS, type ControlsCallbacks } from "./controls.js";
-import { PLAYER_STYLES } from "./styles.js";
+import { applyPlayerStyles } from "./styles.js";
 
 const DEFAULT_FPS = 30;
 const RUNTIME_CDN_URL =
@@ -84,9 +84,7 @@ class HyperframesPlayer extends HTMLElement {
     super();
     this.shadow = this.attachShadow({ mode: "open" });
 
-    const style = document.createElement("style");
-    style.textContent = PLAYER_STYLES;
-    this.shadow.appendChild(style);
+    applyPlayerStyles(this.shadow);
 
     this.container = document.createElement("div");
     this.container.className = "hfp-container";
