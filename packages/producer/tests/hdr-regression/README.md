@@ -21,7 +21,7 @@ windows back-to-back.
 
 The test pins the contract that:
 
-- `extractVideoMetadata` reports `bt2020/smpte2084/full` for the HDR clip.
+- `extractMediaMetadata` reports `bt2020/smpte2084/full` for the HDR clip.
 - `parseImageElements` discovers the HDR PQ PNG (window H) and
   `extractStillImageMetadata` reads its `cICP` chunk.
 - `isHdrColorSpace` flips the orchestrator into the layered HDR path.
