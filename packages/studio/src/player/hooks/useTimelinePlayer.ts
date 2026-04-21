@@ -137,14 +137,28 @@ function parseTimelineFromDOM(doc: Document, rootDuration: number): TimelineElem
     const trackStr = el.getAttribute("data-track-index");
     const track = trackStr != null ? parseInt(trackStr, 10) : trackCounter++;
     const compId = el.getAttribute("data-composition-id");
+    const selector = getTimelineElementSelector(el);
+    const sourceFile = getTimelineElementSourceFile(el);
+    const selectorIndex = getTimelineElementSelectorIndex(doc, el, selector);
+    const id = el.id || compId || el.className?.split(" ")[0] || tagLower;
     const entry: TimelineElement = {
-      id: el.id || compId || el.className?.split(" ")[0] || tagLower,
+      id,
+      key: buildTimelineElementKey({
+        id,
+        fallbackIndex: els.length,
+        domId: el.id || undefined,
+        selector,
+        selectorIndex,
+        sourceFile,
+      }),
       tag: tagLower,
       start,
       duration: dur,
       track: isNaN(track) ? 0 : track,
-      selector: getTimelineElementSelector(el),
-      sourceFile: getTimelineElementSourceFile(el),
+      domId: el.id || undefined,
+      selector,
+      selectorIndex,
+      sourceFile,
     };
 
     const mediaEl = resolveMediaElement(el);
@@ -199,6 +213,38 @@ function getTimelineElementSourceFile(el: Element): string | undefined {
   );
 }
 
+function getTimelineElementSelectorIndex(
+  doc: Document,
+  el: Element,
+  selector: string | undefined,
+): number | undefined {
+  if (!selector || selector.startsWith("#") || selector.startsWith("[data-composition-id=")) {
+    return undefined;
+  }
+
+  try {
+    const matches = Array.from(doc.querySelectorAll(selector));
+    const matchIndex = matches.indexOf(el);
+    return matchIndex >= 0 ? matchIndex : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function buildTimelineElementKey(params: {
+  id: string;
+  fallbackIndex: number;
+  domId?: string;
+  selector?: string;
+  selectorIndex?: number;
+  sourceFile?: string;
+}): string {
+  const scope = params.sourceFile ?? "index.html";
+  if (params.domId) return `${scope}#${params.domId}`;
+  if (params.selector) return `${scope}:${params.selector}:${params.selectorIndex ?? 0}`;
+  return `${scope}:${params.id}:${params.fallbackIndex}`;
+}
+
 function findTimelineDomNode(doc: Document, id: string): Element | null {
   return (
     doc.getElementById(id) ??
@@ -219,6 +265,7 @@ export function buildStandaloneRootTimelineElement(params: {
   rootDuration: number;
   iframeSrc: string;
   selector?: string;
+  selectorIndex?: number;
 }): TimelineElement | null {
   if (!Number.isFinite(params.rootDuration) || params.rootDuration <= 0) return null;
 
@@ -226,12 +273,20 @@ export function buildStandaloneRootTimelineElement(params: {
 
   return {
     id: params.compositionId,
+    key: buildTimelineElementKey({
+      id: params.compositionId,
+      fallbackIndex: 0,
+      selector: params.selector,
+      selectorIndex: params.selectorIndex,
+      sourceFile: compositionSrc,
+    }),
     tag: params.tagName.toLowerCase() || "div",
     start: 0,
     duration: params.rootDuration,
     track: 0,
     compositionSrc,
     selector: params.selector,
+    selectorIndex: params.selectorIndex,
     sourceFile: compositionSrc,
   };
 }
@@ -514,10 +569,11 @@ export function useTimelinePlayer() {
       const filtered = data.clips.filter(
         (clip) => !clip.parentCompositionId || !clipCompositionIds.has(clip.parentCompositionId),
       );
-      const els: TimelineElement[] = filtered.map((clip) => {
+      const els: TimelineElement[] = filtered.map((clip, index) => {
         let hostEl: Element | null = null;
+        const id = clip.id || clip.label || clip.tagName || "element";
         const entry: TimelineElement = {
-          id: clip.id || clip.label || clip.tagName || "element",
+          id,
           tag: clip.tagName || clip.kind,
           start: clip.start,
           duration: clip.duration,
@@ -532,7 +588,13 @@ export function useTimelinePlayer() {
           /* cross-origin */
         }
         if (hostEl) {
+          const iframeDoc = iframeRef.current?.contentDocument;
+          entry.domId = hostEl.id || undefined;
           entry.selector = getTimelineElementSelector(hostEl);
+          entry.selectorIndex =
+            iframeDoc && entry.selector
+              ? getTimelineElementSelectorIndex(iframeDoc, hostEl, entry.selector)
+              : undefined;
           entry.sourceFile = getTimelineElementSourceFile(hostEl);
           applyMediaMetadataFromElement(entry, hostEl);
         }
@@ -567,10 +629,24 @@ export function useTimelinePlayer() {
             }
           }
           if (hostEl) {
+            const iframeDoc = iframeRef.current?.contentDocument;
+            entry.domId = hostEl.id || undefined;
             entry.selector = getTimelineElementSelector(hostEl);
+            entry.selectorIndex =
+              iframeDoc && entry.selector
+                ? getTimelineElementSelectorIndex(iframeDoc, hostEl, entry.selector)
+                : undefined;
             entry.sourceFile = getTimelineElementSourceFile(hostEl);
           }
         }
+        entry.key = buildTimelineElementKey({
+          id,
+          fallbackIndex: index,
+          domId: entry.domId,
+          selector: entry.selector,
+          selectorIndex: entry.selectorIndex,
+          sourceFile: entry.sourceFile,
+        });
         return entry;
       });
       const rawDuration = data.durationInFrames / 30;
@@ -682,14 +758,28 @@ export function useTimelinePlayer() {
         const track = trackStr != null ? parseInt(trackStr, 10) : 0;
         const compSrc =
           el.getAttribute("data-composition-src") || el.getAttribute("data-composition-file");
+        const selector = getTimelineElementSelector(el);
+        const sourceFile = getTimelineElementSourceFile(el);
+        const selectorIndex = getTimelineElementSelectorIndex(doc, el, selector);
+        const id = el.id || compId;
         const entry: TimelineElement = {
-          id: el.id || compId,
+          id,
+          key: buildTimelineElementKey({
+            id,
+            fallbackIndex: missing.length,
+            domId: el.id || undefined,
+            selector,
+            selectorIndex,
+            sourceFile,
+          }),
           tag: el.tagName.toLowerCase(),
           start,
           duration: dur,
           track: isNaN(track) ? 0 : track,
-          selector: getTimelineElementSelector(el),
-          sourceFile: getTimelineElementSourceFile(el),
+          domId: el.id || undefined,
+          selector,
+          selectorIndex,
+          sourceFile,
         };
         if (compSrc) {
           entry.compositionSrc = compSrc;

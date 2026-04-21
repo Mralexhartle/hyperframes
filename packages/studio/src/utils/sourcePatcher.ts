@@ -16,6 +16,7 @@ export interface PatchOperation {
 export interface PatchTarget {
   id?: string | null;
   selector?: string;
+  selectorIndex?: number;
 }
 
 /**
@@ -118,16 +119,33 @@ function patchInlineStyleByTarget(
   prop: string,
   value: string,
 ): string {
-  const tag = findTagByTarget(html, target);
-  if (!tag) return html;
-  return patchInlineStyleInTag(html, tag, prop, value);
+  const match = findTagByTarget(html, target);
+  if (!match) return html;
+  const newTag = patchInlineStyleInTag(match.tag, match.tag, prop, value);
+  return replaceTagAtMatch(html, match, newTag);
 }
 
-function findTagByTarget(html: string, target: PatchTarget): string | null {
+interface TagMatch {
+  tag: string;
+  start: number;
+  end: number;
+}
+
+function replaceTagAtMatch(html: string, match: TagMatch, newTag: string): string {
+  return `${html.slice(0, match.start)}${newTag}${html.slice(match.end)}`;
+}
+
+function findTagByTarget(html: string, target: PatchTarget): TagMatch | null {
   if (target.id) {
     const idPattern = new RegExp(`(<[^>]*\\bid="${escapeRegex(target.id)}"[^>]*)>`, "i");
     const match = idPattern.exec(html);
-    if (match) return match[1];
+    if (match?.index != null) {
+      return {
+        tag: match[1],
+        start: match.index,
+        end: match.index + match[1].length,
+      };
+    }
   }
 
   if (!target.selector) return null;
@@ -140,7 +158,13 @@ function findTagByTarget(html: string, target: PatchTarget): string | null {
       "i",
     );
     const match = pattern.exec(html);
-    if (match) return match[1];
+    if (match?.index != null) {
+      return {
+        tag: match[1],
+        start: match.index,
+        end: match.index + match[1].length,
+      };
+    }
   }
 
   const classMatch = target.selector.match(/^\.([a-zA-Z0-9_-]+)$/);
@@ -148,10 +172,21 @@ function findTagByTarget(html: string, target: PatchTarget): string | null {
     const cls = classMatch[1];
     const pattern = new RegExp(
       `(<[^>]*\\bclass=(["'])[^"']*\\b${escapeRegex(cls)}\\b[^"']*\\2[^>]*)>`,
-      "i",
+      "gi",
     );
-    const match = pattern.exec(html);
-    if (match) return match[1];
+    const selectorIndex = target.selectorIndex ?? 0;
+    let match: RegExpExecArray | null;
+    let currentIndex = 0;
+    while ((match = pattern.exec(html)) !== null) {
+      if (currentIndex === selectorIndex && match.index != null) {
+        return {
+          tag: match[1],
+          start: match.index,
+          end: match.index + match[1].length,
+        };
+      }
+      currentIndex += 1;
+    }
   }
 
   return null;
@@ -162,12 +197,12 @@ export function readAttributeByTarget(
   target: PatchTarget,
   attr: string,
 ): string | undefined {
-  const tag = findTagByTarget(html, target);
-  if (!tag) return undefined;
+  const match = findTagByTarget(html, target);
+  if (!match) return undefined;
 
   const fullAttr = attr.startsWith("data-") ? attr : `data-${attr}`;
-  const match = new RegExp(`\\b${fullAttr}="([^"]*)"`).exec(tag);
-  return match?.[1];
+  const valueMatch = new RegExp(`\\b${fullAttr}="([^"]*)"`).exec(match.tag);
+  return valueMatch?.[1];
 }
 
 function patchAttributeByTarget(
@@ -176,19 +211,20 @@ function patchAttributeByTarget(
   attr: string,
   value: string,
 ): string {
-  const tag = findTagByTarget(html, target);
-  if (!tag) return html;
+  const match = findTagByTarget(html, target);
+  if (!match) return html;
 
   const fullAttr = attr.startsWith("data-") ? attr : `data-${attr}`;
   const attrPattern = new RegExp(`\\b${fullAttr}="[^"]*"`);
+  const tag = match.tag;
 
   if (attrPattern.test(tag)) {
     const newTag = tag.replace(attrPattern, `${fullAttr}="${value}"`);
-    return html.replace(tag, newTag);
+    return replaceTagAtMatch(html, match, newTag);
   }
 
   const newTag = tag + ` ${fullAttr}="${value}"`;
-  return html.replace(tag, newTag);
+  return replaceTagAtMatch(html, match, newTag);
 }
 
 /**

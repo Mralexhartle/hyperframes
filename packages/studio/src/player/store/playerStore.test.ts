@@ -132,6 +132,19 @@ describe("usePlayerStore", () => {
       usePlayerStore.getState().updateElement("nonexistent", { start: 10 });
       expect(usePlayerStore.getState().elements[0].start).toBe(0);
     });
+
+    it("prefers the stable element key when duplicate ids exist", () => {
+      usePlayerStore.getState().setElements([
+        { id: "headline", key: "a", tag: "div", start: 0, duration: 5, track: 0 },
+        { id: "headline", key: "b", tag: "div", start: 5, duration: 5, track: 1 },
+      ]);
+
+      usePlayerStore.getState().updateElement("b", { start: 9 });
+
+      const elements = usePlayerStore.getState().elements;
+      expect(elements[0].start).toBe(0);
+      expect(elements[1].start).toBe(9);
+    });
   });
 
   describe("setZoomMode", () => {

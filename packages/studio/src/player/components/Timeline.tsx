@@ -554,7 +554,7 @@ export const Timeline = memo(function Timeline({
           resize.previewPlaybackStart !== resize.element.playbackStart;
         if (!hasChanged) return;
 
-        updateElement(resize.element.id, {
+        updateElement(resize.element.key ?? resize.element.id, {
           start: resize.previewStart,
           duration: resize.previewDuration,
           playbackStart: resize.previewPlaybackStart,
@@ -567,7 +567,7 @@ export const Timeline = memo(function Timeline({
             playbackStart: resize.previewPlaybackStart,
           }),
         ).catch((error) => {
-          updateElement(resize.element.id, {
+          updateElement(resize.element.key ?? resize.element.id, {
             start: resize.element.start,
             duration: resize.element.duration,
             playbackStart: resize.element.playbackStart,
@@ -591,7 +591,7 @@ export const Timeline = memo(function Timeline({
         drag.previewStart !== drag.element.start || drag.previewTrack !== drag.element.track;
       if (!hasChanged) return;
 
-      updateElement(drag.element.id, {
+      updateElement(drag.element.key ?? drag.element.id, {
         start: drag.previewStart,
         track: drag.previewTrack,
       });
@@ -602,7 +602,7 @@ export const Timeline = memo(function Timeline({
           track: drag.previewTrack,
         }),
       ).catch((error) => {
-        updateElement(drag.element.id, {
+        updateElement(drag.element.key ?? drag.element.id, {
           start: drag.element.start,
           track: drag.element.track,
         });
@@ -1014,13 +1014,15 @@ export const Timeline = memo(function Timeline({
                   )}
                   {els.map((el, i) => {
                     const clipStyle = getStyle(el.tag);
-                    const isSelected = selectedElementId === el.id;
+                    const elementKey = el.key ?? el.id;
+                    const isSelected = selectedElementId === elementKey;
                     const isComposition = !!el.compositionSrc;
-                    const clipKey = `${el.id}-${i}`;
+                    const clipKey = `${elementKey}-${i}`;
                     const isHovered = hoveredClip === clipKey;
                     const hasCustomContent = !!renderClipContent;
                     const isDragging =
-                      draggedClip?.started === true && draggedElement?.id === el.id;
+                      draggedClip?.started === true &&
+                      (draggedElement?.key ?? draggedElement?.id) === elementKey;
                     if (isDragging) return null;
                     const previewElement = getPreviewElement(el);
 
@@ -1077,7 +1079,7 @@ export const Timeline = memo(function Timeline({
                         onClick={(e) => {
                           e.stopPropagation();
                           if (suppressClickRef.current) return;
-                          setSelectedElementId(isSelected ? null : el.id);
+                          setSelectedElementId(isSelected ? null : elementKey);
                         }}
                         onDoubleClick={(e) => {
                           e.stopPropagation();
@@ -1109,7 +1111,9 @@ export const Timeline = memo(function Timeline({
                 el={{ ...activeDraggedElement, start: 0 }}
                 pps={pps}
                 clipY={0}
-                isSelected={selectedElementId === activeDraggedElement.id}
+                isSelected={
+                  selectedElementId === (activeDraggedElement.key ?? activeDraggedElement.id)
+                }
                 isHovered={false}
                 isDragging={true}
                 hasCustomContent={!!renderClipContent}

@@ -17,12 +17,14 @@ describe("buildStandaloneRootTimelineElement", () => {
       }),
     ).toEqual({
       id: "hero",
+      key: 'scenes/hero.html:[data-composition-id="hero"]:0',
       tag: "div",
       start: 0,
       duration: 8,
       track: 0,
       compositionSrc: "scenes/hero.html",
       selector: '[data-composition-id="hero"]',
+      selectorIndex: undefined,
       sourceFile: "scenes/hero.html",
     });
   });

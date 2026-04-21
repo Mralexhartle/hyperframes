@@ -61,4 +61,24 @@ describe("applyPatchByTarget", () => {
     expect(readAttributeByTarget(html, { selector: ".hero" }, "media-start")).toBe("0.4");
     expect(readAttributeByTarget(html, { selector: ".hero" }, "duration")).toBe("1.4");
   });
+
+  it("patches the correct duplicate selector occurrence", () => {
+    const html = [
+      `<div class="headline clip" data-start="0"></div>`,
+      `<div class="headline clip" data-start="1"></div>`,
+    ].join("");
+
+    const patched = applyPatchByTarget(
+      html,
+      { selector: ".headline", selectorIndex: 1 },
+      {
+        type: "attribute",
+        property: "start",
+        value: "2.5",
+      },
+    );
+
+    expect(patched).toContain(`<div class="headline clip" data-start="0"></div>`);
+    expect(patched).toContain(`<div class="headline clip" data-start="2.5"></div>`);
+  });
 });

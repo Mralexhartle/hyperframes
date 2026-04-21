@@ -2,12 +2,16 @@ import { create } from "zustand";
 
 export interface TimelineElement {
   id: string;
+  key?: string;
   tag: string;
   start: number;
   duration: number;
   track: number;
+  domId?: string;
   /** Best-effort selector used when patching source HTML back from timeline edits */
   selector?: string;
+  /** Zero-based occurrence index for non-unique selectors */
+  selectorIndex?: number;
   /** Source composition file that owns this element, when known */
   sourceFile?: string;
   src?: string;
@@ -86,7 +90,9 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   setSelectedElementId: (id) => set({ selectedElementId: id }),
   updateElement: (elementId, updates) =>
     set((state) => ({
-      elements: state.elements.map((el) => (el.id === elementId ? { ...el, ...updates } : el)),
+      elements: state.elements.map((el) =>
+        (el.key ?? el.id) === elementId ? { ...el, ...updates } : el,
+      ),
     })),
   // Resets project-specific state when switching compositions.
   // playbackRate, zoomMode, and pixelsPerSecond are intentionally preserved

@@ -244,7 +244,6 @@ export function StudioApp() {
             selector={el.selector}
             seekTime={0}
             duration={el.duration}
-            selector={el.selector}
           />
         );
       }
@@ -261,7 +260,6 @@ export function StudioApp() {
             selector={el.selector}
             seekTime={el.start}
             duration={el.duration}
-            selector={el.selector}
           />
         );
       }
@@ -308,7 +306,6 @@ export function StudioApp() {
             selector={el.selector}
             seekTime={el.start}
             duration={el.duration}
-            selector={el.selector}
           />
         );
       }
@@ -472,15 +469,19 @@ export function StudioApp() {
         throw new Error(`Missing file contents for ${targetPath}`);
       }
 
-      const patchTarget =
-        element.selector?.startsWith("#") || !element.selector
-          ? { id: element.id, selector: element.selector }
-          : { selector: element.selector };
+      const patchTarget = element.domId
+        ? { id: element.domId, selector: element.selector, selectorIndex: element.selectorIndex }
+        : element.selector
+          ? { selector: element.selector, selectorIndex: element.selectorIndex }
+          : null;
+      if (!patchTarget) {
+        throw new Error(`Timeline element ${element.id} is missing a patchable target`);
+      }
 
       const resolvedTargetPath = targetPath || "index.html";
       const relevantElements = timelineElements
         .map((timelineElement) =>
-          timelineElement.id === element.id
+          (timelineElement.key ?? timelineElement.id) === (element.key ?? element.id)
             ? { ...timelineElement, start: updates.start, track: updates.track }
             : timelineElement,
         )
@@ -503,10 +504,19 @@ export function StudioApp() {
         value: String(updates.track),
       });
       for (const timelineElement of relevantElements) {
-        const elementTarget =
-          timelineElement.selector?.startsWith("#") || !timelineElement.selector
-            ? { id: timelineElement.id, selector: timelineElement.selector }
-            : { selector: timelineElement.selector };
+        const elementTarget = timelineElement.domId
+          ? {
+              id: timelineElement.domId,
+              selector: timelineElement.selector,
+              selectorIndex: timelineElement.selectorIndex,
+            }
+          : timelineElement.selector
+            ? {
+                selector: timelineElement.selector,
+                selectorIndex: timelineElement.selectorIndex,
+              }
+            : null;
+        if (!elementTarget) continue;
         const nextZIndex = trackZIndices.get(timelineElement.track);
         if (nextZIndex == null) continue;
         patchedContent = applyPatchByTarget(patchedContent, elementTarget, {
@@ -561,10 +571,14 @@ export function StudioApp() {
         throw new Error(`Missing file contents for ${targetPath}`);
       }
 
-      const patchTarget =
-        element.selector?.startsWith("#") || !element.selector
-          ? { id: element.id, selector: element.selector }
-          : { selector: element.selector };
+      const patchTarget = element.domId
+        ? { id: element.domId, selector: element.selector, selectorIndex: element.selectorIndex }
+        : element.selector
+          ? { selector: element.selector, selectorIndex: element.selectorIndex }
+          : null;
+      if (!patchTarget) {
+        throw new Error(`Timeline element ${element.id} is missing a patchable target`);
+      }
 
       const playbackStartAttrName =
         element.playbackStartAttr === "playback-start" ? "playback-start" : "media-start";
