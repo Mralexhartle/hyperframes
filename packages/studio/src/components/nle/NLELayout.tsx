@@ -27,6 +27,15 @@ interface NLELayoutProps {
     element: TimelineElement,
     style: { clip: string; label: string },
   ) => ReactNode;
+  /** Persist timeline move actions back into source HTML */
+  onMoveElement?: (
+    element: TimelineElement,
+    updates: Pick<TimelineElement, "start" | "track">,
+  ) => Promise<void> | void;
+  onResizeElement?: (
+    element: TimelineElement,
+    updates: Pick<TimelineElement, "start" | "duration" | "playbackStart">,
+  ) => Promise<void> | void;
   /** Exposes the compIdToSrc map for parent components (e.g., useRenderClipContent) */
   onCompIdToSrcChange?: (map: Map<string, string>) => void;
   /** Whether the timeline panel is visible (default: true) */
@@ -50,6 +59,8 @@ export const NLELayout = memo(function NLELayout({
   onIframeRef,
   onCompositionChange,
   renderClipContent,
+  onMoveElement,
+  onResizeElement,
   onCompIdToSrcChange,
   timelineVisible,
   onToggleTimeline,
@@ -379,6 +390,8 @@ export const NLELayout = memo(function NLELayout({
                 onSeek={seek}
                 onDrillDown={handleDrillDown}
                 renderClipContent={renderClipContent}
+                onMoveElement={onMoveElement}
+                onResizeElement={onResizeElement}
               />
             </div>
             {timelineFooter && <div className="flex-shrink-0">{timelineFooter}</div>}

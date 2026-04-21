@@ -13,6 +13,11 @@ export interface PatchOperation {
   value: string;
 }
 
+export interface PatchTarget {
+  id?: string | null;
+  selector?: string;
+}
+
 /**
  * Find which source file contains an element by its ID.
  */
@@ -73,6 +78,11 @@ function patchInlineStyle(html: string, elementId: string, prop: string, value: 
   if (!match) return html;
 
   const tag = match[1];
+  return patchInlineStyleInTag(html, tag, prop, value);
+}
+
+function patchInlineStyleInTag(html: string, tag: string, prop: string, value: string): string {
+  if (!tag) return html;
 
   // Check if there's an existing style attribute
   const styleMatch = /\bstyle="([^"]*)"/.exec(tag);
@@ -100,6 +110,85 @@ function patchInlineStyle(html: string, elementId: string, prop: string, value: 
     const newTag = tag.replace(/>$/, "") + ` style="${prop}: ${value}"`;
     return html.replace(tag, newTag);
   }
+}
+
+function patchInlineStyleByTarget(
+  html: string,
+  target: PatchTarget,
+  prop: string,
+  value: string,
+): string {
+  const tag = findTagByTarget(html, target);
+  if (!tag) return html;
+  return patchInlineStyleInTag(html, tag, prop, value);
+}
+
+function findTagByTarget(html: string, target: PatchTarget): string | null {
+  if (target.id) {
+    const idPattern = new RegExp(`(<[^>]*\\bid="${escapeRegex(target.id)}"[^>]*)>`, "i");
+    const match = idPattern.exec(html);
+    if (match) return match[1];
+  }
+
+  if (!target.selector) return null;
+
+  const compositionIdMatch = target.selector.match(/^\[data-composition-id="([^"]+)"\]$/);
+  if (compositionIdMatch) {
+    const compId = compositionIdMatch[1];
+    const pattern = new RegExp(
+      `(<[^>]*\\bdata-composition-id="${escapeRegex(compId)}"[^>]*)>`,
+      "i",
+    );
+    const match = pattern.exec(html);
+    if (match) return match[1];
+  }
+
+  const classMatch = target.selector.match(/^\.([a-zA-Z0-9_-]+)$/);
+  if (classMatch) {
+    const cls = classMatch[1];
+    const pattern = new RegExp(
+      `(<[^>]*\\bclass=(["'])[^"']*\\b${escapeRegex(cls)}\\b[^"']*\\2[^>]*)>`,
+      "i",
+    );
+    const match = pattern.exec(html);
+    if (match) return match[1];
+  }
+
+  return null;
+}
+
+export function readAttributeByTarget(
+  html: string,
+  target: PatchTarget,
+  attr: string,
+): string | undefined {
+  const tag = findTagByTarget(html, target);
+  if (!tag) return undefined;
+
+  const fullAttr = attr.startsWith("data-") ? attr : `data-${attr}`;
+  const match = new RegExp(`\\b${fullAttr}="([^"]*)"`).exec(tag);
+  return match?.[1];
+}
+
+function patchAttributeByTarget(
+  html: string,
+  target: PatchTarget,
+  attr: string,
+  value: string,
+): string {
+  const tag = findTagByTarget(html, target);
+  if (!tag) return html;
+
+  const fullAttr = attr.startsWith("data-") ? attr : `data-${attr}`;
+  const attrPattern = new RegExp(`\\b${fullAttr}="[^"]*"`);
+
+  if (attrPattern.test(tag)) {
+    const newTag = tag.replace(attrPattern, `${fullAttr}="${value}"`);
+    return html.replace(tag, newTag);
+  }
+
+  const newTag = tag + ` ${fullAttr}="${value}"`;
+  return html.replace(tag, newTag);
 }
 
 /**
@@ -147,6 +236,24 @@ export function applyPatch(html: string, elementId: string, op: PatchOperation):
       return patchAttribute(html, elementId, op.property, op.value);
     case "text-content":
       return patchTextContent(html, elementId, op.value);
+    default:
+      return html;
+  }
+}
+
+export function applyPatchByTarget(html: string, target: PatchTarget, op: PatchOperation): string {
+  if (target.id) {
+    const patchedById = applyPatch(html, target.id, op);
+    if (patchedById !== html || !target.selector) {
+      return patchedById;
+    }
+  }
+
+  switch (op.type) {
+    case "inline-style":
+      return patchInlineStyleByTarget(html, target, op.property, op.value);
+    case "attribute":
+      return patchAttributeByTarget(html, target, op.property, op.value);
     default:
       return html;
   }
