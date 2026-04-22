@@ -645,6 +645,15 @@ describe("blitRgba8OverRgb48le with PQ transfer", () => {
 //    203 nits per BT.2408, normalized against PQ's 10000-nit peak. This is
 //    what lets HDR highlights live above SDR-reference-white in a PQ frame.
 //    Never "fix" PQ to map sRGB 255 → 65535.
+//
+// To regenerate after an *intentional* LUT change (transfer-function constant,
+// BT.709→BT.2020 matrix tuning, SDR-white nit reference, OOTF), run:
+//
+//   python3 packages/engine/scripts/generate-lut-reference.py --probes
+//
+// and paste the output over the SRGB_TO_HDR_REFERENCE literal below. Update
+// the script's mirrored OETF/EOTF constants in lockstep with alphaBlit.ts so
+// the generator stays the source of truth.
 
 interface SrgbHdrProbe {
   srgb: number;
