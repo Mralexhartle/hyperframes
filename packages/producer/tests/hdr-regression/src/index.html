@@ -126,7 +126,7 @@
       id="main"
       data-composition-id="hdr-regression"
       data-start="0"
-      data-duration="10"
+      data-duration="6"
       data-width="1920"
       data-height="1080"
     >
@@ -135,62 +135,66 @@
         id="wa-video"
         class="clip hdr-video"
         data-start="0"
-        data-duration="2.5"
+        data-duration="1.5"
         data-track-index="0"
         src="hdr-clip.mp4"
         muted
         playsinline
+        data-has-audio="false"
       ></video>
-      <div class="label label-tl clip" data-start="0" data-duration="2.5">
+      <div class="label label-tl clip" data-start="0" data-duration="1.5">
         A · Baseline HDR + opacity tween
       </div>
 
-      <!-- Window B · Z-order sandwich (DOM → HDR → DOM) · 2.5–5.0s -->
-      <div id="window-b-bg" class="clip" data-start="2.5" data-duration="2.5"></div>
+      <!-- Window B · Z-order sandwich (DOM → HDR → DOM) · 1.5–3.0s -->
+      <div id="window-b-bg" class="clip" data-start="1.5" data-duration="1.5"></div>
       <video
         id="wb-video"
         class="clip hdr-video"
-        data-start="2.5"
-        data-duration="2.5"
+        data-start="1.5"
+        data-duration="1.5"
         data-track-index="0"
         src="hdr-clip.mp4"
         muted
         playsinline
+        data-has-audio="false"
       ></video>
-      <div id="window-b-overlay" class="clip" data-start="2.5" data-duration="2.5"></div>
-      <div class="label label-tl clip" data-start="2.5" data-duration="2.5">
+      <div id="window-b-overlay" class="clip" data-start="1.5" data-duration="1.5"></div>
+      <div class="label label-tl clip" data-start="1.5" data-duration="1.5">
         B · DOM → HDR → DOM stack
       </div>
 
-      <!-- Window C · Transform + border-radius · 5.0–7.5s -->
-      <div id="window-c-bg" class="clip" data-start="5" data-duration="2.5"></div>
+      <!-- Window C · Transform + border-radius · 3.0–4.5s -->
+      <div id="window-c-bg" class="clip" data-start="3" data-duration="1.5"></div>
       <video
         id="wc-video"
         class="clip"
-        data-start="5"
-        data-duration="2.5"
+        data-start="3"
+        data-duration="1.5"
         data-track-index="0"
         src="hdr-clip.mp4"
         muted
         playsinline
+        data-has-audio="false"
       ></video>
-      <div class="label label-tl clip" data-start="5" data-duration="2.5">
+      <div class="label label-tl clip" data-start="3" data-duration="1.5">
         C · Rotate + scale + radius
       </div>
 
-      <!-- Window D · Shader transition (HDR video → HDR image) · 7.5–10.0s -->
+      <!-- Window D · Shader transition (HDR video → HDR image) · 4.5–6.0s -->
       <div id="window-d-scene-a" class="scene">
         <video
           id="wd-video"
           class="clip hdr-video"
-          data-start="7.5"
-          data-duration="2.5"
+          data-start="4.5"
+          data-duration="1.5"
           data-track-index="0"
           src="hdr-clip.mp4"
           muted
           playsinline
+          data-has-audio="false"
         ></video>
-        <div class="label label-tl clip" data-start="7.5" data-duration="2.5">
+        <div class="label label-tl clip" data-start="4.5" data-duration="1.5">
           D · Scene A (HDR video)
         </div>
       </div>
@@ -200,10 +204,10 @@
           class="clip hdr-image"
           src="hdr-photo-pq.png"
           alt="HDR PQ photo"
-          data-start="7.5"
-          data-duration="2.5"
+          data-start="4.5"
+          data-duration="1.5"
         />
-        <div class="label label-tl clip" data-start="7.5" data-duration="2.5">
+        <div class="label label-tl clip" data-start="4.5" data-duration="1.5">
           D · Scene B (HDR image)
         </div>
       </div>
@@ -214,23 +218,23 @@
 
       const tl = gsap.timeline({ paused: true });
 
-      // Window A · direct opacity tween on the video element
-      tl.to("#wa-video", { opacity: 0.15, duration: 1.0, ease: "power2.inOut" }, 0.5);
-      tl.to("#wa-video", { opacity: 1.0, duration: 1.0, ease: "power2.inOut" }, 1.5);
+      // Window A · direct opacity tween on the video element (0–1.5s)
+      tl.to("#wa-video", { opacity: 0.15, duration: 0.5, ease: "power2.inOut" }, 0.3);
+      tl.to("#wa-video", { opacity: 1.0, duration: 0.5, ease: "power2.inOut" }, 0.8);
 
-      // Window C · rotate + scale on the video itself
+      // Window C · rotate + scale on the video itself (3.0–4.5s)
       tl.set("#wc-video", { rotation: 0, scale: 1 }, 0);
       tl.to(
         "#wc-video",
-        { rotation: 15, scale: 0.8, duration: 2.0, ease: "power2.out" },
-        5.0,
+        { rotation: 15, scale: 0.8, duration: 1.2, ease: "power2.out" },
+        3.0,
       );
 
-      // Window D · shader transition: cross-warp-morph between Scene A and Scene B
+      // Window D · shader transition: cross-warp-morph between Scene A and Scene B (4.5–6.0s)
       HyperShader.init({
         bgColor: "#000000",
         scenes: ["window-d-scene-a", "window-d-scene-b"],
-        transitions: [{ time: 9.0, shader: "cross-warp-morph", duration: 0.7 }],
+        transitions: [{ time: 5.5, shader: "cross-warp-morph", duration: 0.7 }],
         timeline: tl,
       });
 
