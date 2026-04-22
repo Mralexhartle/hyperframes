@@ -113,6 +113,16 @@ If a classic script tag is needed instead of ESM, use the global build with the 
 </script>
 ```
 
+## Pre-delivery checklist
+
+Before saying "done", verify each item against your generated files. Each has caused silent preview failures in past runs. If any fails, fix before delivering — do not ship with "I think it should work".
+
+- [ ] `index.html` loads GSAP, then on the very next line loads `@hyperframes/core/dist/hyperframe.runtime.iife.js`. Without the runtime pre-load, the player reports ready but `currentTime` never advances and nothing moves.
+- [ ] `preview.html` sets the player's src via the inline script `document.getElementById("p").setAttribute("src", "./index.html" + location.search)` — **not** via the `src=` attribute on the tag. Without the token forward, Claude Design's sandbox serves a placeholder and the in-pane preview renders black.
+- [ ] `preview.html` is the template verbatim. No decorative chrome (no header, no wordmark, no aspect-ratio wrapper). `<hyperframes-player>` fills the viewport (`width:100vw;height:100vh`).
+- [ ] The string in `data-composition-id` on the root element and the key in `window.__timelines["..."]` are identical. A mismatch silently prevents playback (the player can't find the timeline).
+- [ ] The GSAP timeline is created with `{ paused: true }` and `.play()` is never called on it. The player and renderer drive playback.
+
 ## Output
 
 - `index.html` renders via `npx hyperframes render index.html`.
