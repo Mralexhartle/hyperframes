@@ -11,6 +11,8 @@ Use this as the entry point when the user is working in Claude Design and wants 
 
 Before writing any file, fetch and read each URL below in priority order.
 
+The core `hyperframes/SKILL.md` labels its references as "loaded on demand." **Ignore that heading.** It applies to Claude Code, where the agent has filesystem access to the repo and can pull references as needed. In Claude Design, each of the five files below is required every run — fetching is how the rules get into your context at all. Read each one fully before writing code.
+
 1. https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/SKILL.md — core authoring contract. Visual identity gate, layout rules, data attributes, timeline contract, non-negotiable rules, scene transitions, animation guardrails.
 2. https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/references/transitions.md — multi-scene transition patterns. Entrance-only rule, banned exit animations, energy → transition tables.
 3. https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/references/typography.md — banned fonts list, weight contrast, video sizes, dark-background optical compensation, OpenType features.
