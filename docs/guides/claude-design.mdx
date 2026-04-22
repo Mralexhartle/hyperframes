@@ -65,20 +65,53 @@ Strong Claude Design prompts usually include:
 
 ## Preview with `@hyperframes/player`
 
-When Claude Design generates a `preview.html`, it should embed the composition with `<hyperframes-player>`.
+When Claude Design generates a `preview.html`, it embeds the composition with `<hyperframes-player>` and forwards the Claude Design sandbox's preview token into the iframe src. Without the token forward, the in-pane preview renders black (the sandbox serves a `"preview token required"` placeholder to the iframe).
 
-Prefer the ESM CDN entry in new HTML files:
+Copy this template verbatim:
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/@hyperframes/player"></script>
-<hyperframes-player src="./index.html" controls autoplay muted></hyperframes-player>
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HyperFrames Preview</title>
+  <style>html,body{margin:0;padding:0;background:#111;height:100%;overflow:hidden}</style>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@hyperframes/player"></script>
+</head>
+<body>
+  <hyperframes-player id="p" controls autoplay muted
+    style="display:block;width:100vw;height:100vh"></hyperframes-player>
+  <script>
+    document.getElementById("p").setAttribute(
+      "src",
+      "./index.html" + location.search,
+    );
+  </script>
+</body>
+</html>
 ```
 
-If a plain classic script tag is required, use the explicit global build:
+When `location.search` is empty (opened locally, outside Claude Design's sandbox), the token-forward line is a no-op and the player loads `./index.html` as expected.
+
+The composition (`index.html`) must also pre-load the HyperFrames runtime right after GSAP so the player can drive playback inside Claude Design's sandbox:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>
+```
+
+If a classic script tag is needed instead of ESM, use the global player build with the same token-forwarding script:
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/@hyperframes/player/dist/hyperframes-player.global.js"></script>
-<hyperframes-player src="./index.html" controls autoplay muted></hyperframes-player>
+<hyperframes-player id="p" controls autoplay muted
+  style="display:block;width:100vw;height:100vh"></hyperframes-player>
+<script>
+  document.getElementById("p").setAttribute(
+    "src",
+    "./index.html" + location.search,
+  );
+</script>
 ```
 
 See [`@hyperframes/player`](/packages/player) for the full API and framework examples.

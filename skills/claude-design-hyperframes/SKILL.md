@@ -7,69 +7,119 @@ description: Claude Design entry point for HyperFrames. Use for renderable Hyper
 
 Use this as the entry point when the user is working in Claude Design and wants a real HyperFrames deliverable instead of a generic web mockup.
 
-## Fetch these upstream references first
+## Fetch these first
 
-Fetch the full HyperFrames skills tree from:
+Before writing any file, fetch and read each URL below in priority order.
 
-- https://github.com/heygen-com/hyperframes/tree/main/skills
+1. https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/SKILL.md — core authoring contract. Visual identity gate, layout rules, data attributes, timeline contract, non-negotiable rules, scene transitions, animation guardrails.
+2. https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/references/transitions.md — multi-scene transition patterns. Entrance-only rule, banned exit animations, energy → transition tables.
+3. https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/references/typography.md — banned fonts list, weight contrast, video sizes, dark-background optical compensation, OpenType features.
+4. https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/references/motion-principles.md — ease/speed/direction variety, scene build-breathe-resolve structure, choreography as hierarchy, visual composition.
+5. https://github.com/heygen-com/hyperframes/blob/main/skills/gsap/SKILL.md — GSAP API: `immediateRender` default on `from()`/`fromTo()`, `autoAlpha` vs `opacity`, transform aliases, timeline position parameters.
 
-Prioritize these files when you need focused context:
+Fetch these conditionally when the request calls for them:
 
-- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/SKILL.md
-- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes-cli/SKILL.md
-- https://github.com/heygen-com/hyperframes/blob/main/skills/website-to-hyperframes/SKILL.md
-- https://github.com/heygen-com/hyperframes/blob/main/skills/gsap/SKILL.md
-- https://github.com/heygen-com/hyperframes/blob/main/packages/player/README.md
+- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/house-style.md — anti-slop palette and typography defaults when no visual direction is given.
+- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/visual-styles.md — 8 named preset styles (Swiss Pulse, Warm Editorial, etc.).
+- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/patterns.md — PiP, title cards, slide-show patterns.
+- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/data-in-motion.md — data, stats, infographic patterns.
+- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/palettes/<name>.md — named palettes (`bold-energetic`, `clean-corporate`, `dark-premium`, `jewel-rich`, `monochrome`, `nature-earth`, `neon-electric`, `pastel-soft`, `warm-editorial`).
+- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/references/captions.md — captions, subtitles, karaoke synced to audio.
+- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/references/tts.md — narration, voiceover.
+- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/references/audio-reactive.md — music-driven animation.
+- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/references/css-patterns.md — highlighting, sketchout, burst, scribble text effects.
+- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes/references/dynamic-techniques.md — karaoke, clip-path, slam, scatter, elastic, 3D caption animations.
+- https://github.com/heygen-com/hyperframes/blob/main/skills/hyperframes-registry/SKILL.md — discover installable blocks (fetch the block HTML and paste manually; `hyperframes add` is CLI only).
+- https://github.com/heygen-com/hyperframes/blob/main/packages/player/README.md — player API details for custom embeds.
 
-This file is intentionally thin. The repo-hosted `skills/` directory above is the source of truth.
+If a URL 404s, start from https://github.com/heygen-com/hyperframes/tree/main/skills and navigate.
 
-## Surface-specific behavior
+## Surface behavior
 
-- Claude Design does not use slash commands like Claude Code.
-- Treat this file as the GitHub-hosted entry point, then fetch the upstream HyperFrames skills listed above.
-- Default deliverables are `index.html`, `preview.html`, and `README.md`. Add `timeline.js` when the animation logic is large enough that inline scripts become hard to review.
-- Prefer 1920x1080 at 30fps unless the user asks for a different aspect ratio or pacing.
+- Claude Design does not use slash commands.
+- Default deliverables: `index.html`, `preview.html`, `README.md`. Add `DESIGN.md` when brand or visual identity is specified.
+- Default to 1920x1080 at 30fps.
 
-## HyperFrames composition contract
+## Visual direction
 
-Always follow these rules:
+If the user has not specified a style, brand, palette, or mood, do not default to warm editorial (cream paper + serif + terracotta). The Visual Identity Gate in `hyperframes/SKILL.md` is not optional. Either ask one clarifying question — _"What mood — clinical, raw, luxury, warm, dramatic, playful?"_ — or commit to a specific aesthetic from `visual-styles.md`'s 8 presets that matches the content type (SaaS/data → Swiss Pulse, launches → Maximalist Type, wellness → Soft Signal, luxury → Velvet Standard, etc.). Don't serve the same aesthetic for every brief.
 
-- Root composition element must include `data-composition-id`, `data-start="0"`, `data-width`, and `data-height`.
-- Timed visual elements must include `class="clip"`, `data-start`, `data-duration`, and `data-track-index`.
-- GSAP timelines must be created with `{ paused: true }` and registered on `window.__timelines[compositionId]`.
-- Keep rendering deterministic. Do not use `Date.now()`, unseeded `Math.random()`, async timeline construction, or `repeat: -1`.
-- If the composition has video with sound, use `muted playsinline` on `<video>` and put audio on separate `<audio>` clips.
-- For multi-scene videos, add scene transitions and entrance motion instead of hard jump cuts.
+## Composition contract
+
+Apply these rules in `index.html`:
+
+- Root element must include `data-composition-id`, `data-start="0"`, `data-duration`, `data-width`, `data-height`.
+- Timed visual elements must include `class="clip"`, `data-start`, `data-duration`, `data-track-index`.
+- Load GSAP at the top of `<body>`: `<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>`.
+- Immediately after GSAP, pre-load the HyperFrames runtime: `<script src="https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js"></script>`. Required for the player to drive playback inside Claude Design's sandbox.
+- Create the GSAP timeline with `{ paused: true }` and register it on `window.__timelines[<composition-id>]`. The root's `data-composition-id` value and the `window.__timelines` key MUST be identical strings. Use `"main"` unless the brief specifies otherwise.
+- Never call `.play()` on the timeline.
+- Keep rendering deterministic. No `Date.now()`, no unseeded `Math.random()`, no `repeat: -1`, no async timeline construction.
+- Video with sound: `muted playsinline` on `<video>`, put audio on separate `<audio>` clips.
+- Multi-scene: use transitions and entrance animations. No jump cuts.
 
 ## Preview contract
 
-When you generate a preview file, use `@hyperframes/player` instead of building a custom iframe shell.
-
-Default to the ESM CDN entry in fresh HTML files:
+Copy this `preview.html` verbatim:
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/@hyperframes/player"></script>
-<hyperframes-player src="./index.html" controls autoplay muted></hyperframes-player>
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>HyperFrames Preview</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #111;
+        height: 100%;
+        overflow: hidden;
+      }
+    </style>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@hyperframes/player"></script>
+  </head>
+  <body>
+    <hyperframes-player
+      id="p"
+      controls
+      autoplay
+      muted
+      style="display:block;width:100vw;height:100vh"
+    ></hyperframes-player>
+    <script>
+      document.getElementById("p").setAttribute("src", "./index.html" + location.search);
+    </script>
+  </body>
+</html>
 ```
 
-If a plain classic script tag is required, use the explicit global build:
+The `location.search` forward is required — Claude Design's sandbox needs the `?t=<token>` query on the iframe src, and `@hyperframes/player` does not forward it on its own.
+
+If a classic script tag is needed instead of ESM, use the global build with the same token-forwarding script:
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/@hyperframes/player/dist/hyperframes-player.global.js"></script>
-<hyperframes-player src="./index.html" controls autoplay muted></hyperframes-player>
+<hyperframes-player
+  id="p"
+  controls
+  autoplay
+  muted
+  style="display:block;width:100vw;height:100vh"
+></hyperframes-player>
+<script>
+  document.getElementById("p").setAttribute("src", "./index.html" + location.search);
+</script>
 ```
 
-Add a custom transport HUD only when the user asks for it or the demo benefits from scene labels, scrubbing, or playback-rate controls.
+## Output
 
-## Output expectations
+- `index.html` renders via `npx hyperframes render index.html`.
+- `preview.html` plays inside Claude Design's in-pane preview and locally after downloading the ZIP.
+- `README.md` explains how to preview and render.
 
-The output should feel like a HyperFrames handoff, not just a concept:
-
-- `index.html` should be previewable in a browser and renderable by HyperFrames.
-- `preview.html` should open cleanly and embed the composition with `<hyperframes-player>`.
-- `README.md` should explain how to preview and render the result with `npx hyperframes preview` and `npx hyperframes render`.
-
-## Example prompt shapes
+## Example prompts
 
 - `Use https://github.com/heygen-com/hyperframes/blob/main/skills/claude-design-hyperframes/SKILL.md and make a 20-second product launch video about our new API. Deliver index.html, preview.html, and README.md.`
 - `Use the HyperFrames Claude Design skill at https://github.com/heygen-com/hyperframes/blob/main/skills/claude-design-hyperframes/SKILL.md and turn https://www.anthropic.com/news/claude-design-anthropic-labs into a 45-second editorial launch video.`
