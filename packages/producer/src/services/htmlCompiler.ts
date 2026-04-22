@@ -79,10 +79,6 @@ function stripJsComments(source: string): string {
   return source.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
 }
 
-function isCompilerInlinedGsapScript(source: string): boolean {
-  return /\/\*\s*inlined:\s+.*\bgsap(?:\.min)?\.js\b/i.test(source);
-}
-
 export function detectRenderModeHints(html: string): RenderModeHints {
   const reasons: RenderModeHint[] = [];
   const { document } = parseHTML(html);
@@ -100,9 +96,7 @@ export function detectRenderModeHints(html: string): RenderModeHints {
   while ((scriptMatch = scriptPattern.exec(html)) !== null) {
     const attrs = scriptMatch[1] || "";
     if (/\bsrc\s*=/i.test(attrs)) continue;
-    const rawContent = scriptMatch[2] || "";
-    if (isCompilerInlinedGsapScript(rawContent)) continue;
-    const content = stripJsComments(rawContent);
+    const content = stripJsComments(scriptMatch[2] || "");
     if (!/requestAnimationFrame\s*\(/.test(content)) continue;
     reasons.push({
       code: "requestAnimationFrame",
@@ -671,17 +665,13 @@ function inlineSubCompositions(
   };
   if (!__compId) { __run(); return; }
   var __selector = '[data-composition-id="' + (__compId + '').replace(/"/g, '\\\\"') + '"]';
-  var __hfCompilerAttempts = 0;
-  var __hfCompilerSchedule =
-    typeof window !== "undefined" && typeof window.requestAnimationFrame === "function"
-      ? window.requestAnimationFrame.bind(window)
-      : function(callback) { return setTimeout(callback, 16); };
-  var __hfCompilerRunWhenMounted = function() {
+  var __attempt = 0;
+  var __tryRun = function() {
     if (document.querySelector(__selector)) { __run(); return; }
-    if (++__hfCompilerAttempts >= 8) { __run(); return; }
-    __hfCompilerSchedule(__hfCompilerRunWhenMounted);
+    if (++__attempt >= 8) { __run(); return; }
+    requestAnimationFrame(__tryRun);
   };
-  __hfCompilerRunWhenMounted();
+  __tryRun();
 })()`);
       }
       scriptEl.remove();
