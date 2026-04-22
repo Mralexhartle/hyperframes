@@ -71,15 +71,7 @@ let _flush: (() => Promise<void>) | undefined;
 let _flushSync: (() => void) | undefined;
 let _printUpdateNotice: (() => void) | undefined;
 
-if (!isHelp && command !== "telemetry" && command !== "unknown") {
-  import("./telemetry/index.js").then((mod) => {
-    _flush = mod.flush;
-    _flushSync = mod.flushSync;
-    mod.showTelemetryNotice();
-    mod.trackCommand(command);
-    if (mod.shouldTrack()) mod.incrementCommandCount();
-  });
-}
+// Telemetry permanently disabled in this fork.
 
 if (!isHelp && !hasJsonFlag && command !== "upgrade") {
   // Report any completed auto-install from the previous run first, before

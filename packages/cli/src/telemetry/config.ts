@@ -54,9 +54,9 @@ export interface HyperframesConfig {
 }
 
 const DEFAULT_CONFIG: HyperframesConfig = {
-  telemetryEnabled: true,
+  telemetryEnabled: false,
   anonymousId: "",
-  telemetryNoticeShown: false,
+  telemetryNoticeShown: true,
   commandCount: 0,
 };
 
